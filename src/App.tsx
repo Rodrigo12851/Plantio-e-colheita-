@@ -3110,12 +3110,37 @@ export default function App() {
                         value={formData.cCultura || ''}
                         onChange={e => {
                           const newCultura = e.target.value;
-                          const ha = lookupPlantedHectaresForSelection(newCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade);
-                          const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, newCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
+                          const validFazendas = getPlantioFazendas(newCultura);
+                          const newFazenda = validFazendas.some(f => f.nome === formData.cFazenda)
+                            ? formData.cFazenda
+                            : (validFazendas.length === 1 ? validFazendas[0].nome : '');
+
+                          const validPivos = getPlantioPivos(newFazenda, newCultura);
+                          const newPivo = validPivos.some(p => p.nome === formData.cPivo)
+                            ? formData.cPivo
+                            : (validPivos.length === 1 ? validPivos[0].nome : '');
+
+                          const validGlebas = getPlantioGlebas(newPivo, newFazenda, newCultura);
+                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
+                            ? formData.cGleba
+                            : (validGlebas.length === 1 ? validGlebas[0].nome : '');
+
+                          const validVars = getPlantioVariedades(newCultura, newFazenda, newPivo, newGleba);
+                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                            ? formData.cVariedade
+                            : (validVars.length === 1 ? validVars[0].nome : '');
+
+                          const ha = lookupPlantedHectaresForSelection(newCultura, newFazenda, newPivo, newGleba, newVar);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, newCultura, newFazenda, newPivo, newGleba, newVar, editingIndex);
+
                           setFormData({
                             ...formData,
                             cCultura: newCultura,
+                            cFazenda: newFazenda,
+                            cPivo: newPivo,
+                            cGleba: newGleba,
+                            cVariedade: newVar,
                             cHaGeral: newHaGeral,
                             cHaRestante: newRestante
                           });
@@ -3126,7 +3151,7 @@ export default function App() {
                         {getPlantioCulturas().map((c, i) => (
                           <option key={i} value={c.nome}>{c.nome}</option>
                         ))}
-                        {formData.cCultura && !getPlantioCulturas().some(c => c.nome === formData.cCultura) && (
+                        {editingIndex !== null && formData.cCultura && !getPlantioCulturas().some(c => c.nome === formData.cCultura) && (
                           <option value={formData.cCultura}>{formData.cCultura}</option>
                         )}
                       </select>
@@ -3137,12 +3162,31 @@ export default function App() {
                         value={formData.cFazenda || ''}
                         onChange={e => {
                           const newFazenda = e.target.value;
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, newFazenda, formData.cPivo, formData.cGleba, formData.cVariedade);
-                          const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, newFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
+                          const validPivos = getPlantioPivos(newFazenda, formData.cCultura);
+                          const newPivo = validPivos.some(p => p.nome === formData.cPivo)
+                            ? formData.cPivo
+                            : (validPivos.length === 1 ? validPivos[0].nome : '');
+
+                          const validGlebas = getPlantioGlebas(newPivo, newFazenda, formData.cCultura);
+                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
+                            ? formData.cGleba
+                            : (validGlebas.length === 1 ? validGlebas[0].nome : '');
+
+                          const validVars = getPlantioVariedades(formData.cCultura, newFazenda, newPivo, newGleba);
+                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                            ? formData.cVariedade
+                            : (validVars.length === 1 ? validVars[0].nome : '');
+
+                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, newFazenda, newPivo, newGleba, newVar);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, newFazenda, newPivo, newGleba, newVar, editingIndex);
+
                           setFormData({
                             ...formData,
                             cFazenda: newFazenda,
+                            cPivo: newPivo,
+                            cGleba: newGleba,
+                            cVariedade: newVar,
                             cHaGeral: newHaGeral,
                             cHaRestante: newRestante
                           });
@@ -3153,7 +3197,7 @@ export default function App() {
                         {getPlantioFazendas(formData.cCultura).map((f, i) => (
                           <option key={i} value={f.nome}>{f.nome}</option>
                         ))}
-                        {formData.cFazenda && !getPlantioFazendas(formData.cCultura).some(f => f.nome === formData.cFazenda) && (
+                        {editingIndex !== null && formData.cFazenda && !getPlantioFazendas(formData.cCultura).some(f => f.nome === formData.cFazenda) && (
                           <option value={formData.cFazenda}>{formData.cFazenda}</option>
                         )}
                       </select>
@@ -3164,12 +3208,25 @@ export default function App() {
                         value={formData.cPivo || ''}
                         onChange={e => {
                           const newPivo = e.target.value;
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, newPivo, formData.cGleba, formData.cVariedade);
-                          const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, newPivo, formData.cGleba, formData.cVariedade, editingIndex);
+                          const validGlebas = getPlantioGlebas(newPivo, formData.cFazenda, formData.cCultura);
+                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
+                            ? formData.cGleba
+                            : (validGlebas.length === 1 ? validGlebas[0].nome : '');
+
+                          const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, newPivo, newGleba);
+                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                            ? formData.cVariedade
+                            : (validVars.length === 1 ? validVars[0].nome : '');
+
+                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, newPivo, newGleba, newVar);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, newPivo, newGleba, newVar, editingIndex);
+
                           setFormData({
                             ...formData,
                             cPivo: newPivo,
+                            cGleba: newGleba,
+                            cVariedade: newVar,
                             cHaGeral: newHaGeral,
                             cHaRestante: newRestante
                           });
@@ -3179,7 +3236,7 @@ export default function App() {
                         {getPlantioPivos(formData.cFazenda, formData.cCultura).map((p, i) => (
                           <option key={i} value={p.nome}>{p.nome}</option>
                         ))}
-                        {formData.cPivo && formData.cPivo !== '-' && !getPlantioPivos(formData.cFazenda, formData.cCultura).some(p => p.nome === formData.cPivo) && (
+                        {editingIndex !== null && formData.cPivo && formData.cPivo !== '-' && !getPlantioPivos(formData.cFazenda, formData.cCultura).some(p => p.nome === formData.cPivo) && (
                           <option value={formData.cPivo}>{formData.cPivo}</option>
                         )}
                       </select>
@@ -3190,12 +3247,19 @@ export default function App() {
                         value={formData.cGleba || ''}
                         onChange={e => {
                           const newGleba = e.target.value;
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, formData.cVariedade);
-                          const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, formData.cVariedade, editingIndex);
+                          const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba);
+                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                            ? formData.cVariedade
+                            : (validVars.length === 1 ? validVars[0].nome : '');
+
+                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, newVar);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, newVar, editingIndex);
+
                           setFormData({
                             ...formData,
                             cGleba: newGleba,
+                            cVariedade: newVar,
                             cHaGeral: newHaGeral,
                             cHaRestante: newRestante
                           });
@@ -3205,7 +3269,7 @@ export default function App() {
                         {getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).map((g, i) => (
                           <option key={i} value={g.nome}>{g.nome}</option>
                         ))}
-                        {formData.cGleba && formData.cGleba !== '-' && !getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).some(g => g.nome === formData.cGleba) && (
+                        {editingIndex !== null && formData.cGleba && formData.cGleba !== '-' && !getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).some(g => g.nome === formData.cGleba) && (
                           <option value={formData.cGleba}>{formData.cGleba}</option>
                         )}
                       </select>
@@ -3217,8 +3281,9 @@ export default function App() {
                         onChange={e => {
                           const newVar = e.target.value;
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, newVar);
-                          const newHaGeral = ha || formData.cHaGeral || '';
+                          const newHaGeral = ha || '';
                           const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, newVar, editingIndex);
+
                           setFormData({
                             ...formData,
                             cVariedade: newVar,
@@ -3231,7 +3296,7 @@ export default function App() {
                         {getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).map((v, i) => (
                           <option key={i} value={v.nome}>{v.nome}</option>
                         ))}
-                        {formData.cVariedade && formData.cVariedade !== '-' && !getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).some(v => v.nome === formData.cVariedade) && (
+                        {editingIndex !== null && formData.cVariedade && formData.cVariedade !== '-' && !getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).some(v => v.nome === formData.cVariedade) && (
                           <option value={formData.cVariedade}>{formData.cVariedade}</option>
                         )}
                       </select>
