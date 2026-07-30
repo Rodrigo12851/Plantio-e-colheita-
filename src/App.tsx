@@ -222,6 +222,15 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('agri_selectedUnidade', JSON.stringify(selectedUnidade));
+    setSelectedEmpresaForTie('');
+    setSelectedAnoForTie('');
+    setSelectedCulturaForTie('');
+    setSelectedFazendaForTie('');
+    setSelectedPivoForTie('');
+    setSelectedGlebaForTie('');
+    setSelectedVariedadeForTie('');
+    setTieHectares('');
+    setTieObservacao('');
   }, [selectedUnidade]);
 
   const getUnitInitials = (unitName: string): string => {
@@ -546,8 +555,9 @@ export default function App() {
     const fLower = (fazendaName || '').trim().toLowerCase();
 
     let rawTieHa = '';
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
 
-    for (const tie of amarracoesData) {
+    for (const tie of unitAmarracoes) {
       if (tie.hectares) {
         const fullText = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchGleba = !gLower || fullText.includes(gLower);
@@ -561,7 +571,7 @@ export default function App() {
     }
 
     if (!rawTieHa) {
-      for (const tie of amarracoesData) {
+      for (const tie of unitAmarracoes) {
         const fullText = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchGleba = gLower && fullText.includes(gLower);
         const matchPivo = pLower && fullText.includes(pLower);
@@ -587,14 +597,16 @@ export default function App() {
 
   // Cascading tie helper functions:
   const getLinkedPivosForFazenda = (fazendaName: string) => {
-    if (!fazendaName) return pivosData;
+    const unitPivos = pivosData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!fazendaName) return unitPivos;
     const fLower = fazendaName.trim().toLowerCase();
     const linkedPivoNames = new Set<string>();
 
-    amarracoesData.forEach(tie => {
+    unitAmarracoes.forEach(tie => {
       const fullText = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
       if (fullText.includes(fLower)) {
-        pivosData.forEach(p => {
+        unitPivos.forEach(p => {
           if (fullText.includes(p.nome.trim().toLowerCase())) {
             linkedPivoNames.add(p.nome.trim().toLowerCase());
           }
@@ -602,23 +614,25 @@ export default function App() {
       }
     });
 
-    if (linkedPivoNames.size === 0) return pivosData;
-    return pivosData.filter(p => linkedPivoNames.has(p.nome.trim().toLowerCase()));
+    if (linkedPivoNames.size === 0) return unitPivos;
+    return unitPivos.filter(p => linkedPivoNames.has(p.nome.trim().toLowerCase()));
   };
 
   const getLinkedGlebasForPivo = (pivoName: string, fazendaName: string) => {
-    if (!pivoName && !fazendaName) return glebasData;
+    const unitGlebas = glebasData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!pivoName && !fazendaName) return unitGlebas;
     const pLower = (pivoName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
     const linkedGlebaNames = new Set<string>();
 
-    amarracoesData.forEach(tie => {
+    unitAmarracoes.forEach(tie => {
       const fullText = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
       const hasPivoMatch = pLower ? fullText.includes(pLower) : true;
       const hasFazendaMatch = fLower ? fullText.includes(fLower) : true;
 
       if (hasPivoMatch && hasFazendaMatch) {
-        glebasData.forEach(g => {
+        unitGlebas.forEach(g => {
           if (fullText.includes(g.nome.trim().toLowerCase())) {
             linkedGlebaNames.add(g.nome.trim().toLowerCase());
           }
@@ -626,8 +640,8 @@ export default function App() {
       }
     });
 
-    if (linkedGlebaNames.size === 0) return glebasData;
-    return glebasData.filter(g => linkedGlebaNames.has(g.nome.trim().toLowerCase()));
+    if (linkedGlebaNames.size === 0) return unitGlebas;
+    return unitGlebas.filter(g => linkedGlebaNames.has(g.nome.trim().toLowerCase()));
   };
 
   // Helper to lookup full original planted hectares in plantioData for Colheita selection
@@ -638,7 +652,8 @@ export default function App() {
     glebaName?: string,
     variedadeName?: string
   ): string => {
-    if (!plantioData || plantioData.length === 0) return '';
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return '';
     if (!culturaName && !fazendaName && !pivoName && !glebaName) return '';
 
     const cLower = (culturaName || '').trim().toLowerCase();
@@ -647,7 +662,7 @@ export default function App() {
     const gLower = (glebaName || '').trim().toLowerCase();
     const vLower = (variedadeName || '').trim().toLowerCase();
 
-    const matches = plantioData.filter(p => {
+    const matches = unitPlantio.filter(p => {
       const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
       const matchFaz = !fLower || (p.fazenda || '').trim().toLowerCase() === fLower;
       const matchPiv = !pLower || pLower === '-' || (p.pivo || '').trim().toLowerCase() === pLower;
@@ -662,7 +677,7 @@ export default function App() {
         totalPlanted += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
       });
     } else {
-      const looseMatches = plantioData.filter(p => {
+      const looseMatches = unitPlantio.filter(p => {
         const matchFaz = fLower && (p.fazenda || '').trim().toLowerCase() === fLower;
         const matchGleb = gLower && gLower !== '-' && (p.gleba || '').trim().toLowerCase() === gLower;
         const matchPiv = pLower && pLower !== '-' && (p.pivo || '').trim().toLowerCase() === pLower;
@@ -679,27 +694,31 @@ export default function App() {
 
   // --- PLANTIO OPTION HELPERS (Pull only items linked in amarracoesData) ---
   const getAmarracoesEmpresas = () => {
-    if (!amarracoesData || amarracoesData.length === 0) return empresasData;
-    const linked = empresasData.filter(e => {
+    const unitEmpresas = empresasData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return unitEmpresas;
+    const linked = unitEmpresas.filter(e => {
       const eName = e.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         return text.includes(eName);
       });
     });
-    return linked.length > 0 ? linked : empresasData;
+    return linked.length > 0 ? linked : unitEmpresas;
   };
 
   const getAmarracoesAnos = (empresaName?: string, culturaName?: string, fazendaName?: string) => {
-    if (!amarracoesData || amarracoesData.length === 0) return anosData;
+    const unitAnos = anosData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return unitAnos;
     const eLower = (empresaName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
 
-    const linked = anosData.filter(a => {
+    const linked = unitAnos.filter(a => {
       const aName = a.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchAno = text.includes(aName);
@@ -712,37 +731,41 @@ export default function App() {
 
     if (linked.length > 0) return linked;
 
-    const allTiedAnos = anosData.filter(a => {
+    const allTiedAnos = unitAnos.filter(a => {
       const aName = a.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         return text.includes(aName);
       });
     });
 
-    return allTiedAnos.length > 0 ? allTiedAnos : anosData;
+    return allTiedAnos.length > 0 ? allTiedAnos : unitAnos;
   };
 
   const getAmarracoesCulturas = () => {
-    if (!amarracoesData || amarracoesData.length === 0) return culturasData;
-    const linked = culturasData.filter(c => {
+    const unitCulturas = culturasData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return unitCulturas;
+    const linked = unitCulturas.filter(c => {
       const cName = c.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         return text.includes(cName);
       });
     });
-    return linked.length > 0 ? linked : culturasData;
+    return linked.length > 0 ? linked : unitCulturas;
   };
 
   const getAmarracoesFazendas = (culturaName?: string) => {
-    if (!amarracoesData || amarracoesData.length === 0) return fazendasData;
+    const unitFazendas = fazendasData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return unitFazendas;
     const cLower = (culturaName || '').trim().toLowerCase();
-    const linked = fazendasData.filter(f => {
+    const linked = unitFazendas.filter(f => {
       const fName = f.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchFazenda = text.includes(fName);
@@ -750,19 +773,20 @@ export default function App() {
         return matchFazenda && matchCultura;
       });
     });
-    return linked.length > 0 ? linked : fazendasData;
+    return linked.length > 0 ? linked : unitFazendas;
   };
 
   const getAmarracoesPivos = (fazendaName?: string, culturaName?: string) => {
     if (!fazendaName) return [];
     const basePivos = getLinkedPivosForFazenda(fazendaName || '');
-    if (!amarracoesData || amarracoesData.length === 0) return basePivos;
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return basePivos;
     const fLower = (fazendaName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
 
     const linked = basePivos.filter(p => {
       const pName = p.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchPivo = text.includes(pName);
@@ -777,14 +801,15 @@ export default function App() {
   const getAmarracoesGlebas = (pivoName?: string, fazendaName?: string, culturaName?: string) => {
     if (!fazendaName) return [];
     const baseGlebas = getLinkedGlebasForPivo(pivoName || '', fazendaName || '');
-    if (!amarracoesData || amarracoesData.length === 0) return baseGlebas;
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return baseGlebas;
     const pLower = (pivoName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
 
     const linked = baseGlebas.filter(g => {
       const gName = g.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchGleba = text.includes(gName);
@@ -798,13 +823,15 @@ export default function App() {
   };
 
   const getAmarracoesVariedades = (culturaName?: string) => {
+    const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
     const cLower = (culturaName || '').trim().toLowerCase();
-    const filtered = variedadesData.filter(v => !cLower || (v.cultura && v.cultura.trim().toLowerCase() === cLower));
-    if (!amarracoesData || amarracoesData.length === 0) return filtered;
+    const filtered = unitVariedades.filter(v => !cLower || (v.cultura && v.cultura.trim().toLowerCase() === cLower));
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return filtered;
 
     const linked = filtered.filter(v => {
       const vName = v.nome.trim().toLowerCase();
-      return amarracoesData.some(tie => {
+      return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         return text.includes(vName);
@@ -815,35 +842,41 @@ export default function App() {
 
   // --- COLHEITA OPTION HELPERS (Pull only items that exist in plantioData) ---
   const getPlantioCulturas = () => {
-    if (!plantioData || plantioData.length === 0) return [];
-    const plantioCultureNames = new Set(plantioData.map(p => (p.cultura || '').trim().toLowerCase()));
-    const filtered = culturasData.filter(c => plantioCultureNames.has(c.nome.trim().toLowerCase()));
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    const unitCulturas = culturasData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return [];
+    const plantioCultureNames = new Set(unitPlantio.map(p => (p.cultura || '').trim().toLowerCase()));
+    const filtered = unitCulturas.filter(c => plantioCultureNames.has(c.nome.trim().toLowerCase()));
     const extra = Array.from(plantioCultureNames)
-      .filter(name => name && !culturasData.some(c => c.nome.trim().toLowerCase() === name))
-      .map((name, i) => ({ codigo: `p-cult-${i}`, nome: plantioData.find(p => p.cultura?.trim().toLowerCase() === name)?.cultura || name }));
+      .filter(name => name && !unitCulturas.some(c => c.nome.trim().toLowerCase() === name))
+      .map((name, i) => ({ codigo: `p-cult-${i}`, nome: unitPlantio.find(p => p.cultura?.trim().toLowerCase() === name)?.cultura || name }));
     return [...filtered, ...extra];
   };
 
   const getPlantioFazendas = (culturaName?: string) => {
-    if (!plantioData || plantioData.length === 0) return [];
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    const unitFazendas = fazendasData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return [];
     const cLower = (culturaName || '').trim().toLowerCase();
-    const matching = plantioData.filter(p => !cLower || (p.cultura || '').trim().toLowerCase() === cLower);
+    const matching = unitPlantio.filter(p => !cLower || (p.cultura || '').trim().toLowerCase() === cLower);
     const fazendaNames = new Set(matching.map(p => (p.fazenda || '').trim().toLowerCase()));
 
-    const filtered = fazendasData.filter(f => fazendaNames.has(f.nome.trim().toLowerCase()));
+    const filtered = unitFazendas.filter(f => fazendaNames.has(f.nome.trim().toLowerCase()));
     const extra = Array.from(fazendaNames)
-      .filter(name => name && !fazendasData.some(f => f.nome.trim().toLowerCase() === name))
+      .filter(name => name && !unitFazendas.some(f => f.nome.trim().toLowerCase() === name))
       .map((name, i) => ({ codigo: `p-faz-${i}`, nome: matching.find(p => p.fazenda?.trim().toLowerCase() === name)?.fazenda || name }));
     return [...filtered, ...extra];
   };
 
   const getPlantioPivos = (fazendaName?: string, culturaName?: string) => {
-    if (!plantioData || plantioData.length === 0) return [];
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    const unitPivos = pivosData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return [];
     const fLower = (fazendaName || '').trim().toLowerCase();
     if (!fLower) return [];
     const cLower = (culturaName || '').trim().toLowerCase();
 
-    const matching = plantioData.filter(p => {
+    const matching = unitPlantio.filter(p => {
       const matchFaz = (p.fazenda || '').trim().toLowerCase() === fLower;
       const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
       return matchFaz && matchCult;
@@ -851,21 +884,23 @@ export default function App() {
 
     const pivoNames = new Set(matching.map(p => (p.pivo || '').trim().toLowerCase()));
 
-    const filtered = pivosData.filter(p => pivoNames.has(p.nome.trim().toLowerCase()));
+    const filtered = unitPivos.filter(p => pivoNames.has(p.nome.trim().toLowerCase()));
     const extra = Array.from(pivoNames)
-      .filter(name => name && name !== '-' && !pivosData.some(p => p.nome.trim().toLowerCase() === name))
+      .filter(name => name && name !== '-' && !unitPivos.some(p => p.nome.trim().toLowerCase() === name))
       .map((name, i) => ({ codigo: `p-piv-${i}`, nome: matching.find(p => p.pivo?.trim().toLowerCase() === name)?.pivo || name }));
     return [...filtered, ...extra];
   };
 
   const getPlantioGlebas = (pivoName?: string, fazendaName?: string, culturaName?: string) => {
-    if (!plantioData || plantioData.length === 0) return [];
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    const unitGlebas = glebasData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return [];
     const fLower = (fazendaName || '').trim().toLowerCase();
     if (!fLower) return [];
     const pLower = (pivoName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
 
-    const matching = plantioData.filter(p => {
+    const matching = unitPlantio.filter(p => {
       const matchPiv = !pLower || pLower === '-' || (p.pivo || '').trim().toLowerCase() === pLower;
       const matchFaz = (p.fazenda || '').trim().toLowerCase() === fLower;
       const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
@@ -874,21 +909,23 @@ export default function App() {
 
     const glebaNames = new Set(matching.map(p => (p.gleba || '').trim().toLowerCase()));
 
-    const filtered = glebasData.filter(g => glebaNames.has(g.nome.trim().toLowerCase()));
+    const filtered = unitGlebas.filter(g => glebaNames.has(g.nome.trim().toLowerCase()));
     const extra = Array.from(glebaNames)
-      .filter(name => name && name !== '-' && !glebasData.some(g => g.nome.trim().toLowerCase() === name))
+      .filter(name => name && name !== '-' && !unitGlebas.some(g => g.nome.trim().toLowerCase() === name))
       .map((name, i) => ({ codigo: `p-gleb-${i}`, nome: matching.find(p => p.gleba?.trim().toLowerCase() === name)?.gleba || name }));
     return [...filtered, ...extra];
   };
 
   const getPlantioVariedades = (culturaName?: string, fazendaName?: string, pivoName?: string, glebaName?: string) => {
-    if (!plantioData || plantioData.length === 0) return [];
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return [];
     const cLower = (culturaName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
     const pLower = (pivoName || '').trim().toLowerCase();
     const gLower = (glebaName || '').trim().toLowerCase();
 
-    const matching = plantioData.filter(p => {
+    const matching = unitPlantio.filter(p => {
       const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
       const matchFaz = !fLower || (p.fazenda || '').trim().toLowerCase() === fLower;
       const matchPiv = !pLower || pLower === '-' || (p.pivo || '').trim().toLowerCase() === pLower;
@@ -898,9 +935,9 @@ export default function App() {
 
     const variedadeNames = new Set(matching.map(p => (p.variedade || '').trim().toLowerCase()));
 
-    const filtered = variedadesData.filter(v => variedadeNames.has(v.nome.trim().toLowerCase()));
+    const filtered = unitVariedades.filter(v => variedadeNames.has(v.nome.trim().toLowerCase()));
     const extra = Array.from(variedadeNames)
-      .filter(name => name && name !== '-' && !variedadesData.some(v => v.nome.trim().toLowerCase() === name))
+      .filter(name => name && name !== '-' && !unitVariedades.some(v => v.nome.trim().toLowerCase() === name))
       .map((name, i) => ({
         codigo: `p-var-${i}`,
         nome: matching.find(p => p.variedade?.trim().toLowerCase() === name)?.variedade || name,
@@ -913,7 +950,7 @@ export default function App() {
     const nextCultura = selectedCulturaForTie === culturaNome ? '' : culturaNome;
     setSelectedCulturaForTie(nextCultura);
     if (nextCultura && selectedVariedadeForTie) {
-      const isValidVar = variedadesData.some(v => v.nome === selectedVariedadeForTie && v.cultura?.trim().toLowerCase() === nextCultura.trim().toLowerCase());
+      const isValidVar = variedadesData.filter(isItemInSelectedUnidade).some(v => v.nome === selectedVariedadeForTie && v.cultura?.trim().toLowerCase() === nextCultura.trim().toLowerCase());
       if (!isValidVar) {
         setSelectedVariedadeForTie('');
       }
@@ -1888,7 +1925,7 @@ export default function App() {
         showToast('O código deve conter apenas números.', 'warning');
         return;
       }
-      const isDuplicate = variedadesData.some((v, i) => i !== editingIndex && v.codigo.trim() === code);
+      const isDuplicate = variedadesData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
       if (isDuplicate) {
         showToast(`O código '${code}' já está cadastrado em Variedades.`, 'warning');
         return;
@@ -1912,7 +1949,7 @@ export default function App() {
         showToast('A matrícula deve conter apenas números.', 'warning');
         return;
       }
-      const isDuplicate = colaboradoresData.some((v, i) => i !== editingIndex && v.codigo.trim() === code);
+      const isDuplicate = colaboradoresData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
       if (isDuplicate) {
         showToast(`A matrícula '${code}' já está cadastrada em Colaboradores.`, 'warning');
         return;
@@ -1939,7 +1976,7 @@ export default function App() {
         showToast('O código deve conter apenas números.', 'warning');
         return;
       }
-      const isDuplicate = motoristasData.some((v, i) => i !== editingIndex && v.codigo.trim() === code);
+      const isDuplicate = motoristasData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
       if (isDuplicate) {
         showToast(`O código '${code}' já está cadastrado em Motoristas.`, 'warning');
         return;
@@ -1963,7 +2000,7 @@ export default function App() {
         showToast('O código deve conter apenas números.', 'warning');
         return;
       }
-      const isDuplicate = onibusData.some((v, i) => i !== editingIndex && v.codigo.trim() === code);
+      const isDuplicate = onibusData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
       if (isDuplicate) {
         showToast(`O código '${code}' já está cadastrado em Ônibus.`, 'warning');
         return;
@@ -2005,7 +2042,7 @@ export default function App() {
       else if (activePage === 'empresas') currentList = empresasData;
       else if (activePage === 'anos') currentList = anosData;
 
-      const isDuplicate = currentList.some((v, i) => i !== editingIndex && v.codigo.trim() === code);
+      const isDuplicate = currentList.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
       if (isDuplicate) {
         showToast(`O código '${code}' já está cadastrado nesta lista.`, 'warning');
         return;
@@ -2047,7 +2084,7 @@ export default function App() {
         showToast('O código deve conter apenas números.', 'warning');
         return;
       }
-      let list: { codigo: string }[] = [];
+      let list: { codigo: string; unidade?: string }[] = [];
       if (page === 'variedades') list = variedadesData;
       else if (page === 'colaboradores') list = colaboradoresData;
       else if (page === 'motoristas') list = motoristasData;
@@ -2059,7 +2096,7 @@ export default function App() {
       else if (page === 'empresas') list = empresasData;
       else if (page === 'anos') list = anosData;
 
-      if (list.some((item, i) => i !== rowIndex && item.codigo.trim() === trimmed)) {
+      if (list.some((item, i) => i !== rowIndex && isItemInSelectedUnidade(item) && item.codigo.trim() === trimmed)) {
         showToast(`O código '${trimmed}' já existe nesta lista.`, 'warning');
         return;
       }
@@ -2382,6 +2419,7 @@ export default function App() {
                 </thead>
                 <tbody id="tbodyColheita">
                   {colheitaData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.data, item.cultura, item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.os || '-', item.haGeral || '-', item.haDia || '-', item.haRestante || '-', item.caixaBinBag || '-', item.glebasFinalizada || '-', item.caixasCortadas || '-'];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2436,6 +2474,7 @@ export default function App() {
                 </thead>
                 <tbody id="tbodyPlantio">
                   {plantioData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haRestante || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.ano || '-'];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2480,6 +2519,7 @@ export default function App() {
                 </thead>
                 <tbody id="tbodyVariedades">
                   {variedadesData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.cultura];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2507,6 +2547,7 @@ export default function App() {
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyPivos">
                   {pivosData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2533,6 +2574,7 @@ export default function App() {
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyGlebas">
                   {glebasData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2559,6 +2601,7 @@ export default function App() {
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyFazendas">
                   {fazendasData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2585,6 +2628,7 @@ export default function App() {
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyCulturas">
                   {culturasData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2611,6 +2655,7 @@ export default function App() {
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME DA EMPRESA <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyEmpresas">
                   {empresasData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2637,6 +2682,7 @@ export default function App() {
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">ANO <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyAnos">
                   {anosData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2672,6 +2718,7 @@ export default function App() {
                 </thead>
                 <tbody id="tbodyColaboradores">
                   {colaboradoresData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.apontador || '-', item.local || '-', item.status || 'Ativo'];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2718,6 +2765,7 @@ export default function App() {
                 </thead>
                 <tbody id="tbodyMotoristas">
                   {motoristasData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.abreviacao];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2757,6 +2805,7 @@ export default function App() {
                 </thead>
                 <tbody id="tbodyOnibus">
                   {onibusData.map((item, idx) => {
+                    if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.cor || 'Branco', item.motorista || '-', item.local || '-', item.cooperado || 'Não'];
                     if (!isRowVisible(rowCells)) return null;
 
@@ -2818,7 +2867,7 @@ export default function App() {
                 <i className="fa-solid fa-filter"></i> Filtrar Lixeira por Categoria:
               </span>
               {mainCategories.map(cat => {
-                const count = trashData.filter(t => t.category === cat.key).length;
+                const count = trashData.filter(t => t.category === cat.key && isItemInSelectedUnidade(t.itemData)).length;
                 const isSelected = lixeiraCategory === cat.key;
                 return (
                   <button
@@ -2856,10 +2905,10 @@ export default function App() {
             </div>
 
             {/* BOTÃO ESVAZIAR CATEGORIA */}
-            {trashData.filter(t => t.category === lixeiraCategory).length > 0 && (
+            {trashData.filter(t => t.category === lixeiraCategory && isItemInSelectedUnidade(t.itemData)).length > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ fontWeight: 600, color: '#323130', fontSize: '13px' }}>
-                  Itens na lixeira de: <span style={{ color: '#0078d4' }}>{titleMap[lixeiraCategory]}</span> ({trashData.filter(t => t.category === lixeiraCategory).length})
+                  Itens na lixeira de: <span style={{ color: '#0078d4' }}>{titleMap[lixeiraCategory]}</span> ({trashData.filter(t => t.category === lixeiraCategory && isItemInSelectedUnidade(t.itemData)).length})
                 </div>
                 <button
                   onClick={() => emptyTrashForCategory(lixeiraCategory)}
@@ -2884,7 +2933,7 @@ export default function App() {
 
             {/* CONTEÚDO DA TABELA DA LIXEIRA */}
             {(() => {
-              const currentTrashItems = trashData.filter(t => t.category === lixeiraCategory);
+              const currentTrashItems = trashData.filter(t => t.category === lixeiraCategory && isItemInSelectedUnidade(t.itemData));
               const searchQuery = globalSearch.toLowerCase().trim();
               const filteredTrash = currentTrashItems.filter(entry => {
                 if (!searchQuery) return true;
@@ -3889,13 +3938,13 @@ export default function App() {
                     </div>
                     <div className="form-group">
                       <label>Cultura Vinculada</label>
-                      {culturasData.length > 0 ? (
+                      {culturasData.filter(isItemInSelectedUnidade).length > 0 ? (
                         <select
-                          value={formData.vCultura || culturasData[0]?.nome || ''}
+                          value={formData.vCultura || culturasData.filter(isItemInSelectedUnidade)[0]?.nome || ''}
                           onChange={e => setFormData({ ...formData, vCultura: e.target.value })}
                           required
                         >
-                          {culturasData.map((c, i) => (
+                          {culturasData.filter(isItemInSelectedUnidade).map((c, i) => (
                             <option key={i} value={c.nome}>
                               {c.nome}
                             </option>
@@ -3951,13 +4000,13 @@ export default function App() {
                     </div>
                     <div className="form-group">
                       <label>Local (Fazenda)</label>
-                      {fazendasData.length > 0 ? (
+                      {fazendasData.filter(isItemInSelectedUnidade).length > 0 ? (
                         <select
-                          value={formData.cLocal || fazendasData[0]?.nome || ''}
+                          value={formData.cLocal || fazendasData.filter(isItemInSelectedUnidade)[0]?.nome || ''}
                           onChange={e => setFormData({ ...formData, cLocal: e.target.value })}
                           required
                         >
-                          {fazendasData.map((f, i) => (
+                          {fazendasData.filter(isItemInSelectedUnidade).map((f, i) => (
                             <option key={i} value={f.nome}>
                               {f.nome}
                             </option>
@@ -4069,14 +4118,14 @@ export default function App() {
                     </div>
                     <div className="form-group">
                       <label>Motorista</label>
-                      {motoristasData.length > 0 ? (
+                      {motoristasData.filter(isItemInSelectedUnidade).length > 0 ? (
                         <select
                           value={formData.oMotorista || ''}
                           onChange={e => setFormData({ ...formData, oMotorista: e.target.value })}
                           required
                         >
                           <option value="">Selecione um motorista...</option>
-                          {motoristasData.map((m, i) => {
+                          {motoristasData.filter(isItemInSelectedUnidade).map((m, i) => {
                             const label = `${m.nome} (${m.abreviacao})`;
                             return (
                               <option key={i} value={label}>
@@ -4123,18 +4172,18 @@ export default function App() {
                             <option value="COOPAMARGOS" />
                             <option value="COOPERATIVA SANTA RITA" />
                             <option value="COOPERCITRUS" />
-                            {empresasData.map((emp, i) => (
+                            {empresasData.filter(isItemInSelectedUnidade).map((emp, i) => (
                               <option key={i} value={emp.nome} />
                             ))}
                           </datalist>
                         </>
-                      ) : fazendasData.length > 0 ? (
+                      ) : fazendasData.filter(isItemInSelectedUnidade).length > 0 ? (
                         <select
-                          value={formData.oLocal || fazendasData[0]?.nome || ''}
+                          value={formData.oLocal || fazendasData.filter(isItemInSelectedUnidade)[0]?.nome || ''}
                           onChange={e => setFormData({ ...formData, oLocal: e.target.value })}
                           required
                         >
-                          {fazendasData.map((f, i) => (
+                          {fazendasData.filter(isItemInSelectedUnidade).map((f, i) => (
                             <option key={i} value={f.nome}>
                               {f.nome}
                             </option>
@@ -4417,7 +4466,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Cultura --</option>
-                      {culturasData.map((c, i) => (
+                      {culturasData.filter(isItemInSelectedUnidade).map((c, i) => (
                         <option key={i} value={c.nome}>{c.nome}</option>
                       ))}
                     </select>
@@ -4428,7 +4477,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione o Pivô --</option>
-                      {pivosData.map((p, i) => (
+                      {pivosData.filter(isItemInSelectedUnidade).map((p, i) => (
                         <option key={i} value={p.nome}>{p.nome}</option>
                       ))}
                     </select>
@@ -4439,7 +4488,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Gleba --</option>
-                      {glebasData.map((g, i) => (
+                      {glebasData.filter(isItemInSelectedUnidade).map((g, i) => (
                         <option key={i} value={g.nome}>{g.nome}</option>
                       ))}
                     </select>
@@ -4450,7 +4499,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Variedade --</option>
-                      {variedadesData.map((v, i) => (
+                      {variedadesData.filter(isItemInSelectedUnidade).map((v, i) => (
                         <option key={i} value={v.nome}>{v.nome}</option>
                       ))}
                     </select>
@@ -4461,7 +4510,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione o Ano Safra --</option>
-                      {anosData.map((a, i) => (
+                      {anosData.filter(isItemInSelectedUnidade).map((a, i) => (
                         <option key={i} value={a.nome}>{a.nome}</option>
                       ))}
                     </select>
@@ -4493,7 +4542,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Variedade Amarrada --</option>
-                      {variedadesData.map((v, i) => (
+                      {variedadesData.filter(isItemInSelectedUnidade).map((v, i) => (
                         <option key={i} value={v.nome}>{v.nome}</option>
                       ))}
                     </select>
@@ -4504,10 +4553,10 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Gleba ou Fazenda --</option>
-                      {glebasData.map((g, i) => (
+                      {glebasData.filter(isItemInSelectedUnidade).map((g, i) => (
                         <option key={`g-${i}`} value={`Gleba: ${g.nome}`}>{`Gleba: ${g.nome}`}</option>
                       ))}
-                      {fazendasData.map((f, i) => (
+                      {fazendasData.filter(isItemInSelectedUnidade).map((f, i) => (
                         <option key={`f-${i}`} value={`Fazenda: ${f.nome}`}>{`Fazenda: ${f.nome}`}</option>
                       ))}
                     </select>
@@ -4526,7 +4575,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Cultura --</option>
-                      {culturasData.map((c, i) => (
+                      {culturasData.filter(isItemInSelectedUnidade).map((c, i) => (
                         <option key={i} value={c.nome}>{c.nome}</option>
                       ))}
                     </select>
@@ -4664,9 +4713,16 @@ export default function App() {
           }}>
             {/* DEFINIÇÃO DOS 6 SQUARES NA ORDEM EXATA REQUESTADA: Cultura, Fazenda, Pivô, Gleba, Variedade e Geral */}
             {(() => {
+              const unitEmpresas = empresasData.filter(isItemInSelectedUnidade);
+              const unitAnos = anosData.filter(isItemInSelectedUnidade);
+              const unitCulturas = culturasData.filter(isItemInSelectedUnidade);
+              const unitFazendas = fazendasData.filter(isItemInSelectedUnidade);
+              const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
+              const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+
               const filteredVariedadesData = selectedCulturaForTie
-                ? variedadesData.filter(v => v.cultura && v.cultura.trim().toLowerCase() === selectedCulturaForTie.trim().toLowerCase())
-                : variedadesData;
+                ? unitVariedades.filter(v => v.cultura && v.cultura.trim().toLowerCase() === selectedCulturaForTie.trim().toLowerCase())
+                : unitVariedades;
 
               const filteredPivosData = getLinkedPivosForFazenda(selectedFazendaForTie);
               const filteredGlebasData = getLinkedGlebasForPivo(selectedPivoForTie, selectedFazendaForTie);
@@ -4677,7 +4733,7 @@ export default function App() {
                   name: 'Empresa',
                   icon: 'fa-building',
                   color: '#005a9e',
-                  data: empresasData,
+                  data: unitEmpresas,
                   selectedVal: selectedEmpresaForTie,
                   onSelect: (val: string) => setSelectedEmpresaForTie(prev => prev === val ? '' : val)
                 },
@@ -4686,7 +4742,7 @@ export default function App() {
                   name: 'Ano Safra',
                   icon: 'fa-calendar-days',
                   color: '#b4009e',
-                  data: anosData,
+                  data: unitAnos,
                   selectedVal: selectedAnoForTie,
                   onSelect: (val: string) => setSelectedAnoForTie(prev => prev === val ? '' : val)
                 },
@@ -4695,7 +4751,7 @@ export default function App() {
                   name: 'Cultura',
                   icon: 'fa-wheat-awn',
                   color: '#107c41',
-                  data: culturasData,
+                  data: unitCulturas,
                   selectedVal: selectedCulturaForTie,
                   onSelect: (val: string) => handleSelectCultura(val)
                 },
@@ -4704,7 +4760,7 @@ export default function App() {
                   name: 'Fazenda',
                   icon: 'fa-location-dot',
                   color: '#0078d4',
-                  data: fazendasData,
+                  data: unitFazendas,
                   selectedVal: selectedFazendaForTie,
                   onSelect: (val: string) => setSelectedFazendaForTie(prev => prev === val ? '' : val)
                 },
@@ -4740,7 +4796,7 @@ export default function App() {
                   name: 'Geral',
                   icon: 'fa-link',
                   color: '#794b00',
-                  data: amarracoesData,
+                  data: unitAmarracoes,
                   selectedVal: '',
                   onSelect: () => {}
                 }
