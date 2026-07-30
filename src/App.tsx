@@ -96,15 +96,29 @@ export interface TrashItem {
 
 export function formatPlacaBus(val: string): string {
   if (!val) return '';
-  const raw = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  if (/^[A-Z]{3}[0-9A-Z]{4}$/.test(raw)) {
+  const raw = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 7);
+  if (raw.length > 3) {
     return `${raw.slice(0, 3)}-${raw.slice(3)}`;
   }
-  return val.toUpperCase();
+  return raw;
 }
 
 export function isValidPlacaBus(val: string): boolean {
-  return Boolean(val && val.trim().length >= 2);
+  if (!val) return false;
+  const clean = val.trim().toUpperCase();
+  const regexTradicional = /^[A-Z]{3}-[0-9]{4}$/;
+  const regexMercosul = /^[A-Z]{3}-[0-9][A-Z][0-9]{2}$/;
+  return regexTradicional.test(clean) || regexMercosul.test(clean);
+}
+
+export function sanitizeHectaresInput(val: string): string {
+  if (!val) return '';
+  let clean = val.replace(/[^0-9,]/g, '');
+  const parts = clean.split(',');
+  if (parts.length > 2) {
+    clean = parts[0] + ',' + parts.slice(1).join('');
+  }
+  return clean;
 }
 
 const mainCategories: { key: MainCategoryKey; label: string }[] = [
@@ -354,7 +368,106 @@ export default function App() {
     return isNaN(num) ? 0 : num;
   };
 
-  // Helper to calculate HA Restante from Total (haGeral) and Dia (haDia)
+  // Helpers to calculate already planted/harvested hectares and HA Restante
+  const getAlreadyPlantedHectares = (pivoName?: string, glebaName?: string, fazendaName?: string, excludeIndex: number | null = null): number => {
+    if (!plantioData || plantioData.length === 0) return 0;
+    const gLower = (glebaName || '').trim().toLowerCase();
+    const pLower = (pivoName || '').trim().toLowerCase();
+    const fLower = (fazendaName || '').trim().toLowerCase();
+
+    if (!gLower && !pLower && !fLower) return 0;
+
+    let total = 0;
+    plantioData.forEach((p, idx) => {
+      if (excludeIndex !== null && idx === excludeIndex) return;
+      const pGleb = (p.gleba || '').trim().toLowerCase();
+      const pPiv = (p.pivo || '').trim().toLowerCase();
+      const pFaz = (p.fazenda || '').trim().toLowerCase();
+
+      const matchG = !gLower || pGleb === gLower || pGleb === '-';
+      const matchP = !pLower || pPiv === pLower || pPiv === '-';
+      const matchF = !fLower || pFaz === fLower;
+
+      if (matchG && matchP && matchF) {
+        total += parseHaValue(p.haDia || p.haGeral);
+      }
+    });
+    return total;
+  };
+
+  const getAlreadyHarvestedHectares = (
+    culturaName?: string,
+    fazendaName?: string,
+    pivoName?: string,
+    glebaName?: string,
+    variedadeName?: string,
+    excludeIndex: number | null = null
+  ): number => {
+    if (!colheitaData || colheitaData.length === 0) return 0;
+    const cLower = (culturaName || '').trim().toLowerCase();
+    const fLower = (fazendaName || '').trim().toLowerCase();
+    const pLower = (pivoName || '').trim().toLowerCase();
+    const gLower = (glebaName || '').trim().toLowerCase();
+    const vLower = (variedadeName || '').trim().toLowerCase();
+
+    if (!cLower && !fLower && !pLower && !gLower) return 0;
+
+    let total = 0;
+    colheitaData.forEach((c, idx) => {
+      if (excludeIndex !== null && idx === excludeIndex) return;
+      const cCult = (c.cultura || '').trim().toLowerCase();
+      const cFaz = (c.fazenda || '').trim().toLowerCase();
+      const cPiv = (c.pivo || '').trim().toLowerCase();
+      const cGleb = (c.gleba || '').trim().toLowerCase();
+      const cVar = (c.variedade || '').trim().toLowerCase();
+
+      const matchCult = !cLower || cCult === cLower;
+      const matchFaz = !fLower || cFaz === fLower;
+      const matchPiv = !pLower || pLower === '-' || cPiv === pLower || cPiv === '-';
+      const matchGleb = !gLower || gLower === '-' || cGleb === gLower || cGleb === '-';
+      const matchVar = !vLower || vLower === '-' || cVar === vLower || cVar === '-';
+
+      if (matchCult && matchFaz && matchPiv && matchGleb && matchVar) {
+        total += parseHaValue(c.haDia || c.haGeral);
+      }
+    });
+    return total;
+  };
+
+  const calculateHaRestanteForPlantio = (
+    haGeralStr: string | undefined,
+    haDiaStr: string | undefined,
+    pivoName?: string,
+    glebaName?: string,
+    fazendaName?: string,
+    excludeIndex: number | null = null
+  ): string => {
+    const total = parseHaValue(haGeralStr);
+    if (total <= 0) return '';
+    const alreadyPlanted = getAlreadyPlantedHectares(pivoName, glebaName, fazendaName, excludeIndex);
+    const dia = parseHaValue(haDiaStr);
+    const restante = Math.max(0, total - alreadyPlanted - dia);
+    return `${restante.toFixed(2).replace('.', ',')} ha`;
+  };
+
+  const calculateHaRestanteForColheita = (
+    haGeralStr: string | undefined,
+    haDiaStr: string | undefined,
+    culturaName?: string,
+    fazendaName?: string,
+    pivoName?: string,
+    glebaName?: string,
+    variedadeName?: string,
+    excludeIndex: number | null = null
+  ): string => {
+    const total = parseHaValue(haGeralStr);
+    if (total <= 0) return '';
+    const alreadyHarvested = getAlreadyHarvestedHectares(culturaName, fazendaName, pivoName, glebaName, variedadeName, excludeIndex);
+    const dia = parseHaValue(haDiaStr);
+    const restante = Math.max(0, total - alreadyHarvested - dia);
+    return `${restante.toFixed(2).replace('.', ',')} ha`;
+  };
+
   const calculateHaRestanteValue = (haGeralStr: string | undefined, haDiaStr: string | undefined): string => {
     if (!haGeralStr && !haDiaStr) return '';
     const total = parseHaValue(haGeralStr);
@@ -364,12 +477,14 @@ export default function App() {
     return `${restante.toFixed(2).replace('.', ',')} ha`;
   };
 
-  // Helper to lookup hectares bound in amarracoesData for a selected area
+  // Helper to lookup full original total hectares bound in amarracoesData for a selected area
   const lookupHectaresForSelection = (pivoName?: string, glebaName?: string, fazendaName?: string): string => {
     if (!glebaName && !pivoName && !fazendaName) return '';
     const gLower = (glebaName || '').trim().toLowerCase();
     const pLower = (pivoName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
+
+    let rawTieHa = '';
 
     for (const tie of amarracoesData) {
       if (tie.hectares) {
@@ -378,27 +493,35 @@ export default function App() {
         const matchPivo = !pLower || fullText.includes(pLower);
         const matchFazenda = !fLower || fullText.includes(fLower);
         if (matchGleba && matchPivo && matchFazenda) {
-          return tie.hectares;
+          rawTieHa = tie.hectares;
+          break;
         }
       }
     }
 
-    for (const tie of amarracoesData) {
-      const fullText = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
-      const matchGleba = gLower && fullText.includes(gLower);
-      const matchPivo = pLower && fullText.includes(pLower);
-      if (matchGleba || matchPivo) {
-        const match = fullText.match(/(\d+([.,]\d+)?)\s*ha/i);
-        if (match) return `${match[1].replace('.', ',')} ha`;
+    if (!rawTieHa) {
+      for (const tie of amarracoesData) {
+        const fullText = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
+        const matchGleba = gLower && fullText.includes(gLower);
+        const matchPivo = pLower && fullText.includes(pLower);
+        if (matchGleba || matchPivo) {
+          const match = fullText.match(/(\d+([.,]\d+)?)\s*ha/i);
+          if (match) {
+            rawTieHa = `${match[1].replace('.', ',')} ha`;
+            break;
+          }
+        }
       }
     }
 
-    if (gLower.includes('c5') || pLower.includes('11')) return '115,00 ha';
-    if (gLower.includes('gleba a') || pLower.includes('pivô 01')) return '15,00 ha';
-    if (gLower.includes('gleba b') || pLower.includes('pivô 02')) return '20,00 ha';
-    if (gLower.includes('c-08')) return '31,88 ha';
+    if (!rawTieHa) {
+      if (gLower.includes('c5') || pLower.includes('11')) rawTieHa = '115,00 ha';
+      else if (gLower.includes('gleba a') || pLower.includes('pivô 01')) rawTieHa = '15,00 ha';
+      else if (gLower.includes('gleba b') || pLower.includes('pivô 02')) rawTieHa = '20,00 ha';
+      else if (gLower.includes('c-08')) rawTieHa = '31,88 ha';
+    }
 
-    return '';
+    return rawTieHa;
   };
 
   // Cascading tie helper functions:
@@ -446,7 +569,7 @@ export default function App() {
     return glebasData.filter(g => linkedGlebaNames.has(g.nome.trim().toLowerCase()));
   };
 
-  // Helper to lookup planted hectares in plantioData for Colheita selection
+  // Helper to lookup full original planted hectares in plantioData for Colheita selection
   const lookupPlantedHectaresForSelection = (
     culturaName?: string,
     fazendaName?: string,
@@ -472,36 +595,25 @@ export default function App() {
       return matchCult && matchFaz && matchPiv && matchGleb && matchVar;
     });
 
+    let totalPlanted = 0;
     if (matches.length > 0) {
-      let total = 0;
       matches.forEach(p => {
-        total += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
+        totalPlanted += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
       });
-      if (total > 0) {
-        return `${total.toFixed(2).replace('.', ',')} ha`;
-      }
-      const raw = matches[0].haDia || matches[0].haGeral || '';
-      if (raw) return raw;
-    }
-
-    const looseMatches = plantioData.filter(p => {
-      const matchFaz = fLower && (p.fazenda || '').trim().toLowerCase() === fLower;
-      const matchGleb = gLower && gLower !== '-' && (p.gleba || '').trim().toLowerCase() === gLower;
-      const matchPiv = pLower && pLower !== '-' && (p.pivo || '').trim().toLowerCase() === pLower;
-      return matchFaz || matchGleb || matchPiv;
-    });
-
-    if (looseMatches.length > 0) {
-      let total = 0;
+    } else {
+      const looseMatches = plantioData.filter(p => {
+        const matchFaz = fLower && (p.fazenda || '').trim().toLowerCase() === fLower;
+        const matchGleb = gLower && gLower !== '-' && (p.gleba || '').trim().toLowerCase() === gLower;
+        const matchPiv = pLower && pLower !== '-' && (p.pivo || '').trim().toLowerCase() === pLower;
+        return matchFaz || matchGleb || matchPiv;
+      });
       looseMatches.forEach(p => {
-        total += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
+        totalPlanted += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
       });
-      if (total > 0) {
-        return `${total.toFixed(2).replace('.', ',')} ha`;
-      }
     }
 
-    return '';
+    if (totalPlanted <= 0) return '';
+    return `${totalPlanted.toFixed(2).replace('.', ',')} ha`;
   };
 
   // --- PLANTIO OPTION HELPERS (Pull only items linked in amarracoesData) ---
@@ -518,9 +630,28 @@ export default function App() {
     return linked.length > 0 ? linked : empresasData;
   };
 
-  const getAmarracoesAnos = () => {
+  const getAmarracoesAnos = (empresaName?: string, culturaName?: string, fazendaName?: string) => {
     if (!amarracoesData || amarracoesData.length === 0) return anosData;
+    const eLower = (empresaName || '').trim().toLowerCase();
+    const cLower = (culturaName || '').trim().toLowerCase();
+    const fLower = (fazendaName || '').trim().toLowerCase();
+
     const linked = anosData.filter(a => {
+      const aName = a.nome.trim().toLowerCase();
+      return amarracoesData.some(tie => {
+        if (tie.status === 'Inativo') return false;
+        const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
+        const matchAno = text.includes(aName);
+        const matchEmp = !eLower || text.includes(eLower);
+        const matchCult = !cLower || text.includes(cLower);
+        const matchFaz = !fLower || text.includes(fLower);
+        return matchAno && matchEmp && matchCult && matchFaz;
+      });
+    });
+
+    if (linked.length > 0) return linked;
+
+    const allTiedAnos = anosData.filter(a => {
       const aName = a.nome.trim().toLowerCase();
       return amarracoesData.some(tie => {
         if (tie.status === 'Inativo') return false;
@@ -528,7 +659,8 @@ export default function App() {
         return text.includes(aName);
       });
     });
-    return linked.length > 0 ? linked : anosData;
+
+    return allTiedAnos.length > 0 ? allTiedAnos : anosData;
   };
 
   const getAmarracoesCulturas = () => {
@@ -1308,46 +1440,36 @@ export default function App() {
     if (activePage === 'colheita') {
       const defaultDate = new Date().toISOString().split('T')[0];
       initial.cData = editData && editData[0] ? (dateToInputFormat(editData[0]) || editData[0]) : defaultDate;
-      const plantioCults = getPlantioCulturas();
-      initial.cCultura = editData ? editData[1] : (plantioCults[0]?.nome || '');
-      const plantioFazs = getPlantioFazendas(initial.cCultura);
-      initial.cFazenda = editData ? editData[2] : (plantioFazs[0]?.nome || '');
-      const plantioPivs = getPlantioPivos(initial.cFazenda, initial.cCultura);
-      initial.cPivo = editData ? editData[3] : (plantioPivs[0]?.nome || '');
-      const plantioGlebs = getPlantioGlebas(initial.cPivo, initial.cFazenda, initial.cCultura);
-      initial.cGleba = editData ? editData[4] : (plantioGlebs[0]?.nome || '');
-      const plantioVars = getPlantioVariedades(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba);
-      initial.cVariedade = editData ? editData[5] : (plantioVars[0]?.nome || '');
+      initial.cCultura = editData ? editData[1] : '';
+      initial.cFazenda = editData ? editData[2] : '';
+      initial.cPivo = editData ? editData[3] : '';
+      initial.cGleba = editData ? editData[4] : '';
+      initial.cVariedade = editData ? editData[5] : '';
       initial.cOs = editData ? editData[6] : '';
-      const autoPlantedHa = lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade);
-      initial.cHaGeral = editData ? editData[7] : (autoPlantedHa || '');
+      const autoPlantedHa = (initial.cCultura || initial.cFazenda || initial.cPivo || initial.cGleba) ? lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade) : '';
+      initial.cHaGeral = editData ? editData[7] : autoPlantedHa;
       initial.cHaDia = editData ? editData[8] : '';
-      initial.cHaRestante = editData && editData[9] && editData[9] !== '-' ? editData[9] : calculateHaRestanteValue(initial.cHaGeral, initial.cHaDia);
+      initial.cHaRestante = editData && editData[9] && editData[9] !== '-' ? editData[9] : calculateHaRestanteForColheita(initial.cHaGeral, initial.cHaDia, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
       initial.cCaixaBinBag = editData && editData[10] && editData[10] !== '-' ? editData[10] : 'Caixa';
       initial.cGlebasFinalizada = editData && editData[11] && editData[11] !== '-' ? editData[11] : 'Não';
       initial.cCaixasCortadas = editData && editData[12] && editData[12] !== '-' ? editData[12] : '';
     } else if (activePage === 'plantio') {
       const defaultDate = new Date().toISOString().split('T')[0];
       initial.pData = editData && editData[0] ? (dateToInputFormat(editData[0]) || editData[0]) : defaultDate;
-      initial.pEmpresa = editData ? editData[1] : (empresasData[0]?.nome || '');
-      const amarCults = getAmarracoesCulturas();
-      initial.pCultura = editData ? editData[2] : (amarCults[0]?.nome || '');
+      initial.pEmpresa = editData ? editData[1] : '';
+      initial.pCultura = editData ? editData[2] : '';
       initial.pOs = editData ? editData[3] : '';
-      const amarFazs = getAmarracoesFazendas(initial.pCultura);
-      initial.pFazenda = editData ? editData[4] : (amarFazs[0]?.nome || '');
-      const amarPivs = getAmarracoesPivos(initial.pFazenda, initial.pCultura);
-      initial.pPivo = editData ? editData[5] : (amarPivs[0]?.nome || '');
-      const amarGlebs = getAmarracoesGlebas(initial.pPivo, initial.pFazenda, initial.pCultura);
-      initial.pGleba = editData ? editData[6] : (amarGlebs[0]?.nome || '');
-      const amarVars = getAmarracoesVariedades(initial.pCultura);
-      initial.pVariedade = editData ? editData[7] : (amarVars[0]?.nome || '');
-      const autoTieHa = lookupHectaresForSelection(initial.pPivo, initial.pGleba, initial.pFazenda);
-      initial.pHaGeral = editData ? editData[8] : (autoTieHa || '');
-      initial.pHaDia = editData ? editData[8] || editData[9] : '';
-      initial.pHaRestante = editData && editData[9] && editData[9] !== '-' ? editData[9] : calculateHaRestanteValue(initial.pHaGeral, initial.pHaDia);
+      initial.pFazenda = editData ? editData[4] : '';
+      initial.pPivo = editData ? editData[5] : '';
+      initial.pGleba = editData ? editData[6] : '';
+      initial.pVariedade = editData ? editData[7] : '';
+      const autoTieHa = (initial.pPivo || initial.pGleba || initial.pFazenda) ? lookupHectaresForSelection(initial.pPivo, initial.pGleba, initial.pFazenda) : '';
+      initial.pHaGeral = editData ? editData[8] : autoTieHa;
+      initial.pHaDia = editData ? (editData[9] || editData[8] || '') : '';
+      initial.pHaRestante = editData && editData[9] && editData[9] !== '-' ? editData[9] : calculateHaRestanteForPlantio(initial.pHaGeral, initial.pHaDia, initial.pPivo, initial.pGleba, initial.pFazenda, index);
       initial.pGlebasFinalizada = editData && editData[10] && editData[10] !== '-' ? editData[10] : 'Não';
       initial.pMediaHa = editData && editData[11] && editData[11] !== '-' ? editData[11] : '';
-      initial.pAno = editData && editData[12] ? editData[12] : (anosData[0]?.nome || new Date().getFullYear().toString());
+      initial.pAno = editData && editData[12] ? editData[12] : '';
     } else if (activePage === 'variedades') {
       initial.autoCode = editData ? editData[0] : '';
       initial.simpleName = editData ? editData[1] : '';
@@ -1771,7 +1893,7 @@ export default function App() {
 
       const placa = (formData.nomeOnibus || '').trim().toUpperCase();
       if (!isValidPlacaBus(placa)) {
-        showToast('Informe a placa ou identificação do ônibus (no mínimo 2 caracteres).', 'warning');
+        showToast('Informe uma placa válida no padrão tradicional (ex: GMJ-5434) ou Mercosul (ex: GMJ-5F34).', 'warning');
         return;
       }
 
@@ -1863,9 +1985,11 @@ export default function App() {
     }
 
     if (page === 'colheita') {
-      setColheitaData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const finalVal = ['haGeral', 'haDia', 'haRestante'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
+      setColheitaData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: finalVal } : item));
     } else if (page === 'plantio') {
-      setPlantioData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const finalVal = ['haGeral', 'haDia', 'haRestante', 'mediaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
+      setPlantioData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: finalVal } : item));
     } else if (page === 'variedades') {
       setVariedadesData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
     } else if (page === 'colaboradores') {
@@ -1877,7 +2001,7 @@ export default function App() {
       if (fieldKey === 'nome') {
         finalVal = formatPlacaBus(value);
         if (value.trim() && !isValidPlacaBus(finalVal)) {
-          showToast('A placa ou identificação deve conter pelo menos 2 caracteres.', 'warning');
+          showToast('Placa inválida. Use o padrão tradicional (ex: GMJ-5434) ou Mercosul (ex: GMJ-5F34).', 'warning');
           return;
         }
       }
@@ -2988,7 +3112,7 @@ export default function App() {
                           const newCultura = e.target.value;
                           const ha = lookupPlantedHectaresForSelection(newCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade);
                           const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.cHaDia);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, newCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
                           setFormData({
                             ...formData,
                             cCultura: newCultura,
@@ -3015,7 +3139,7 @@ export default function App() {
                           const newFazenda = e.target.value;
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, newFazenda, formData.cPivo, formData.cGleba, formData.cVariedade);
                           const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.cHaDia);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, newFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
                           setFormData({
                             ...formData,
                             cFazenda: newFazenda,
@@ -3042,7 +3166,7 @@ export default function App() {
                           const newPivo = e.target.value;
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, newPivo, formData.cGleba, formData.cVariedade);
                           const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.cHaDia);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, newPivo, formData.cGleba, formData.cVariedade, editingIndex);
                           setFormData({
                             ...formData,
                             cPivo: newPivo,
@@ -3068,7 +3192,7 @@ export default function App() {
                           const newGleba = e.target.value;
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, formData.cVariedade);
                           const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.cHaDia);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, formData.cVariedade, editingIndex);
                           setFormData({
                             ...formData,
                             cGleba: newGleba,
@@ -3094,7 +3218,7 @@ export default function App() {
                           const newVar = e.target.value;
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, newVar);
                           const newHaGeral = ha || formData.cHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.cHaDia);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, newVar, editingIndex);
                           setFormData({
                             ...formData,
                             cVariedade: newVar,
@@ -3123,8 +3247,8 @@ export default function App() {
                         placeholder="Puxado automaticamente do plantio..."
                         value={formData.cHaGeral || ''}
                         onChange={e => {
-                          const newHaGeral = e.target.value;
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.cHaDia);
+                          const newHaGeral = sanitizeHectaresInput(e.target.value);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
                           setFormData({ ...formData, cHaGeral: newHaGeral, cHaRestante: newRestante });
                         }}
                         style={{ fontWeight: 600, backgroundColor: '#fdfdfd' }}
@@ -3134,11 +3258,11 @@ export default function App() {
                       <label>Área Colhida no Dia (ha)</label>
                       <input
                         type="text"
-                        placeholder="Ex: 14,50 ha"
+                        placeholder="Ex: 14,50"
                         value={formData.cHaDia || ''}
                         onChange={e => {
-                          const newHaDia = e.target.value;
-                          const newRestante = calculateHaRestanteValue(formData.cHaGeral, newHaDia);
+                          const newHaDia = sanitizeHectaresInput(e.target.value);
+                          const newRestante = calculateHaRestanteForColheita(formData.cHaGeral, newHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
                           setFormData({ ...formData, cHaDia: newHaDia, cHaRestante: newRestante });
                         }}
                       />
@@ -3149,7 +3273,7 @@ export default function App() {
                         type="text"
                         placeholder="Calculado automaticamente..."
                         value={formData.cHaRestante || ''}
-                        onChange={e => setFormData({ ...formData, cHaRestante: e.target.value })}
+                        onChange={e => setFormData({ ...formData, cHaRestante: sanitizeHectaresInput(e.target.value) })}
                         style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
                       />
                     </div>
@@ -3206,7 +3330,7 @@ export default function App() {
                           const newCult = e.target.value;
                           const ha = lookupHectaresForSelection(formData.pPivo, formData.pGleba, formData.pFazenda);
                           const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.pHaDia);
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, formData.pPivo, formData.pGleba, formData.pFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pCultura: newCult,
@@ -3237,7 +3361,7 @@ export default function App() {
                           const newFazenda = e.target.value;
                           const ha = lookupHectaresForSelection(formData.pPivo, formData.pGleba, newFazenda);
                           const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.pHaDia);
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, formData.pPivo, formData.pGleba, newFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pFazenda: newFazenda,
@@ -3264,7 +3388,7 @@ export default function App() {
                           const newPivo = e.target.value;
                           const ha = lookupHectaresForSelection(newPivo, formData.pGleba, formData.pFazenda);
                           const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.pHaDia);
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, newPivo, formData.pGleba, formData.pFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pPivo: newPivo,
@@ -3290,7 +3414,7 @@ export default function App() {
                           const newGleba = e.target.value;
                           const ha = lookupHectaresForSelection(formData.pPivo, newGleba, formData.pFazenda);
                           const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.pHaDia);
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, formData.pPivo, newGleba, formData.pFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pGleba: newGleba,
@@ -3324,11 +3448,11 @@ export default function App() {
                       <label>Área Total da Amarração (ha) - Automático</label>
                       <input
                         type="text"
-                        placeholder="Ex: 115,00 ha"
+                        placeholder="Ex: 115,00"
                         value={formData.pHaGeral || ''}
                         onChange={e => {
-                          const newHaGeral = e.target.value;
-                          const newRestante = calculateHaRestanteValue(newHaGeral, formData.pHaDia);
+                          const newHaGeral = sanitizeHectaresInput(e.target.value);
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, formData.pPivo, formData.pGleba, formData.pFazenda, editingIndex);
                           setFormData({ ...formData, pHaGeral: newHaGeral, pHaRestante: newRestante });
                         }}
                       />
@@ -3337,11 +3461,11 @@ export default function App() {
                       <label>HA / Dia (Área Plantada)</label>
                       <input
                         type="text"
-                        placeholder="Ex: 31.88 ha"
+                        placeholder="Ex: 31,88"
                         value={formData.pHaDia || ''}
                         onChange={e => {
-                          const newHaDia = e.target.value;
-                          const newRestante = calculateHaRestanteValue(formData.pHaGeral, newHaDia);
+                          const newHaDia = sanitizeHectaresInput(e.target.value);
+                          const newRestante = calculateHaRestanteForPlantio(formData.pHaGeral, newHaDia, formData.pPivo, formData.pGleba, formData.pFazenda, editingIndex);
                           setFormData({ ...formData, pHaDia: newHaDia, pHaRestante: newRestante });
                         }}
                       />
@@ -3352,7 +3476,7 @@ export default function App() {
                         type="text"
                         placeholder="Calculado automaticamente..."
                         value={formData.pHaRestante || ''}
-                        onChange={e => setFormData({ ...formData, pHaRestante: e.target.value })}
+                        onChange={e => setFormData({ ...formData, pHaRestante: sanitizeHectaresInput(e.target.value) })}
                         style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
                       />
                     </div>
@@ -3366,17 +3490,17 @@ export default function App() {
                     </div>
                     <div className="form-group">
                       <label>Média HA</label>
-                      <input type="text" placeholder="Ex: 31.88 ha/dia" value={formData.pMediaHa || ''} onChange={e => setFormData({ ...formData, pMediaHa: e.target.value })} />
+                      <input type="text" placeholder="Ex: 31,88" value={formData.pMediaHa || ''} onChange={e => setFormData({ ...formData, pMediaHa: sanitizeHectaresInput(e.target.value) })} />
                     </div>
                     <div className="form-group">
                       <label>Ano</label>
-                      {getAmarracoesAnos().length > 0 ? (
+                      {getAmarracoesAnos(formData.pEmpresa, formData.pCultura, formData.pFazenda).length > 0 ? (
                         <select value={formData.pAno || ''} onChange={e => setFormData({ ...formData, pAno: e.target.value })}>
                           <option value="">Selecione um ano...</option>
-                          {getAmarracoesAnos().map((a, i) => (
+                          {getAmarracoesAnos(formData.pEmpresa, formData.pCultura, formData.pFazenda).map((a, i) => (
                             <option key={i} value={a.nome}>{a.nome}</option>
                           ))}
-                          {formData.pAno && formData.pAno !== '-' && !getAmarracoesAnos().some(a => a.nome === formData.pAno) && (
+                          {formData.pAno && formData.pAno !== '-' && !getAmarracoesAnos(formData.pEmpresa, formData.pCultura, formData.pFazenda).some(a => a.nome === formData.pAno) && (
                             <option value={formData.pAno}>{formData.pAno}</option>
                           )}
                         </select>
@@ -3573,8 +3697,8 @@ export default function App() {
                       <label>Placa</label>
                       <input
                         type="text"
-                        placeholder="Ex: GMJ-5F34, GMJ-5634, ABC1234..."
-                        maxLength={15}
+                        placeholder="Ex: GMJ-5F34 ou GMJ-5434"
+                        maxLength={8}
                         value={formData.nomeOnibus || ''}
                         onChange={e => {
                           const formatted = formatPlacaBus(e.target.value);
@@ -4501,8 +4625,8 @@ export default function App() {
                                             <input
                                               type="text"
                                               value={tieHectares}
-                                              onChange={e => setTieHectares(e.target.value)}
-                                              placeholder="Ex: 120.50 ha"
+                                              onChange={e => setTieHectares(sanitizeHectaresInput(e.target.value))}
+                                              placeholder="Ex: 120,50"
                                               style={{
                                                 padding: '4px 8px',
                                                 fontSize: '11px',
