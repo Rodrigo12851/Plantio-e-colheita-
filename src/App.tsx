@@ -113,7 +113,7 @@ export function isValidPlacaBus(val: string): boolean {
 
 export function sanitizeHectaresInput(val: string): string {
   if (!val) return '';
-  let clean = val.replace(/[^0-9,]/g, '');
+  let clean = val.replace(/\./g, ',').replace(/[^0-9,]/g, '');
   const parts = clean.split(',');
   if (parts.length > 2) {
     clean = parts[0] + ',' + parts.slice(1).join('');
@@ -693,6 +693,7 @@ export default function App() {
   };
 
   const getAmarracoesPivos = (fazendaName?: string, culturaName?: string) => {
+    if (!fazendaName) return [];
     const basePivos = getLinkedPivosForFazenda(fazendaName || '');
     if (!amarracoesData || amarracoesData.length === 0) return basePivos;
     const fLower = (fazendaName || '').trim().toLowerCase();
@@ -704,7 +705,7 @@ export default function App() {
         if (tie.status === 'Inativo') return false;
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchPivo = text.includes(pName);
-        const matchFazenda = !fLower || text.includes(fLower);
+        const matchFazenda = text.includes(fLower);
         const matchCultura = !cLower || text.includes(cLower);
         return matchPivo && matchFazenda && matchCultura;
       });
@@ -713,6 +714,7 @@ export default function App() {
   };
 
   const getAmarracoesGlebas = (pivoName?: string, fazendaName?: string, culturaName?: string) => {
+    if (!fazendaName) return [];
     const baseGlebas = getLinkedGlebasForPivo(pivoName || '', fazendaName || '');
     if (!amarracoesData || amarracoesData.length === 0) return baseGlebas;
     const pLower = (pivoName || '').trim().toLowerCase();
@@ -726,7 +728,7 @@ export default function App() {
         const text = `${tie.titulo || ''} ${tie.origem || ''} ${tie.destino || ''} ${tie.observacao || ''}`.toLowerCase();
         const matchGleba = text.includes(gName);
         const matchPivo = !pLower || text.includes(pLower);
-        const matchFazenda = !fLower || text.includes(fLower);
+        const matchFazenda = text.includes(fLower);
         const matchCultura = !cLower || text.includes(cLower);
         return matchGleba && matchPivo && matchFazenda && matchCultura;
       });
@@ -777,10 +779,11 @@ export default function App() {
   const getPlantioPivos = (fazendaName?: string, culturaName?: string) => {
     if (!plantioData || plantioData.length === 0) return [];
     const fLower = (fazendaName || '').trim().toLowerCase();
+    if (!fLower) return [];
     const cLower = (culturaName || '').trim().toLowerCase();
 
     const matching = plantioData.filter(p => {
-      const matchFaz = !fLower || (p.fazenda || '').trim().toLowerCase() === fLower;
+      const matchFaz = (p.fazenda || '').trim().toLowerCase() === fLower;
       const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
       return matchFaz && matchCult;
     });
@@ -796,13 +799,14 @@ export default function App() {
 
   const getPlantioGlebas = (pivoName?: string, fazendaName?: string, culturaName?: string) => {
     if (!plantioData || plantioData.length === 0) return [];
-    const pLower = (pivoName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
+    if (!fLower) return [];
+    const pLower = (pivoName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
 
     const matching = plantioData.filter(p => {
       const matchPiv = !pLower || pLower === '-' || (p.pivo || '').trim().toLowerCase() === pLower;
-      const matchFaz = !fLower || (p.fazenda || '').trim().toLowerCase() === fLower;
+      const matchFaz = (p.fazenda || '').trim().toLowerCase() === fLower;
       const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
       return matchPiv && matchFaz && matchCult;
     });
@@ -2283,7 +2287,7 @@ export default function App() {
                     <th><div className="th-content">HA GERAL <button className={`btn-filter-col ${isColFiltered(7) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 7)}><i className="fa-solid fa-filter"></i></button></div></th>
                     <th><div className="th-content">HA DIA <button className={`btn-filter-col ${isColFiltered(8) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 8)}><i className="fa-solid fa-filter"></i></button></div></th>
                     <th><div className="th-content">HA RESTANTE <button className={`btn-filter-col ${isColFiltered(9) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 9)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">CAIXA/BIN/BAG <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content">CAIXA/BIN/BAG/SACO <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
                     <th><div className="th-content">GLEBAS FINALIZADA <button className={`btn-filter-col ${isColFiltered(11) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 11)}><i className="fa-solid fa-filter"></i></button></div></th>
                     <th><div className="th-content">CAIXAS CORTADAS <button className={`btn-filter-col ${isColFiltered(12) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 12)}><i className="fa-solid fa-filter"></i></button></div></th>
                     <th style={{ textAlign: 'center' }}>AÇÕES</th>
@@ -3115,18 +3119,20 @@ export default function App() {
                             ? formData.cFazenda
                             : (validFazendas.length === 1 ? validFazendas[0].nome : '');
 
+                          const isSameFazenda = newFazenda && newFazenda === formData.cFazenda;
                           const validPivos = getPlantioPivos(newFazenda, newCultura);
-                          const newPivo = validPivos.some(p => p.nome === formData.cPivo)
+                          const newPivo = isSameFazenda && validPivos.some(p => p.nome === formData.cPivo)
                             ? formData.cPivo
                             : (validPivos.length === 1 ? validPivos[0].nome : '');
 
+                          const isSamePivo = isSameFazenda && newPivo && newPivo === formData.cPivo;
                           const validGlebas = getPlantioGlebas(newPivo, newFazenda, newCultura);
-                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
+                          const newGleba = isSamePivo && validGlebas.some(g => g.nome === formData.cGleba)
                             ? formData.cGleba
                             : (validGlebas.length === 1 ? validGlebas[0].nome : '');
 
                           const validVars = getPlantioVariedades(newCultura, newFazenda, newPivo, newGleba);
-                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                          const newVar = isSamePivo && validVars.some(v => v.nome === formData.cVariedade)
                             ? formData.cVariedade
                             : (validVars.length === 1 ? validVars[0].nome : '');
 
@@ -3163,19 +3169,9 @@ export default function App() {
                         onChange={e => {
                           const newFazenda = e.target.value;
                           const validPivos = getPlantioPivos(newFazenda, formData.cCultura);
-                          const newPivo = validPivos.some(p => p.nome === formData.cPivo)
-                            ? formData.cPivo
-                            : (validPivos.length === 1 ? validPivos[0].nome : '');
-
-                          const validGlebas = getPlantioGlebas(newPivo, newFazenda, formData.cCultura);
-                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
-                            ? formData.cGleba
-                            : (validGlebas.length === 1 ? validGlebas[0].nome : '');
-
-                          const validVars = getPlantioVariedades(formData.cCultura, newFazenda, newPivo, newGleba);
-                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
-                            ? formData.cVariedade
-                            : (validVars.length === 1 ? validVars[0].nome : '');
+                          const newPivo = validPivos.length === 1 ? validPivos[0].nome : '';
+                          const newGleba = '';
+                          const newVar = '';
 
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, newFazenda, newPivo, newGleba, newVar);
                           const newHaGeral = ha || '';
@@ -3209,14 +3205,9 @@ export default function App() {
                         onChange={e => {
                           const newPivo = e.target.value;
                           const validGlebas = getPlantioGlebas(newPivo, formData.cFazenda, formData.cCultura);
-                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
-                            ? formData.cGleba
-                            : (validGlebas.length === 1 ? validGlebas[0].nome : '');
-
+                          const newGleba = validGlebas.length === 1 ? validGlebas[0].nome : '';
                           const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, newPivo, newGleba);
-                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
-                            ? formData.cVariedade
-                            : (validVars.length === 1 ? validVars[0].nome : '');
+                          const newVar = validVars.length === 1 ? validVars[0].nome : '';
 
                           const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, newPivo, newGleba, newVar);
                           const newHaGeral = ha || '';
@@ -3302,13 +3293,21 @@ export default function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>OS</label>
-                      <input type="text" value={formData.cOs || ''} onChange={e => setFormData({ ...formData, cOs: e.target.value })} />
+                      <label>OS (Somente Números)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Ex: 101"
+                        value={formData.cOs || ''}
+                        onChange={e => setFormData({ ...formData, cOs: e.target.value.replace(/\D/g, '') })}
+                      />
                     </div>
                     <div className="form-group">
                       <label>Área Total Plantada Geral (ha) - Automático do Plantio</label>
                       <input
                         type="text"
+                        inputMode="decimal"
                         placeholder="Puxado automaticamente do plantio..."
                         value={formData.cHaGeral || ''}
                         onChange={e => {
@@ -3323,6 +3322,7 @@ export default function App() {
                       <label>Área Colhida no Dia (ha)</label>
                       <input
                         type="text"
+                        inputMode="decimal"
                         placeholder="Ex: 14,50"
                         value={formData.cHaDia || ''}
                         onChange={e => {
@@ -3336,6 +3336,7 @@ export default function App() {
                       <label>Hectare Restante (Cálculo Automático)</label>
                       <input
                         type="text"
+                        inputMode="decimal"
                         placeholder="Calculado automaticamente..."
                         value={formData.cHaRestante || ''}
                         onChange={e => setFormData({ ...formData, cHaRestante: sanitizeHectaresInput(e.target.value) })}
@@ -3343,11 +3344,15 @@ export default function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Caixa / Bin / Bag</label>
+                      <label>Caixa / Bin / Bag / Saco</label>
                       <select value={formData.cCaixaBinBag || 'Caixa'} onChange={e => setFormData({ ...formData, cCaixaBinBag: e.target.value })}>
                         <option value="Caixa">Caixa</option>
+                        <option value="Caixas">Caixas</option>
                         <option value="Bin">Bin</option>
                         <option value="Bag">Bag</option>
+                        <option value="Bags">Bags</option>
+                        <option value="Saco">Saco</option>
+                        <option value="Sacos">Sacos</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -3359,8 +3364,15 @@ export default function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Caixas Cortadas</label>
-                      <input type="text" placeholder="Ex: 250" value={formData.cCaixasCortadas || ''} onChange={e => setFormData({ ...formData, cCaixasCortadas: e.target.value })} />
+                      <label>Caixas / Bags / Sacos Cortadas</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Ex: 250"
+                        value={formData.cCaixasCortadas || ''}
+                        onChange={e => setFormData({ ...formData, cCaixasCortadas: e.target.value.replace(/\D/g, '') })}
+                      />
                     </div>
                   </>
                 )}
@@ -3393,12 +3405,21 @@ export default function App() {
                         value={formData.pCultura || ''}
                         onChange={e => {
                           const newCult = e.target.value;
-                          const ha = lookupHectaresForSelection(formData.pPivo, formData.pGleba, formData.pFazenda);
-                          const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, formData.pPivo, formData.pGleba, formData.pFazenda, editingIndex);
+                          const validFazendas = getAmarracoesFazendas(newCult);
+                          const newFazenda = validFazendas.some(f => f.nome === formData.pFazenda) ? formData.pFazenda : '';
+                          const newPivo = '';
+                          const newGleba = '';
+                          const newVar = '';
+                          const ha = lookupHectaresForSelection(newPivo, newGleba, newFazenda);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, newPivo, newGleba, newFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pCultura: newCult,
+                            pFazenda: newFazenda,
+                            pPivo: newPivo,
+                            pGleba: newGleba,
+                            pVariedade: newVar,
                             pHaGeral: newHaGeral,
                             pHaRestante: newRestante
                           });
@@ -3415,8 +3436,15 @@ export default function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>OS</label>
-                      <input type="text" placeholder="Ex: OS-101" value={formData.pOs || ''} onChange={e => setFormData({ ...formData, pOs: e.target.value })} />
+                      <label>OS (Somente Números)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Ex: 101"
+                        value={formData.pOs || ''}
+                        onChange={e => setFormData({ ...formData, pOs: e.target.value.replace(/\D/g, '') })}
+                      />
                     </div>
                     <div className="form-group">
                       <label>Fazenda (Amarração)</label>
@@ -3424,12 +3452,18 @@ export default function App() {
                         value={formData.pFazenda || ''}
                         onChange={e => {
                           const newFazenda = e.target.value;
-                          const ha = lookupHectaresForSelection(formData.pPivo, formData.pGleba, newFazenda);
-                          const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, formData.pPivo, formData.pGleba, newFazenda, editingIndex);
+                          const newPivo = '';
+                          const newGleba = '';
+                          const newVar = '';
+                          const ha = lookupHectaresForSelection(newPivo, newGleba, newFazenda);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, newPivo, newGleba, newFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pFazenda: newFazenda,
+                            pPivo: newPivo,
+                            pGleba: newGleba,
+                            pVariedade: newVar,
                             pHaGeral: newHaGeral,
                             pHaRestante: newRestante
                           });
@@ -3451,12 +3485,14 @@ export default function App() {
                         value={formData.pPivo || ''}
                         onChange={e => {
                           const newPivo = e.target.value;
-                          const ha = lookupHectaresForSelection(newPivo, formData.pGleba, formData.pFazenda);
-                          const newHaGeral = ha || formData.pHaGeral || '';
-                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, newPivo, formData.pGleba, formData.pFazenda, editingIndex);
+                          const newGleba = '';
+                          const ha = lookupHectaresForSelection(newPivo, newGleba, formData.pFazenda);
+                          const newHaGeral = ha || '';
+                          const newRestante = calculateHaRestanteForPlantio(newHaGeral, formData.pHaDia, newPivo, newGleba, formData.pFazenda, editingIndex);
                           setFormData({
                             ...formData,
                             pPivo: newPivo,
+                            pGleba: newGleba,
                             pHaGeral: newHaGeral,
                             pHaRestante: newRestante
                           });
@@ -3513,6 +3549,7 @@ export default function App() {
                       <label>Área Total da Amarração (ha) - Automático</label>
                       <input
                         type="text"
+                        inputMode="decimal"
                         placeholder="Ex: 115,00"
                         value={formData.pHaGeral || ''}
                         onChange={e => {
@@ -3526,6 +3563,7 @@ export default function App() {
                       <label>HA / Dia (Área Plantada)</label>
                       <input
                         type="text"
+                        inputMode="decimal"
                         placeholder="Ex: 31,88"
                         value={formData.pHaDia || ''}
                         onChange={e => {
@@ -3539,6 +3577,7 @@ export default function App() {
                       <label>HA Restante (Cálculo Automático)</label>
                       <input
                         type="text"
+                        inputMode="decimal"
                         placeholder="Calculado automaticamente..."
                         value={formData.pHaRestante || ''}
                         onChange={e => setFormData({ ...formData, pHaRestante: sanitizeHectaresInput(e.target.value) })}
@@ -3555,7 +3594,7 @@ export default function App() {
                     </div>
                     <div className="form-group">
                       <label>Média HA</label>
-                      <input type="text" placeholder="Ex: 31,88" value={formData.pMediaHa || ''} onChange={e => setFormData({ ...formData, pMediaHa: sanitizeHectaresInput(e.target.value) })} />
+                      <input type="text" inputMode="decimal" placeholder="Ex: 31,88" value={formData.pMediaHa || ''} onChange={e => setFormData({ ...formData, pMediaHa: sanitizeHectaresInput(e.target.value) })} />
                     </div>
                     <div className="form-group">
                       <label>Ano</label>
@@ -4689,6 +4728,7 @@ export default function App() {
                                             </label>
                                             <input
                                               type="text"
+                                              inputMode="decimal"
                                               value={tieHectares}
                                               onChange={e => setTieHectares(sanitizeHectaresInput(e.target.value))}
                                               placeholder="Ex: 120,50"
