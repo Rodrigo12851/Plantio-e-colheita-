@@ -15,6 +15,7 @@ interface ColheitaItem {
   caixaBinBag?: string;
   glebasFinalizada?: string;
   caixasCortadas?: string;
+  unidade?: string;
 }
 
 interface PlantioItem {
@@ -32,17 +33,20 @@ interface PlantioItem {
   mediaHa?: string;
   ano: string;
   haGeral?: string;
+  unidade?: string;
 }
 
 interface SimpleItem {
   codigo: string;
   nome: string;
+  unidade?: string;
 }
 
 interface VariedadeItem {
   codigo: string;
   nome: string;
   cultura: string;
+  unidade?: string;
 }
 
 interface ColaboradorItem {
@@ -52,12 +56,14 @@ interface ColaboradorItem {
   local?: string;
   status?: string;
   abreviacao?: string;
+  unidade?: string;
 }
 
 interface MotoristaItem {
   codigo: string;
   nome: string;
   abreviacao: string;
+  unidade?: string;
 }
 
 interface OnibusItem {
@@ -67,6 +73,7 @@ interface OnibusItem {
   motorista: string;
   local?: string;
   cooperado?: string;
+  unidade?: string;
 }
 
 type MainCategoryKey = 'colheita' | 'plantio' | 'empresas' | 'anos' | 'variedades' | 'pivos' | 'glebas' | 'fazendas' | 'culturas' | 'colaboradores' | 'motoristas' | 'onibus';
@@ -82,6 +89,7 @@ export interface AmarracaoItem {
   status: 'Ativo' | 'Inativo';
   hectares?: string;
   observacao?: string;
+  unidade?: string;
 }
 
 type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes';
@@ -198,12 +206,65 @@ export default function App() {
     selected: string[];
   } | null>(null);
 
+  // Unidade de Produção state (Cristalina, São Gabriel, Uberlândia, etc.)
+  const [unidadesList, setUnidadesList] = useState<string[]>(() =>
+    getInitialData('agri_unidadesList', ['Cristalina', 'São Gabriel', 'Uberlândia'])
+  );
+  const [selectedUnidade, setSelectedUnidade] = useState<string>(() =>
+    getInitialData('agri_selectedUnidade', 'Cristalina')
+  );
+  const [showUnidadeModal, setShowUnidadeModal] = useState<boolean>(false);
+  const [newUnidadeInput, setNewUnidadeInput] = useState<string>('');
+
+  useEffect(() => {
+    localStorage.setItem('agri_unidadesList', JSON.stringify(unidadesList));
+  }, [unidadesList]);
+
+  useEffect(() => {
+    localStorage.setItem('agri_selectedUnidade', JSON.stringify(selectedUnidade));
+  }, [selectedUnidade]);
+
+  const getUnitInitials = (unitName: string): string => {
+    if (!unitName) return 'CC';
+    if (unitName.toLowerCase().trim() === 'cristalina') return 'CC';
+    const parts = unitName.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return unitName.substring(0, 2).toUpperCase();
+  };
+
+  const isItemInSelectedUnidade = (item: { unidade?: string }) => {
+    if (!item) return false;
+    if (!item.unidade) {
+      return selectedUnidade === 'Cristalina';
+    }
+    return item.unidade === selectedUnidade;
+  };
+
+  const handleAddUnidade = () => {
+    const name = newUnidadeInput.trim();
+    if (!name) {
+      showToast('Digite o nome da nova unidade.', 'warning');
+      return;
+    }
+    if (unidadesList.some(u => u.toLowerCase() === name.toLowerCase())) {
+      showToast(`A unidade "${name}" já está cadastrada.`, 'warning');
+      return;
+    }
+    const updated = [...unidadesList, name];
+    setUnidadesList(updated);
+    setSelectedUnidade(name);
+    setNewUnidadeInput('');
+    showToast(`Unidade "${name}" cadastrada e selecionada!`, 'success');
+  };
+
   // Table dataset state with localStorage persistence
   const [colheitaData, setColheitaData] = useState<ColheitaItem[]>(() =>
     getInitialData('agri_colheitaData', [
-      { data: '26/02/26', cultura: 'Milho Semente Fêmea', fazenda: 'FAZENDA SÃO BENTO', pivo: '11', gleba: 'C5', variedade: 'LEC20EOPG', os: '150/2026', haGeral: '115 ha', haDia: '14,5 ha', haRestante: '100,5 ha', caixaBinBag: 'Caixa', glebasFinalizada: 'Não', caixasCortadas: '250' },
+      { data: '26/02/26', cultura: 'Milho Semente Fêmea', fazenda: 'FAZENDA SÃO BENTO', pivo: '11', gleba: 'C5', variedade: 'LEC20EOPG', os: '150/2026', haGeral: '115 ha', haDia: '14,5 ha', haRestante: '100,5 ha', caixaBinBag: 'Caixas', glebasFinalizada: 'Não', caixasCortadas: '250' },
       { data: '28/03/26', cultura: 'Cenoura', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', os: 'OS-101', haGeral: '15,00 ha', haDia: '5,00 ha', haRestante: '10,00 ha', caixaBinBag: 'Bin', glebasFinalizada: 'Não', caixasCortadas: '120' },
-      { data: '28/03/26', cultura: 'Alho', fazenda: 'Fazenda Norte', pivo: 'Pivô 02', gleba: 'Gleba B', variedade: 'Variedade B', os: 'OS-102', haGeral: '20,00 ha', haDia: '8,00 ha', haRestante: '12,00 ha', caixaBinBag: 'Bag', glebasFinalizada: 'Sim', caixasCortadas: '300' }
+      { data: '28/03/26', cultura: 'Alho', fazenda: 'Fazenda Norte', pivo: 'Pivô 02', gleba: 'Gleba B', variedade: 'Variedade B', os: 'OS-102', haGeral: '20,00 ha', haDia: '8,00 ha', haRestante: '12,00 ha', caixaBinBag: 'Bags', glebasFinalizada: 'Sim', caixasCortadas: '300' }
     ])
   );
 
@@ -868,26 +929,26 @@ export default function App() {
     const newCode = Date.now().toString();
 
     if (category === 'empresa') {
-      setEmpresasData(prev => [...prev, { codigo: newCode, nome: name }]);
+      setEmpresasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
       showToast(`Empresa "${name}" cadastrada!`, 'success');
     } else if (category === 'ano') {
-      setAnosData(prev => [...prev, { codigo: newCode, nome: name }]);
+      setAnosData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
       showToast(`Ano "${name}" cadastrado!`, 'success');
     } else if (category === 'cultura') {
-      setCulturasData(prev => [...prev, { codigo: newCode, nome: name }]);
+      setCulturasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
       showToast(`Cultura "${name}" cadastrada!`, 'success');
     } else if (category === 'fazenda') {
-      setFazendasData(prev => [...prev, { codigo: newCode, nome: name }]);
+      setFazendasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
       showToast(`Fazenda "${name}" cadastrada!`, 'success');
     } else if (category === 'pivo') {
-      setPivosData(prev => [...prev, { codigo: newCode, nome: name }]);
+      setPivosData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
       showToast(`Pivô "${name}" cadastrado!`, 'success');
     } else if (category === 'gleba') {
-      setGlebasData(prev => [...prev, { codigo: newCode, nome: name }]);
+      setGlebasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
       showToast(`Gleba "${name}" cadastrada!`, 'success');
     } else if (category === 'variedade') {
       const culturaVinculada = selectedCulturaForTie || '';
-      setVariedadesData(prev => [...prev, { codigo: newCode, nome: name, cultura: culturaVinculada }]);
+      setVariedadesData(prev => [...prev, { codigo: newCode, nome: name, cultura: culturaVinculada, unidade: selectedUnidade }]);
       showToast(`Variedade "${name}" cadastrada${culturaVinculada ? ` (Cultura: ${culturaVinculada})` : ''}!`, 'success');
     }
 
@@ -937,7 +998,8 @@ export default function App() {
       destino: selectedVariedadeForTie || selectedGlebaForTie || selectedPivoForTie || 'Vínculo',
       status: 'Ativo',
       hectares: formattedHectares,
-      observacao: tieObservacao.trim() || 'Ligação cadastrada no Geral'
+      observacao: tieObservacao.trim() || 'Ligação cadastrada no Geral',
+      unidade: selectedUnidade
     };
 
     setAmarracoesData(prev => [newItem, ...prev]);
@@ -962,6 +1024,7 @@ export default function App() {
     origem: string;
     destino: string;
     status: 'Ativo' | 'Inativo';
+    hectares: string;
     observacao: string;
   }>({
     categoria: 'cultura',
@@ -969,6 +1032,7 @@ export default function App() {
     origem: '',
     destino: '',
     status: 'Ativo',
+    hectares: '',
     observacao: ''
   });
 
@@ -980,6 +1044,7 @@ export default function App() {
       origem: '',
       destino: '',
       status: 'Ativo',
+      hectares: '',
       observacao: ''
     });
     setIsAmarracaoModalOpen(true);
@@ -988,11 +1053,12 @@ export default function App() {
   const openEditAmarracaoModal = (item: AmarracaoItem) => {
     setEditingAmarracao(item);
     setAmarracaoFormData({
-      categoria: item.categoria,
-      titulo: item.titulo,
-      origem: item.origem,
-      destino: item.destino,
-      status: item.status,
+      categoria: item.categoria || 'geral',
+      titulo: item.titulo || '',
+      origem: item.origem || item.titulo || '',
+      destino: item.destino || item.titulo || '',
+      status: item.status || 'Ativo',
+      hectares: item.hectares ? item.hectares.replace(/ha/gi, '').trim() : '',
       observacao: item.observacao || ''
     });
     setIsAmarracaoModalOpen(true);
@@ -1000,38 +1066,41 @@ export default function App() {
 
   const handleSaveAmarracao = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amarracaoFormData.origem.trim() || !amarracaoFormData.destino.trim()) {
-      showToast('Preencha os campos Origem e Destino do vínculo.', 'warning');
-      return;
-    }
-
-    const autoTitle = amarracaoFormData.titulo.trim() || `${amarracaoFormData.origem} ➔ ${amarracaoFormData.destino}`;
+    const orig = amarracaoFormData.origem.trim() || amarracaoFormData.titulo.trim() || 'Origem';
+    const dest = amarracaoFormData.destino.trim() || amarracaoFormData.titulo.trim() || 'Destino';
+    const autoTitle = amarracaoFormData.titulo.trim() || `${orig} ➔ ${dest}`;
+    const formattedHectares = amarracaoFormData.hectares.trim() ? `${amarracaoFormData.hectares.trim().replace(/ha/gi, '').trim()} ha` : undefined;
 
     if (editingAmarracao) {
       setAmarracoesData(prev => prev.map(item => item.id === editingAmarracao.id ? {
         ...item,
         categoria: amarracaoFormData.categoria,
         titulo: autoTitle,
-        origem: amarracaoFormData.origem,
-        destino: amarracaoFormData.destino,
+        origem: orig,
+        destino: dest,
         status: amarracaoFormData.status,
+        hectares: formattedHectares,
         observacao: amarracaoFormData.observacao
       } : item));
       showToast('Amarração atualizada com sucesso!', 'success');
     } else {
       const newItem: AmarracaoItem = {
         id: Date.now().toString(),
+        codigoMarca: `#AMR-${Date.now().toString().slice(-5)}`,
         categoria: amarracaoFormData.categoria,
         titulo: autoTitle,
-        origem: amarracaoFormData.origem,
-        destino: amarracaoFormData.destino,
+        origem: orig,
+        destino: dest,
         status: amarracaoFormData.status,
-        observacao: amarracaoFormData.observacao
+        hectares: formattedHectares,
+        observacao: amarracaoFormData.observacao,
+        unidade: selectedUnidade
       };
       setAmarracoesData(prev => [newItem, ...prev]);
       showToast('Nova amarração criada com sucesso!', 'success');
     }
     setIsAmarracaoModalOpen(false);
+    setEditingAmarracao(null);
   };
 
   const handleDeleteAmarracao = (id: string) => {
@@ -1454,7 +1523,7 @@ export default function App() {
       initial.cHaGeral = editData ? editData[7] : autoPlantedHa;
       initial.cHaDia = editData ? editData[8] : '';
       initial.cHaRestante = editData && editData[9] && editData[9] !== '-' ? editData[9] : calculateHaRestanteForColheita(initial.cHaGeral, initial.cHaDia, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
-      initial.cCaixaBinBag = editData && editData[10] && editData[10] !== '-' ? editData[10] : 'Caixa';
+      initial.cCaixaBinBag = editData && editData[10] && editData[10] !== '-' ? editData[10] : 'Caixas';
       initial.cGlebasFinalizada = editData && editData[11] && editData[11] !== '-' ? editData[11] : 'Não';
       initial.cCaixasCortadas = editData && editData[12] && editData[12] !== '-' ? editData[12] : '';
     } else if (activePage === 'plantio') {
@@ -1780,7 +1849,8 @@ export default function App() {
         haRestante: formData.cHaRestante || '-',
         caixaBinBag: formData.cCaixaBinBag || '-',
         glebasFinalizada: formData.cGlebasFinalizada || '-',
-        caixasCortadas: formData.cCaixasCortadas || '-'
+        caixasCortadas: formData.cCaixasCortadas || '-',
+        unidade: editingIndex !== null ? (colheitaData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
       if (editingIndex !== null) {
@@ -1803,7 +1873,8 @@ export default function App() {
         haRestante: formData.pHaRestante || '-',
         glebasFinalizada: formData.pGlebasFinalizada || '-',
         mediaHa: formData.pMediaHa || '-',
-        ano: formData.pAno || '-'
+        ano: formData.pAno || '-',
+        unidade: editingIndex !== null ? (plantioData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
       if (editingIndex !== null) {
@@ -1826,7 +1897,8 @@ export default function App() {
       const newItem: VariedadeItem = {
         codigo: code,
         nome: formData.simpleName || '',
-        cultura: formData.vCultura || (culturasData[0]?.nome || '-')
+        cultura: formData.vCultura || (culturasData[0]?.nome || '-'),
+        unidade: editingIndex !== null ? (variedadesData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
       if (editingIndex !== null) {
@@ -1852,7 +1924,8 @@ export default function App() {
         apontador: (formData.cApontador || '').trim() || '-',
         local: formData.cLocal || '-',
         status: formData.cStatus || 'Ativo',
-        abreviacao: (formData.nomeCompleto || '').trim().split(' ')[0]
+        abreviacao: (formData.nomeCompleto || '').trim().split(' ')[0],
+        unidade: editingIndex !== null ? (colaboradoresData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
       if (editingIndex !== null) {
@@ -1875,7 +1948,8 @@ export default function App() {
       const newItem: MotoristaItem = {
         codigo: code,
         nome: (formData.nomeCompleto || '').trim(),
-        abreviacao: (formData.abreviacao || '').trim()
+        abreviacao: (formData.abreviacao || '').trim(),
+        unidade: editingIndex !== null ? (motoristasData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
       if (editingIndex !== null) {
@@ -1907,7 +1981,8 @@ export default function App() {
         cor: (formData.corOnibus || '').trim() || 'Branco',
         motorista: formData.oMotorista || '-',
         local: formData.oLocal || '-',
-        cooperado: formData.oCooperado || 'Não'
+        cooperado: formData.oCooperado || 'Não',
+        unidade: editingIndex !== null ? (onibusData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
       if (editingIndex !== null) {
@@ -1936,9 +2011,11 @@ export default function App() {
         return;
       }
 
+      const existingItem = editingIndex !== null ? currentList[editingIndex] : null;
       const newItem: SimpleItem = {
         codigo: code,
-        nome: formData.simpleName || ''
+        nome: formData.simpleName || '',
+        unidade: existingItem?.unidade || selectedUnidade
       };
 
       const updateList = (prev: SimpleItem[]) => {
@@ -2174,9 +2251,19 @@ export default function App() {
         <div className="main-area">
 
           <div className="list-header">
-            <div className="list-header-left">
-              <div className="list-icon-bg">CC</div>
-              <div className="list-title-text">Cristalina - Controle Agricola Apontadores</div>
+            <div
+              className="list-header-left"
+              onClick={() => setShowUnidadeModal(true)}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+              title="Clique para alternar de unidade"
+            >
+              <div className="list-icon-bg" style={{ userSelect: 'none' }}>
+                {getUnitInitials(selectedUnidade)}
+              </div>
+              <div className="list-title-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{selectedUnidade} - Controle Agricola Apontadores</span>
+                <i className="fa-solid fa-chevron-down" style={{ fontSize: '12px', color: '#605e5c' }}></i>
+              </div>
             </div>
             <div className="list-header-right">
               <span>Grupo privado</span> • <span><i className="fa-regular fa-user"></i> 30 membros</span>
@@ -3007,6 +3094,168 @@ export default function App() {
         </div>
       </div>
 
+      {/* MODAL DE SELEÇÃO E GESTÃO DE UNIDADES DE PRODUÇÃO */}
+      {showUnidadeModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowUnidadeModal(false)}
+          style={{ display: 'flex', zIndex: 99999 }}
+        >
+          <div
+            className="modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '460px',
+              width: '90%',
+              padding: '24px',
+              borderRadius: '8px',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+              border: '1px solid #d2d0ce'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e1dfdd', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="list-icon-bg" style={{ fontSize: '13px', width: '32px', height: '32px' }}>
+                  {getUnitInitials(selectedUnidade)}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#323130' }}>
+                    Unidades de Produção
+                  </h3>
+                  <span style={{ fontSize: '11px', color: '#605e5c' }}>Alterne ou adicione novas unidades</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowUnidadeModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '16px', color: '#605e5c', cursor: 'pointer', padding: '4px' }}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto', marginBottom: '20px', paddingRight: '4px' }}>
+              {unidadesList.map((unit) => {
+                const isSelected = unit === selectedUnidade;
+                return (
+                  <div
+                    key={unit}
+                    onClick={() => {
+                      setSelectedUnidade(unit);
+                      showToast(`Unidade alterada para "${unit}"`, 'info');
+                      setShowUnidadeModal(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: isSelected ? '2px solid #0078d4' : '1px solid #e1dfdd',
+                      backgroundColor: isSelected ? '#eff6fc' : '#ffffff',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '4px',
+                          backgroundColor: isSelected ? '#0078d4' : '#605e5c',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {getUnitInitials(unit)}
+                      </div>
+                      <span style={{ fontSize: '14px', fontWeight: isSelected ? 600 : 400, color: '#323130' }}>
+                        {unit}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {isSelected && (
+                        <span style={{ fontSize: '12px', color: '#0078d4', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="fa-solid fa-circle-check"></i> Ativa
+                        </span>
+                      )}
+                      {unidadesList.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Deseja realmente excluir a unidade "${unit}"?`)) {
+                              const updated = unidadesList.filter(u => u !== unit);
+                              setUnidadesList(updated);
+                              if (selectedUnidade === unit) {
+                                setSelectedUnidade(updated[0] || 'Cristalina');
+                              }
+                              showToast(`Unidade "${unit}" excluída.`, 'info');
+                            }
+                          }}
+                          title="Excluir Unidade"
+                          style={{ background: 'none', border: 'none', color: '#a19f9d', cursor: 'pointer', fontSize: '12px', padding: '4px' }}
+                        >
+                          <i className="fa-solid fa-trash"></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ borderTop: '1px solid #e1dfdd', paddingTop: '16px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#323130', display: 'block', marginBottom: '6px' }}>
+                Cadastrar Nova Unidade:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={newUnidadeInput}
+                  onChange={e => setNewUnidadeInput(e.target.value)}
+                  placeholder="Ex: São Gabriel, Uberlândia, Paz..."
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #8a8886',
+                    fontSize: '13px'
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddUnidade();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleAddUnidade}
+                  style={{
+                    backgroundColor: '#0078d4',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '8px 16px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  + Adicionar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* POPUP DE SELEÇÃO DE FILTRO POR COLUNA */}
       {popoverState && (
         <div
@@ -3344,14 +3593,11 @@ export default function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Caixa / Bin / Bag / Saco</label>
-                      <select value={formData.cCaixaBinBag || 'Caixa'} onChange={e => setFormData({ ...formData, cCaixaBinBag: e.target.value })}>
-                        <option value="Caixa">Caixa</option>
+                      <label>Caixas / Bin / Bags / Sacos</label>
+                      <select value={formData.cCaixaBinBag || 'Caixas'} onChange={e => setFormData({ ...formData, cCaixaBinBag: e.target.value })}>
                         <option value="Caixas">Caixas</option>
                         <option value="Bin">Bin</option>
-                        <option value="Bag">Bag</option>
                         <option value="Bags">Bags</option>
-                        <option value="Saco">Saco</option>
                         <option value="Sacos">Sacos</option>
                       </select>
                     </div>
@@ -4126,14 +4372,14 @@ export default function App() {
 
       {/* MODAL PARA AMARRAÇÃO / MARCAÇÃO */}
       {isAmarracaoModalOpen && (
-        <div className="modal-backdrop open" onClick={() => setIsAmarracaoModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+        <div className="modal-backdrop open" onClick={() => { setIsAmarracaoModalOpen(false); setEditingAmarracao(null); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-grip-vertical" style={{ color: '#0078d4' }}></i>
+                <i className="fa-solid fa-pen-to-square" style={{ color: '#0078d4' }}></i>
                 {editingAmarracao ? 'Editar Amarração' : 'Nova Amarração / Marcação'}
               </h3>
-              <button className="modal-close" onClick={() => setIsAmarracaoModalOpen(false)}>&times;</button>
+              <button type="button" className="modal-close" onClick={() => { setIsAmarracaoModalOpen(false); setEditingAmarracao(null); }}>&times;</button>
             </div>
 
             <form onSubmit={handleSaveAmarracao}>
@@ -4156,7 +4402,15 @@ export default function App() {
 
                 <div className="form-group">
                   <label>Item de Origem (Principal)</label>
-                  {amarracaoFormData.categoria === 'cultura' ? (
+                  {editingAmarracao || amarracaoFormData.categoria === 'geral' ? (
+                    <input
+                      type="text"
+                      placeholder="Ex: Fazenda Sol / Empresa / Origem"
+                      value={amarracaoFormData.origem}
+                      onChange={e => setAmarracaoFormData({ ...amarracaoFormData, origem: e.target.value })}
+                      required
+                    />
+                  ) : amarracaoFormData.categoria === 'cultura' ? (
                     <select
                       value={amarracaoFormData.origem}
                       onChange={e => setAmarracaoFormData({ ...amarracaoFormData, origem: e.target.value })}
@@ -4224,7 +4478,15 @@ export default function App() {
 
                 <div className="form-group">
                   <label>Item Amarrado / Destino</label>
-                  {amarracaoFormData.categoria === 'cultura' ? (
+                  {editingAmarracao || amarracaoFormData.categoria === 'geral' ? (
+                    <input
+                      type="text"
+                      placeholder="Ex: Pivô 01 / Variedade X / Destino"
+                      value={amarracaoFormData.destino}
+                      onChange={e => setAmarracaoFormData({ ...amarracaoFormData, destino: e.target.value })}
+                      required
+                    />
+                  ) : amarracaoFormData.categoria === 'cultura' ? (
                     <select
                       value={amarracaoFormData.destino}
                       onChange={e => setAmarracaoFormData({ ...amarracaoFormData, destino: e.target.value })}
@@ -4290,6 +4552,16 @@ export default function App() {
                 </div>
 
                 <div className="form-group">
+                  <label>Área / Hectares (ha) (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 115,00"
+                    value={amarracaoFormData.hectares}
+                    onChange={e => setAmarracaoFormData({ ...amarracaoFormData, hectares: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
                   <label>Status</label>
                   <select
                     value={amarracaoFormData.status}
@@ -4312,8 +4584,10 @@ export default function App() {
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn-modal-cancel" onClick={() => setIsAmarracaoModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn-modal-save">Salvar Amarração</button>
+                <button type="button" className="btn-modal-cancel" onClick={() => { setIsAmarracaoModalOpen(false); setEditingAmarracao(null); }}>Cancelar</button>
+                <button type="submit" className="btn-modal-save">
+                  <i className="fa-solid fa-check"></i> {editingAmarracao ? 'Salvar Alterações' : 'Salvar Amarração'}
+                </button>
               </div>
             </form>
           </div>
@@ -4858,108 +5132,161 @@ export default function App() {
                   </div>
 
                   {/* HISTÓRICO DE AMARRAÇÕES E LIGAÇÕES SALVAS NO GERAL */}
-                  <div style={{
-                    width: '100%',
-                    maxWidth: '1080px',
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e1dfdd',
-                    borderRadius: '8px',
-                    padding: '18px 20px',
-                    marginTop: '20px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '14px',
-                      borderBottom: '1px solid #f3f2f1',
-                      paddingBottom: '10px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fa-solid fa-list-check" style={{ color: '#794b00', fontSize: '16px' }}></i>
-                        <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#323130', margin: 0 }}>
-                          Amarrações e Ligações de Ordens Cadastradas no Geral ({amarracoesData.length})
-                        </h3>
-                      </div>
-                    </div>
-
-                    {amarracoesData.length === 0 ? (
-                      <div style={{ fontSize: '12px', color: '#a19f9d', fontStyle: 'italic', padding: '16px 0', textAlign: 'center' }}>
-                        Nenhuma amarração gravada no Geral. Selecione os itens nos quadrados acima e clique em "Salvar Amarração no Geral"!
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {amarracoesData.map((tie) => (
-                          <div
-                            key={tie.id}
+                  {(() => {
+                    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+                    return (
+                      <div style={{
+                        width: '100%',
+                        maxWidth: '1080px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e1dfdd',
+                        borderRadius: '8px',
+                        padding: '18px 20px',
+                        marginTop: '20px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '14px',
+                          borderBottom: '1px solid #f3f2f1',
+                          paddingBottom: '10px',
+                          flexWrap: 'wrap',
+                          gap: '10px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fa-solid fa-list-check" style={{ color: '#794b00', fontSize: '16px' }}></i>
+                            <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#323130', margin: 0 }}>
+                              Amarrações e Ligações de Ordens Cadastradas no Geral ({unitAmarracoes.length})
+                            </h3>
+                          </div>
+                          <button
+                            onClick={() => openNewAmarracaoModal('geral')}
                             style={{
-                              backgroundColor: '#faf9f8',
-                              border: '1px solid #e1dfdd',
-                              borderRadius: '6px',
-                              padding: '10px 14px',
+                              backgroundColor: '#794b00',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '12px',
-                              flexWrap: 'wrap'
+                              gap: '6px'
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <span style={{
-                                fontSize: '11px',
-                                fontWeight: 800,
-                                fontFamily: 'monospace',
-                                backgroundColor: '#794b0018',
-                                color: '#794b00',
-                                padding: '2px 7px',
-                                borderRadius: '4px',
-                                border: '1px solid #794b0033'
-                              }}>
-                                {tie.codigoMarca || `#AMR-${tie.id.slice(-5)}`}
-                              </span>
-                              <i className="fa-solid fa-link" style={{ color: '#794b00', fontSize: '13px' }}></i>
-                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0078d4' }}>
-                                {tie.titulo}
-                              </span>
-                            </div>
+                            <i className="fa-solid fa-plus"></i> Nova Amarração
+                          </button>
+                        </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <button
-                                onClick={() => handleToggleAmarracaoStatus(tie.id)}
-                                style={{
-                                  backgroundColor: tie.status === 'Ativo' ? '#dff6dd' : '#f3f2f1',
-                                  color: tie.status === 'Ativo' ? '#107c41' : '#a19f9d',
-                                  border: 'none',
-                                  borderRadius: '10px',
-                                  padding: '3px 10px',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                {tie.status}
-                              </button>
-                              <button
-                                onClick={() => handleDeleteAmarracao(tie.id)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: '#a80000',
-                                  cursor: 'pointer',
-                                  fontSize: '12px',
-                                  padding: '4px'
-                                }}
-                                title="Excluir amarração"
-                              >
-                                <i className="fa-solid fa-trash"></i>
-                              </button>
-                            </div>
+                        {unitAmarracoes.length === 0 ? (
+                          <div style={{ fontSize: '12px', color: '#a19f9d', fontStyle: 'italic', padding: '16px 0', textAlign: 'center' }}>
+                            Nenhuma amarração gravada no Geral para a unidade "{selectedUnidade}". Selecione os itens nos quadrados acima e clique em "Salvar Amarração no Geral"!
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {unitAmarracoes.map((tie) => (
+                              <div
+                                key={tie.id}
+                                style={{
+                                  backgroundColor: '#faf9f8',
+                                  border: '1px solid #e1dfdd',
+                                  borderRadius: '6px',
+                                  padding: '10px 14px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '12px',
+                                  flexWrap: 'wrap'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    fontFamily: 'monospace',
+                                    backgroundColor: '#794b0018',
+                                    color: '#794b00',
+                                    padding: '2px 7px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #794b0033'
+                                  }}>
+                                    {tie.codigoMarca || `#AMR-${tie.id.slice(-5)}`}
+                                  </span>
+                                  <i className="fa-solid fa-link" style={{ color: '#794b00', fontSize: '13px' }}></i>
+                                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0078d4' }}>
+                                    {tie.titulo}
+                                  </span>
+                                  {tie.hectares && (
+                                    <span style={{ fontSize: '11px', color: '#107c41', backgroundColor: '#dff6dd', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                      <i className="fa-solid fa-ruler-combined" style={{ marginRight: '4px' }}></i>
+                                      {tie.hectares}
+                                    </span>
+                                  )}
+                                  {tie.observacao && (
+                                    <span style={{ fontSize: '11px', color: '#605e5c', fontStyle: 'italic' }}>
+                                      ({tie.observacao})
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    onClick={() => openEditAmarracaoModal(tie)}
+                                    style={{
+                                      backgroundColor: '#deecf9',
+                                      color: '#0078d4',
+                                      border: 'none',
+                                      borderRadius: '10px',
+                                      padding: '3px 10px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Editar amarração"
+                                  >
+                                    Editar
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleToggleAmarracaoStatus(tie.id)}
+                                    style={{
+                                      backgroundColor: tie.status === 'Ativo' ? '#dff6dd' : '#f3f2f1',
+                                      color: tie.status === 'Ativo' ? '#107c41' : '#a19f9d',
+                                      border: 'none',
+                                      borderRadius: '10px',
+                                      padding: '3px 10px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {tie.status}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteAmarracao(tie.id)}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#a80000',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      padding: '4px'
+                                    }}
+                                    title="Excluir amarração"
+                                  >
+                                    <i className="fa-solid fa-trash"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </>
               );
             })()}
