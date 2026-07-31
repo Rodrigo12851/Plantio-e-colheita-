@@ -688,16 +688,6 @@ export default function App() {
       matches.forEach(p => {
         totalPlanted += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
       });
-    } else {
-      const looseMatches = unitPlantio.filter(p => {
-        const matchFaz = fLower && (p.fazenda || '').trim().toLowerCase() === fLower;
-        const matchGleb = gLower && gLower !== '-' && (p.gleba || '').trim().toLowerCase() === gLower;
-        const matchPiv = pLower && pLower !== '-' && (p.pivo || '').trim().toLowerCase() === pLower;
-        return matchFaz || matchGleb || matchPiv;
-      });
-      looseMatches.forEach(p => {
-        totalPlanted += parseHaValue(p.haDia || p.haGeral || p.mediaHa);
-      });
     }
 
     if (totalPlanted <= 0) return '';
@@ -853,15 +843,38 @@ export default function App() {
   };
 
   // --- COLHEITA OPTION HELPERS (Pull only items that exist in plantioData) ---
-  const getPlantioCulturas = () => {
+  const getPlantioEmpresas = (culturaName?: string, fazendaName?: string) => {
+    const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+    const unitEmpresas = empresasData.filter(isItemInSelectedUnidade);
+    if (!unitPlantio || unitPlantio.length === 0) return [];
+    const cLower = (culturaName || '').trim().toLowerCase();
+    const fLower = (fazendaName || '').trim().toLowerCase();
+
+    const matching = unitPlantio.filter(p => {
+      const matchCult = !cLower || (p.cultura || '').trim().toLowerCase() === cLower;
+      const matchFaz = !fLower || (p.fazenda || '').trim().toLowerCase() === fLower;
+      return matchCult && matchFaz;
+    });
+
+    const empresaNames = new Set(matching.map(p => (p.empresa || '').trim().toLowerCase()));
+    const filtered = unitEmpresas.filter(e => empresaNames.has(e.nome.trim().toLowerCase()));
+    const extra = Array.from(empresaNames)
+      .filter(name => name && name !== '-' && !unitEmpresas.some(e => e.nome.trim().toLowerCase() === name))
+      .map((name, i) => ({ codigo: `p-emp-${i}`, nome: matching.find(p => p.empresa?.trim().toLowerCase() === name)?.empresa || name }));
+    return [...filtered, ...extra];
+  };
+
+  const getPlantioCulturas = (fazendaName?: string) => {
     const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
     const unitCulturas = culturasData.filter(isItemInSelectedUnidade);
     if (!unitPlantio || unitPlantio.length === 0) return [];
-    const plantioCultureNames = new Set(unitPlantio.map(p => (p.cultura || '').trim().toLowerCase()));
+    const fLower = (fazendaName || '').trim().toLowerCase();
+    const matching = unitPlantio.filter(p => !fLower || (p.fazenda || '').trim().toLowerCase() === fLower);
+    const plantioCultureNames = new Set(matching.map(p => (p.cultura || '').trim().toLowerCase()));
     const filtered = unitCulturas.filter(c => plantioCultureNames.has(c.nome.trim().toLowerCase()));
     const extra = Array.from(plantioCultureNames)
       .filter(name => name && !unitCulturas.some(c => c.nome.trim().toLowerCase() === name))
-      .map((name, i) => ({ codigo: `p-cult-${i}`, nome: unitPlantio.find(p => p.cultura?.trim().toLowerCase() === name)?.cultura || name }));
+      .map((name, i) => ({ codigo: `p-cult-${i}`, nome: matching.find(p => p.cultura?.trim().toLowerCase() === name)?.cultura || name }));
     return [...filtered, ...extra];
   };
 
@@ -1914,6 +1927,22 @@ export default function App() {
     const isEdit = editingIndex !== null;
 
     if (activePage === 'colheita') {
+      const cCult = (formData.cCultura || '').trim().toLowerCase();
+      const cFaz = (formData.cFazenda || '').trim().toLowerCase();
+      const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+      if (unitPlantio.length > 0) {
+        const hasMatchingPlantio = unitPlantio.some(p => {
+          const matchCult = !cCult || (p.cultura || '').trim().toLowerCase() === cCult;
+          const matchFaz = !cFaz || (p.fazenda || '').trim().toLowerCase() === cFaz;
+          return matchCult && matchFaz;
+        });
+
+        if (!hasMatchingPlantio) {
+          showToast('Não é possível salvar: não existe registro de plantio para esta Cultura e Fazenda.', 'warning');
+          return;
+        }
+      }
+
       const newItem: ColheitaItem = {
         data: inputToDisplayFormat(formData.cData || ''),
         empresa: formData.cEmpresa || '-',
@@ -3485,11 +3514,11 @@ export default function App() {
                       <label>Empresa</label>
                       {empresasData.filter(isItemInSelectedUnidade).length > 0 ? (
                         <select value={formData.cEmpresa || ''} onChange={e => setFormData({ ...formData, cEmpresa: e.target.value })}>
-                          <option value="">Selecione uma empresa...</option>
-                          {empresasData.filter(isItemInSelectedUnidade).map((emp, i) => (
+                          <option value="">Selecione uma empresa com plantio...</option>
+                          {getPlantioEmpresas(formData.cCultura, formData.cFazenda).map((emp, i) => (
                             <option key={i} value={emp.nome}>{emp.nome}</option>
                           ))}
-                          {editingIndex !== null && formData.cEmpresa && !empresasData.filter(isItemInSelectedUnidade).some(e => e.nome === formData.cEmpresa) && (
+                          {editingIndex !== null && formData.cEmpresa && !getPlantioEmpresas(formData.cCultura, formData.cFazenda).some(e => e.nome === formData.cEmpresa) && (
                             <option value={formData.cEmpresa}>{formData.cEmpresa}</option>
                           )}
                         </select>
@@ -3512,6 +3541,11 @@ export default function App() {
                           const newFazenda = validFazendas.some(f => f.nome === formData.cFazenda)
                             ? formData.cFazenda
                             : (validFazendas.length === 1 ? validFazendas[0].nome : '');
+
+                          const validEmpresas = getPlantioEmpresas(newCultura, newFazenda);
+                          const newEmpresa = validEmpresas.some(emp => emp.nome === formData.cEmpresa)
+                            ? formData.cEmpresa
+                            : (validEmpresas.length === 1 ? validEmpresas[0].nome : formData.cEmpresa);
 
                           const isSameFazenda = newFazenda && newFazenda === formData.cFazenda;
                           const validPivos = getPlantioPivos(newFazenda, newCultura);
@@ -3537,6 +3571,7 @@ export default function App() {
                           setFormData({
                             ...formData,
                             cCultura: newCultura,
+                            cEmpresa: newEmpresa,
                             cFazenda: newFazenda,
                             cPivo: newPivo,
                             cGleba: newGleba,
@@ -3548,10 +3583,10 @@ export default function App() {
                         required
                       >
                         <option value="">Selecione uma cultura com plantio...</option>
-                        {getPlantioCulturas().map((c, i) => (
+                        {getPlantioCulturas(formData.cFazenda).map((c, i) => (
                           <option key={i} value={c.nome}>{c.nome}</option>
                         ))}
-                        {editingIndex !== null && formData.cCultura && !getPlantioCulturas().some(c => c.nome === formData.cCultura) && (
+                        {editingIndex !== null && formData.cCultura && !getPlantioCulturas(formData.cFazenda).some(c => c.nome === formData.cCultura) && (
                           <option value={formData.cCultura}>{formData.cCultura}</option>
                         )}
                       </select>
@@ -3573,18 +3608,40 @@ export default function App() {
                         value={formData.cFazenda || ''}
                         onChange={e => {
                           const newFazenda = e.target.value;
-                          const validPivos = getPlantioPivos(newFazenda, formData.cCultura);
-                          const newPivo = validPivos.length === 1 ? validPivos[0].nome : '';
-                          const newGleba = '';
-                          const newVar = '';
+                          const validCulturas = getPlantioCulturas(newFazenda);
+                          const newCultura = validCulturas.some(c => c.nome === formData.cCultura)
+                            ? formData.cCultura
+                            : (validCulturas.length === 1 ? validCulturas[0].nome : '');
 
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, newFazenda, newPivo, newGleba, newVar);
+                          const validEmpresas = getPlantioEmpresas(newCultura, newFazenda);
+                          const newEmpresa = validEmpresas.some(emp => emp.nome === formData.cEmpresa)
+                            ? formData.cEmpresa
+                            : (validEmpresas.length === 1 ? validEmpresas[0].nome : formData.cEmpresa);
+
+                          const validPivos = getPlantioPivos(newFazenda, newCultura);
+                          const newPivo = validPivos.some(p => p.nome === formData.cPivo)
+                            ? formData.cPivo
+                            : (validPivos.length === 1 ? validPivos[0].nome : '');
+
+                          const validGlebas = getPlantioGlebas(newPivo, newFazenda, newCultura);
+                          const newGleba = validGlebas.some(g => g.nome === formData.cGleba)
+                            ? formData.cGleba
+                            : (validGlebas.length === 1 ? validGlebas[0].nome : '');
+
+                          const validVars = getPlantioVariedades(newCultura, newFazenda, newPivo, newGleba);
+                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                            ? formData.cVariedade
+                            : (validVars.length === 1 ? validVars[0].nome : '');
+
+                          const ha = lookupPlantedHectaresForSelection(newCultura, newFazenda, newPivo, newGleba, newVar);
                           const newHaGeral = ha || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, newFazenda, newPivo, newGleba, newVar, editingIndex);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, newCultura, newFazenda, newPivo, newGleba, newVar, editingIndex);
 
                           setFormData({
                             ...formData,
                             cFazenda: newFazenda,
+                            cCultura: newCultura,
+                            cEmpresa: newEmpresa,
                             cPivo: newPivo,
                             cGleba: newGleba,
                             cVariedade: newVar,
