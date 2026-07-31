@@ -1,0 +1,223 @@
+{
+  "entities": {
+    "colheita": {
+      "title": "Colheita",
+      "description": "Registros de colheita agrícola",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "data": { "type": "string" },
+        "empresa": { "type": "string" },
+        "cultura": { "type": "string" },
+        "os": { "type": "string" },
+        "fazenda": { "type": "string" },
+        "pivo": { "type": "string" },
+        "gleba": { "type": "string" },
+        "variedade": { "type": "string" },
+        "haDia": { "type": "string" },
+        "haGeral": { "type": "string" },
+        "haRestante": { "type": "string" },
+        "qtdColhido": { "type": "string" },
+        "glebasFinalizada": { "type": "string" },
+        "mediaHa": { "type": "string" },
+        "mes": { "type": "string" },
+        "ano": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["data", "cultura", "fazenda"]
+    },
+    "plantio": {
+      "title": "Plantio",
+      "description": "Registros de plantio agrícola",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "data": { "type": "string" },
+        "empresa": { "type": "string" },
+        "cultura": { "type": "string" },
+        "os": { "type": "string" },
+        "fazenda": { "type": "string" },
+        "pivo": { "type": "string" },
+        "gleba": { "type": "string" },
+        "variedade": { "type": "string" },
+        "haDia": { "type": "string" },
+        "haRestante": { "type": "string" },
+        "glebasFinalizada": { "type": "string" },
+        "mediaHa": { "type": "string" },
+        "ano": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["data", "cultura", "fazenda"]
+    },
+    "empresas": {
+      "title": "Empresas",
+      "description": "Cadastro de empresas e parceiros",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "anos": {
+      "title": "Anos / Safras",
+      "description": "Cadastro de safras e anos agrícolas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "culturas": {
+      "title": "Culturas",
+      "description": "Cadastro de tipos de cultura",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "fazendas": {
+      "title": "Fazendas",
+      "description": "Cadastro de propriedades agrícolas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "pivos": {
+      "title": "Pivôs",
+      "description": "Cadastro de pivôs de irrigação e áreas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "glebas": {
+      "title": "Glebas",
+      "description": "Cadastro de talhões e glebas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "variedades": {
+      "title": "Variedades",
+      "description": "Cadastro de variedades por cultura",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "cultura": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "colaboradores": {
+      "title": "Colaboradores",
+      "description": "Cadastro de equipe e apontadores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "apontador": { "type": "string" },
+        "local": { "type": "string" },
+        "status": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "motoristas": {
+      "title": "Motoristas",
+      "description": "Cadastro de condutores de frota",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "abreviacao": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "onibus": {
+      "title": "Ônibus / Veículos",
+      "description": "Cadastro de frota de transporte",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nome": { "type": "string" },
+        "cor": { "type": "string" },
+        "motorista": { "type": "string" },
+        "local": { "type": "string" },
+        "cooperado": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["codigo", "nome"]
+    },
+    "amarracoes": {
+      "title": "Amarrações",
+      "description": "Vínculo de área por pivô, gleba e fazenda",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fazenda": { "type": "string" },
+        "pivo": { "type": "string" },
+        "gleba": { "type": "string" },
+        "variedade": { "type": "string" },
+        "ha": { "type": "string" },
+        "status": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["fazenda", "pivo", "gleba"]
+    },
+    "unidades": {
+      "title": "Unidades",
+      "description": "Filiais operacionais",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" }
+      },
+      "required": ["nome"]
+    },
+    "lixeira": {
+      "title": "Lixeira",
+      "description": "Itens excluídos para eventual restauração",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "idOriginal": { "type": "string" },
+        "category": { "type": "string" },
+        "titulo": { "type": "string" },
+        "dataExclusao": { "type": "string" },
+        "unidade": { "type": "string" },
+        "itemData": { "type": "object" }
+      },
+      "required": ["category", "titulo"]
+    }
+  }
+}

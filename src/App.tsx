@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import {
+  subscribeToCollection,
+  saveDocument,
+  removeDocument,
+  COLLECTIONS,
+  CollectionKey
+} from './lib/firebase';
 
 // Data structures
 interface ColheitaItem {
+  id?: string;
   data: string;
   empresa?: string;
   cultura: string;
@@ -24,6 +32,7 @@ interface ColheitaItem {
 }
 
 interface PlantioItem {
+  id?: string;
   data: string;
   empresa: string;
   cultura: string;
@@ -42,12 +51,14 @@ interface PlantioItem {
 }
 
 interface SimpleItem {
+  id?: string;
   codigo: string;
   nome: string;
   unidade?: string;
 }
 
 interface VariedadeItem {
+  id?: string;
   codigo: string;
   nome: string;
   cultura: string;
@@ -55,6 +66,7 @@ interface VariedadeItem {
 }
 
 interface ColaboradorItem {
+  id?: string;
   codigo: string;
   nome: string;
   apontador?: string;
@@ -65,6 +77,7 @@ interface ColaboradorItem {
 }
 
 interface MotoristaItem {
+  id?: string;
   codigo: string;
   nome: string;
   abreviacao: string;
@@ -72,6 +85,7 @@ interface MotoristaItem {
 }
 
 interface OnibusItem {
+  id?: string;
   codigo: string;
   nome: string;
   cor: string;
@@ -85,7 +99,7 @@ type MainCategoryKey = 'colheita' | 'plantio' | 'empresas' | 'anos' | 'variedade
 export type AmarracaoCategory = 'cultura' | 'pivo' | 'gleba' | 'variedade' | 'ano' | 'geral';
 
 export interface AmarracaoItem {
-  id: string;
+  id?: string;
   codigoMarca?: string;
   categoria: AmarracaoCategory;
   titulo: string;
@@ -100,7 +114,7 @@ export interface AmarracaoItem {
 type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes';
 
 export interface TrashItem {
-  id: string;
+  id?: string;
   category: MainCategoryKey;
   categoryName: string;
   itemData: any;
@@ -149,26 +163,102 @@ const mainCategories: { key: MainCategoryKey; label: string }[] = [
   { key: 'motoristas', label: 'Cadastro_Motoristas' }
 ];
 
+const DEFAULT_COLHEITA: ColheitaItem[] = [
+  { data: '06/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '14,50 ha', haGeral: '31,88 ha', haRestante: '17,38 ha', qtdColhido: '250', glebasFinalizada: 'Não', mediaHa: '17,24 /ha', mes: 'Abril', ano: '2026', caixaBinBag: 'Caixas', caixasCortadas: '250', unidade: 'Cristalina' },
+  { data: '28/03/26', empresa: 'Agro', cultura: 'Cenoura', os: 'OS-102', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', haDia: '5,00 ha', haGeral: '15,00 ha', haRestante: '10,00 ha', qtdColhido: '120', glebasFinalizada: 'Não', mediaHa: '24,00 /ha', mes: 'Março', ano: '2026', caixaBinBag: 'Bin', caixasCortadas: '120', unidade: 'Cristalina' }
+];
+
+const DEFAULT_PLANTIO: PlantioItem[] = [
+  { data: '05/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '31.88 ha', haRestante: '0.00 ha', glebasFinalizada: 'Sim', mediaHa: '31.88 ha/dia', ano: '2026', unidade: 'Cristalina' },
+  { data: '20/03/26', empresa: 'Agro', cultura: 'Cenoura', os: 'OS-102', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', haDia: '15.00 ha', haRestante: '5.00 ha', glebasFinalizada: 'Não', mediaHa: '12.50 ha/dia', ano: '2026', unidade: 'Cristalina' }
+];
+
+const DEFAULT_CULTURAS: SimpleItem[] = [
+  { codigo: '1', nome: 'Cenoura', unidade: 'Cristalina' },
+  { codigo: '2', nome: 'Alho', unidade: 'Cristalina' },
+  { codigo: '3', nome: 'Batata', unidade: 'Cristalina' },
+  { codigo: '4', nome: 'Cebola', unidade: 'Cristalina' }
+];
+
+const DEFAULT_VARIEDADES: VariedadeItem[] = [
+  { codigo: '1', nome: 'Variedade A', cultura: 'Cenoura', unidade: 'Cristalina' },
+  { codigo: '2', nome: 'Brasília', cultura: 'Cenoura', unidade: 'Cristalina' },
+  { codigo: '3', nome: 'Supreme', cultura: 'Cenoura', unidade: 'Cristalina' },
+  { codigo: '4', nome: 'Variedade B', cultura: 'Alho', unidade: 'Cristalina' },
+  { codigo: '5', nome: 'Ito', cultura: 'Alho', unidade: 'Cristalina' },
+  { codigo: '6', nome: 'Roxo Pérola', cultura: 'Alho', unidade: 'Cristalina' },
+  { codigo: '7', nome: 'Ágata', cultura: 'Batata', unidade: 'Cristalina' },
+  { codigo: '8', nome: 'Asterix', cultura: 'Batata', unidade: 'Cristalina' },
+  { codigo: '9', nome: 'Alfa', cultura: 'Cebola', unidade: 'Cristalina' },
+  { codigo: '10', nome: 'LEC20EOPG', cultura: 'Milho Semente Fêmea', unidade: 'Cristalina' }
+];
+
+const DEFAULT_PIVOS: SimpleItem[] = [
+  { codigo: '1', nome: 'Pivô 01', unidade: 'Cristalina' },
+  { codigo: '2', nome: 'Pivô 02', unidade: 'Cristalina' }
+];
+
+const DEFAULT_GLEBAS: SimpleItem[] = [
+  { codigo: '1', nome: 'Gleba A', unidade: 'Cristalina' },
+  { codigo: '2', nome: 'Gleba B', unidade: 'Cristalina' }
+];
+
+const DEFAULT_FAZENDAS: SimpleItem[] = [
+  { codigo: '1', nome: 'Fazenda Sul', unidade: 'Cristalina' },
+  { codigo: '2', nome: 'Fazenda Norte', unidade: 'Cristalina' }
+];
+
+const DEFAULT_EMPRESAS: SimpleItem[] = [
+  { codigo: '1', nome: 'Agro', unidade: 'Cristalina' },
+  { codigo: '2', nome: 'Fazenda Modelo', unidade: 'Cristalina' }
+];
+
+const DEFAULT_ANOS: SimpleItem[] = [
+  { codigo: '1', nome: '2025', unidade: 'Cristalina' },
+  { codigo: '2', nome: '2026', unidade: 'Cristalina' },
+  { codigo: '3', nome: '2027', unidade: 'Cristalina' }
+];
+
+const DEFAULT_COLABORADORES: ColaboradorItem[] = [
+  { codigo: '101', nome: 'João Carlos Silva', apontador: 'Carlos Eduardo', local: 'FAZENDA FRONTEIRA', status: 'Ativo', abreviacao: 'J. Silva', unidade: 'Cristalina' },
+  { codigo: '102', nome: 'Maria Eduarda Oliveira', apontador: 'Ana Paula', local: 'FAZENDA SÃO BENTO', status: 'Ativo', abreviacao: 'M. Oliveira', unidade: 'Cristalina' },
+  { codigo: '103', nome: 'Carlos Eduardo Santos', apontador: 'Carlos Eduardo', local: 'FAZENDA SUL', status: 'Inativo', abreviacao: 'C. Santos', unidade: 'Cristalina' }
+];
+
+const DEFAULT_MOTORISTAS: MotoristaItem[] = [
+  { codigo: '201', nome: 'Antônio Ferreira Lima', abreviacao: 'A. Lima', unidade: 'Cristalina' },
+  { codigo: '202', nome: 'Roberto Alves Souza', abreviacao: 'R. Souza', unidade: 'Cristalina' }
+];
+
+const DEFAULT_ONIBUS: OnibusItem[] = [
+  { codigo: '501', nome: 'GMJ-5F34', cor: 'Branco', motorista: 'Antônio Ferreira Lima (A. Lima)', local: 'COOPERATIVA AGRO', cooperado: 'Sim', unidade: 'Cristalina' },
+  { codigo: '502', nome: 'GMJ-5634', cor: 'Amarelo', motorista: 'Roberto Alves Souza (R. Souza)', local: 'FAZENDA SÃO BENTO', cooperado: 'Não', unidade: 'Cristalina' }
+];
+
+const DEFAULT_AMARRACOES: AmarracaoItem[] = [
+  {
+    codigoMarca: '#AMR-821292',
+    categoria: 'geral',
+    titulo: 'Cultura: Cenoura ➔ Fazenda: Fazenda Sul ➔ Pivô: Pivô 01 ➔ Gleba: Gleba A ➔ Variedade: Variedade A',
+    origem: 'Cenoura',
+    destino: 'Variedade A',
+    status: 'Ativo',
+    observacao: 'Amarração completa de área',
+    unidade: 'Cristalina'
+  }
+];
+
+const DEFAULT_UNIDADES = [
+  { nome: 'Cristalina' },
+  { nome: 'São Gabriel' },
+  { nome: 'Uberlândia' }
+];
+
 export default function App() {
   const [activePage, setActivePage] = useState<PageKey>('plantio');
   const [lixeiraCategory, setLixeiraCategory] = useState<MainCategoryKey>('plantio');
 
-  // Helper to retrieve initial dataset from localStorage
-  const getInitialData = <T,>(key: string, defaultValue: T): T => {
-    try {
-      const item = localStorage.getItem(key);
-      if (item !== null) {
-        return JSON.parse(item);
-      }
-    } catch (e) {
-      console.error(`Erro ao carregar ${key} do localStorage`, e);
-    }
-    return defaultValue;
-  };
-
-  const [trashData, setTrashData] = useState<TrashItem[]>(() =>
-    getInitialData('agri_trashData', [])
-  );
+  const [trashData, setTrashData] = useState<TrashItem[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isGridEditing, setIsGridEditing] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
@@ -212,21 +302,12 @@ export default function App() {
   } | null>(null);
 
   // Unidade de Produção state (Cristalina, São Gabriel, Uberlândia, etc.)
-  const [unidadesList, setUnidadesList] = useState<string[]>(() =>
-    getInitialData('agri_unidadesList', ['Cristalina', 'São Gabriel', 'Uberlândia'])
-  );
-  const [selectedUnidade, setSelectedUnidade] = useState<string>(() =>
-    getInitialData('agri_selectedUnidade', 'Cristalina')
-  );
+  const [unidadesList, setUnidadesList] = useState<string[]>(['Cristalina', 'São Gabriel', 'Uberlândia']);
+  const [selectedUnidade, setSelectedUnidade] = useState<string>('Cristalina');
   const [showUnidadeModal, setShowUnidadeModal] = useState<boolean>(false);
   const [newUnidadeInput, setNewUnidadeInput] = useState<string>('');
 
   useEffect(() => {
-    localStorage.setItem('agri_unidadesList', JSON.stringify(unidadesList));
-  }, [unidadesList]);
-
-  useEffect(() => {
-    localStorage.setItem('agri_selectedUnidade', JSON.stringify(selectedUnidade));
     setSelectedEmpresaForTie('');
     setSelectedAnoForTie('');
     setSelectedCulturaForTie('');
@@ -256,7 +337,7 @@ export default function App() {
     return item.unidade === selectedUnidade;
   };
 
-  const handleAddUnidade = () => {
+  const handleAddUnidade = async () => {
     const name = newUnidadeInput.trim();
     if (!name) {
       showToast('Digite o nome da nova unidade.', 'warning');
@@ -266,151 +347,67 @@ export default function App() {
       showToast(`A unidade "${name}" já está cadastrada.`, 'warning');
       return;
     }
-    const updated = [...unidadesList, name];
-    setUnidadesList(updated);
+    await saveDocument(COLLECTIONS.unidades, { nome: name });
     setSelectedUnidade(name);
     setNewUnidadeInput('');
     showToast(`Unidade "${name}" cadastrada e selecionada!`, 'success');
   };
 
-  // Table dataset state with localStorage persistence
-  const [colheitaData, setColheitaData] = useState<ColheitaItem[]>(() =>
-    getInitialData('agri_colheitaData', [
-      { data: '06/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '14,50 ha', haGeral: '31,88 ha', haRestante: '17,38 ha', qtdColhido: '250', glebasFinalizada: 'Não', mediaHa: '17,24 /ha', mes: 'Abril', ano: '2026', caixaBinBag: 'Caixas', caixasCortadas: '250' },
-      { data: '28/03/26', empresa: 'Agro', cultura: 'Cenoura', os: 'OS-102', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', haDia: '5,00 ha', haGeral: '15,00 ha', haRestante: '10,00 ha', qtdColhido: '120', glebasFinalizada: 'Não', mediaHa: '24,00 /ha', mes: 'Março', ano: '2026', caixaBinBag: 'Bin', caixasCortadas: '120' }
-    ])
-  );
+  // Table dataset states with Firestore real-time sync
+  const [colheitaData, setColheitaData] = useState<ColheitaItem[]>([]);
+  const [plantioData, setPlantioData] = useState<PlantioItem[]>([]);
+  const [culturasData, setCulturasData] = useState<SimpleItem[]>([]);
+  const [variedadesData, setVariedadesData] = useState<VariedadeItem[]>([]);
+  const [pivosData, setPivosData] = useState<SimpleItem[]>([]);
+  const [glebasData, setGlebasData] = useState<SimpleItem[]>([]);
+  const [fazendasData, setFazendasData] = useState<SimpleItem[]>([]);
+  const [empresasData, setEmpresasData] = useState<SimpleItem[]>([]);
+  const [anosData, setAnosData] = useState<SimpleItem[]>([]);
+  const [colaboradoresData, setColaboradoresData] = useState<ColaboradorItem[]>([]);
+  const [motoristasData, setMotoristasData] = useState<MotoristaItem[]>([]);
+  const [onibusData, setOnibusData] = useState<OnibusItem[]>([]);
+  const [amarracoesData, setAmarracoesData] = useState<AmarracaoItem[]>([]);
 
-  const [plantioData, setPlantioData] = useState<PlantioItem[]>(() =>
-    getInitialData('agri_plantioData', [
-      { data: '05/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '31.88 ha', haRestante: '0.00 ha', glebasFinalizada: 'Sim', mediaHa: '31.88 ha/dia', ano: '2026' },
-      { data: '20/03/26', empresa: 'Agro', cultura: 'Cenoura', os: 'OS-102', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', haDia: '15.00 ha', haRestante: '5.00 ha', glebasFinalizada: 'Não', mediaHa: '12.50 ha/dia', ano: '2026' }
-    ])
-  );
-
-  const [culturasData, setCulturasData] = useState<SimpleItem[]>(() =>
-    getInitialData('agri_culturasData', [
-      { codigo: '1', nome: 'Cenoura' },
-      { codigo: '2', nome: 'Alho' },
-      { codigo: '3', nome: 'Batata' },
-      { codigo: '4', nome: 'Cebola' }
-    ])
-  );
-
-  const [variedadesData, setVariedadesData] = useState<VariedadeItem[]>(() =>
-    getInitialData('agri_variedadesData', [
-      { codigo: '1', nome: 'Variedade A', cultura: 'Cenoura' },
-      { codigo: '2', nome: 'Brasília', cultura: 'Cenoura' },
-      { codigo: '3', nome: 'Supreme', cultura: 'Cenoura' },
-      { codigo: '4', nome: 'Variedade B', cultura: 'Alho' },
-      { codigo: '5', nome: 'Ito', cultura: 'Alho' },
-      { codigo: '6', nome: 'Roxo Pérola', cultura: 'Alho' },
-      { codigo: '7', nome: 'Ágata', cultura: 'Batata' },
-      { codigo: '8', nome: 'Asterix', cultura: 'Batata' },
-      { codigo: '9', nome: 'Alfa', cultura: 'Cebola' },
-      { codigo: '10', nome: 'LEC20EOPG', cultura: 'Milho Semente Fêmea' }
-    ])
-  );
-
-  const [pivosData, setPivosData] = useState<SimpleItem[]>(() =>
-    getInitialData('agri_pivosData', [
-      { codigo: '1', nome: 'Pivô 01' },
-      { codigo: '2', nome: 'Pivô 02' }
-    ])
-  );
-
-  const [glebasData, setGlebasData] = useState<SimpleItem[]>(() =>
-    getInitialData('agri_glebasData', [
-      { codigo: '1', nome: 'Gleba A' },
-      { codigo: '2', nome: 'Gleba B' }
-    ])
-  );
-
-  const [fazendasData, setFazendasData] = useState<SimpleItem[]>(() =>
-    getInitialData('agri_fazendasData', [
-      { codigo: '1', nome: 'Fazenda Sul' },
-      { codigo: '2', nome: 'Fazenda Norte' }
-    ])
-  );
-
-  const [empresasData, setEmpresasData] = useState<SimpleItem[]>(() =>
-    getInitialData('agri_empresasData', [
-      { codigo: '1', nome: 'Agro' },
-      { codigo: '2', nome: 'Fazenda Modelo' }
-    ])
-  );
-
-  const [anosData, setAnosData] = useState<SimpleItem[]>(() =>
-    getInitialData('agri_anosData', [
-      { codigo: '1', nome: '2025' },
-      { codigo: '2', nome: '2026' },
-      { codigo: '3', nome: '2027' }
-    ])
-  );
-
-  const [colaboradoresData, setColaboradoresData] = useState<ColaboradorItem[]>(() =>
-    getInitialData('agri_colaboradoresData', [
-      { codigo: '101', nome: 'João Carlos Silva', apontador: 'Carlos Eduardo', local: 'FAZENDA FRONTEIRA', status: 'Ativo', abreviacao: 'J. Silva' },
-      { codigo: '102', nome: 'Maria Eduarda Oliveira', apontador: 'Ana Paula', local: 'FAZENDA SÃO BENTO', status: 'Ativo', abreviacao: 'M. Oliveira' },
-      { codigo: '103', nome: 'Carlos Eduardo Santos', apontador: 'Carlos Eduardo', local: 'FAZENDA SUL', status: 'Inativo', abreviacao: 'C. Santos' }
-    ])
-  );
-
-  const [motoristasData, setMotoristasData] = useState<MotoristaItem[]>(() =>
-    getInitialData('agri_motoristasData', [
-      { codigo: '201', nome: 'Antônio Ferreira Lima', abreviacao: 'A. Lima' },
-      { codigo: '202', nome: 'Roberto Alves Souza', abreviacao: 'R. Souza' }
-    ])
-  );
-
-  const [onibusData, setOnibusData] = useState<OnibusItem[]>(() =>
-    getInitialData('agri_onibusData', [
-      { codigo: '501', nome: 'GMJ-5F34', cor: 'Branco', motorista: 'Antônio Ferreira Lima (A. Lima)', local: 'COOPERATIVA AGRO', cooperado: 'Sim' },
-      { codigo: '502', nome: 'GMJ-5634', cor: 'Amarelo', motorista: 'Roberto Alves Souza (R. Souza)', local: 'FAZENDA SÃO BENTO', cooperado: 'Não' }
-    ])
-  );
-
-  const [amarracoesData, setAmarracoesData] = useState<AmarracaoItem[]>(() => {
-    const defaultData: AmarracaoItem[] = [
-      {
-        id: '1',
-        codigoMarca: '#AMR-821292',
-        categoria: 'geral',
-        titulo: 'Cultura: Cenoura ➔ Fazenda: Fazenda Sul ➔ Pivô: Pivô 01 ➔ Gleba: Gleba A ➔ Variedade: Variedade A',
-        origem: 'Cenoura',
-        destino: 'Variedade A',
-        status: 'Ativo',
-        observacao: 'Amarração completa de área'
+  // Subscribe to Firebase Firestore collections in real-time
+  useEffect(() => {
+    const unsubColheita = subscribeToCollection<ColheitaItem>(COLLECTIONS.colheita, setColheitaData, DEFAULT_COLHEITA);
+    const unsubPlantio = subscribeToCollection<PlantioItem>(COLLECTIONS.plantio, setPlantioData, DEFAULT_PLANTIO);
+    const unsubCulturas = subscribeToCollection<SimpleItem>(COLLECTIONS.culturas, setCulturasData, DEFAULT_CULTURAS);
+    const unsubVariedades = subscribeToCollection<VariedadeItem>(COLLECTIONS.variedades, setVariedadesData, DEFAULT_VARIEDADES);
+    const unsubPivos = subscribeToCollection<SimpleItem>(COLLECTIONS.pivos, setPivosData, DEFAULT_PIVOS);
+    const unsubGlebas = subscribeToCollection<SimpleItem>(COLLECTIONS.glebas, setGlebasData, DEFAULT_GLEBAS);
+    const unsubFazendas = subscribeToCollection<SimpleItem>(COLLECTIONS.fazendas, setFazendasData, DEFAULT_FAZENDAS);
+    const unsubEmpresas = subscribeToCollection<SimpleItem>(COLLECTIONS.empresas, setEmpresasData, DEFAULT_EMPRESAS);
+    const unsubAnos = subscribeToCollection<SimpleItem>(COLLECTIONS.anos, setAnosData, DEFAULT_ANOS);
+    const unsubColaboradores = subscribeToCollection<ColaboradorItem>(COLLECTIONS.colaboradores, setColaboradoresData, DEFAULT_COLABORADORES);
+    const unsubMotoristas = subscribeToCollection<MotoristaItem>(COLLECTIONS.motoristas, setMotoristasData, DEFAULT_MOTORISTAS);
+    const unsubOnibus = subscribeToCollection<OnibusItem>(COLLECTIONS.onibus, setOnibusData, DEFAULT_ONIBUS);
+    const unsubAmarracoes = subscribeToCollection<AmarracaoItem>(COLLECTIONS.amarracoes, setAmarracoesData, DEFAULT_AMARRACOES);
+    const unsubUnidades = subscribeToCollection<{ id?: string; nome: string }>(COLLECTIONS.unidades, (docs) => {
+      if (docs.length > 0) {
+        setUnidadesList(docs.map(d => d.nome));
       }
-    ];
-    const initial = getInitialData<AmarracaoItem[]>('agri_amarracoesData', defaultData);
-    const oldCodes = new Set(['#AMR-84920', '#AMR-31049', '#AMR-52914', '#AMR-10482', '#AMR-63910', '#AMR-29481', '#AMR-95018', '#AMR-48201', '#AMR-71934', '#AMR-38192']);
-    const filtered = initial.filter(item =>
-      !oldCodes.has(item.codigoMarca) &&
-      !['2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(item.id) &&
-      item.titulo &&
-      !item.titulo.includes('Validar Pivô') &&
-      !item.titulo.includes('Autopreencher Fazenda') &&
-      !item.titulo.includes('Ano Safra')
-    );
-    return filtered.length > 0 ? filtered : defaultData;
-  });
+    }, DEFAULT_UNIDADES);
+    const unsubTrash = subscribeToCollection<TrashItem>(COLLECTIONS.lixeira, setTrashData, []);
 
-  // Sync state changes with localStorage automatically
-  useEffect(() => { localStorage.setItem('agri_trashData', JSON.stringify(trashData)); }, [trashData]);
-  useEffect(() => { localStorage.setItem('agri_colheitaData', JSON.stringify(colheitaData)); }, [colheitaData]);
-  useEffect(() => { localStorage.setItem('agri_plantioData', JSON.stringify(plantioData)); }, [plantioData]);
-  useEffect(() => { localStorage.setItem('agri_culturasData', JSON.stringify(culturasData)); }, [culturasData]);
-  useEffect(() => { localStorage.setItem('agri_variedadesData', JSON.stringify(variedadesData)); }, [variedadesData]);
-  useEffect(() => { localStorage.setItem('agri_pivosData', JSON.stringify(pivosData)); }, [pivosData]);
-  useEffect(() => { localStorage.setItem('agri_glebasData', JSON.stringify(glebasData)); }, [glebasData]);
-  useEffect(() => { localStorage.setItem('agri_fazendasData', JSON.stringify(fazendasData)); }, [fazendasData]);
-  useEffect(() => { localStorage.setItem('agri_empresasData', JSON.stringify(empresasData)); }, [empresasData]);
-  useEffect(() => { localStorage.setItem('agri_anosData', JSON.stringify(anosData)); }, [anosData]);
-  useEffect(() => { localStorage.setItem('agri_colaboradoresData', JSON.stringify(colaboradoresData)); }, [colaboradoresData]);
-  useEffect(() => { localStorage.setItem('agri_motoristasData', JSON.stringify(motoristasData)); }, [motoristasData]);
-  useEffect(() => { localStorage.setItem('agri_onibusData', JSON.stringify(onibusData)); }, [onibusData]);
-  useEffect(() => { localStorage.setItem('agri_amarracoesData', JSON.stringify(amarracoesData)); }, [amarracoesData]);
+    return () => {
+      unsubColheita();
+      unsubPlantio();
+      unsubCulturas();
+      unsubVariedades();
+      unsubPivos();
+      unsubGlebas();
+      unsubFazendas();
+      unsubEmpresas();
+      unsubAnos();
+      unsubColaboradores();
+      unsubMotoristas();
+      unsubOnibus();
+      unsubAmarracoes();
+      unsubUnidades();
+      unsubTrash();
+    };
+  }, []);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -982,7 +979,7 @@ export default function App() {
     }
   };
 
-  const handleAddSquareItem = (category: 'empresa' | 'ano' | 'cultura' | 'fazenda' | 'pivo' | 'gleba' | 'variedade') => {
+  const handleAddSquareItem = async (category: 'empresa' | 'ano' | 'cultura' | 'fazenda' | 'pivo' | 'gleba' | 'variedade') => {
     if (!newSquareItemName.trim()) {
       showToast('Digite um nome para cadastrar.', 'warning');
       return;
@@ -991,44 +988,51 @@ export default function App() {
     const newCode = Date.now().toString();
 
     if (category === 'empresa') {
-      setEmpresasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.empresas, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Empresa "${name}" cadastrada!`, 'success');
     } else if (category === 'ano') {
-      setAnosData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.anos, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Ano "${name}" cadastrado!`, 'success');
     } else if (category === 'cultura') {
-      setCulturasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.culturas, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Cultura "${name}" cadastrada!`, 'success');
     } else if (category === 'fazenda') {
-      setFazendasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.fazendas, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Fazenda "${name}" cadastrada!`, 'success');
     } else if (category === 'pivo') {
-      setPivosData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.pivos, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Pivô "${name}" cadastrado!`, 'success');
     } else if (category === 'gleba') {
-      setGlebasData(prev => [...prev, { codigo: newCode, nome: name, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.glebas, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Gleba "${name}" cadastrada!`, 'success');
     } else if (category === 'variedade') {
       const culturaVinculada = selectedCulturaForTie || '';
-      setVariedadesData(prev => [...prev, { codigo: newCode, nome: name, cultura: culturaVinculada, unidade: selectedUnidade }]);
+      await saveDocument(COLLECTIONS.variedades, { codigo: newCode, nome: name, cultura: culturaVinculada, unidade: selectedUnidade });
       showToast(`Variedade "${name}" cadastrada${culturaVinculada ? ` (Cultura: ${culturaVinculada})` : ''}!`, 'success');
     }
 
     setNewSquareItemName('');
   };
 
-  const handleDeleteSquareItem = (category: 'empresa' | 'ano' | 'cultura' | 'fazenda' | 'pivo' | 'gleba' | 'variedade', codigo: string) => {
-    if (category === 'empresa') setEmpresasData(prev => prev.filter(x => x.codigo !== codigo));
-    else if (category === 'ano') setAnosData(prev => prev.filter(x => x.codigo !== codigo));
-    else if (category === 'cultura') setCulturasData(prev => prev.filter(x => x.codigo !== codigo));
-    else if (category === 'fazenda') setFazendasData(prev => prev.filter(x => x.codigo !== codigo));
-    else if (category === 'pivo') setPivosData(prev => prev.filter(x => x.codigo !== codigo));
-    else if (category === 'gleba') setGlebasData(prev => prev.filter(x => x.codigo !== codigo));
-    else if (category === 'variedade') setVariedadesData(prev => prev.filter(x => x.codigo !== codigo));
+  const handleDeleteSquareItem = async (category: 'empresa' | 'ano' | 'cultura' | 'fazenda' | 'pivo' | 'gleba' | 'variedade', codigo: string) => {
+    let targetList: SimpleItem[] = [];
+    let colName: string = category;
+    if (category === 'empresa') { targetList = empresasData; colName = COLLECTIONS.empresas; }
+    else if (category === 'ano') { targetList = anosData; colName = COLLECTIONS.anos; }
+    else if (category === 'cultura') { targetList = culturasData; colName = COLLECTIONS.culturas; }
+    else if (category === 'fazenda') { targetList = fazendasData; colName = COLLECTIONS.fazendas; }
+    else if (category === 'pivo') { targetList = pivosData; colName = COLLECTIONS.pivos; }
+    else if (category === 'gleba') { targetList = glebasData; colName = COLLECTIONS.glebas; }
+    else if (category === 'variedade') { targetList = variedadesData as any; colName = COLLECTIONS.variedades; }
+
+    const item = targetList.find(x => x.codigo === codigo);
+    if (item?.id) {
+      await removeDocument(colName, item.id);
+    }
     showToast('Item removido com sucesso.', 'info');
   };
 
-  const handleCreateGeralTie = (e: React.FormEvent) => {
+  const handleCreateGeralTie = async (e: React.FormEvent) => {
     e.preventDefault();
     const selections = [
       selectedEmpresaForTie && `Empresa: ${selectedEmpresaForTie}`,
@@ -1052,7 +1056,6 @@ export default function App() {
       : '';
 
     const newItem: AmarracaoItem = {
-      id: Date.now().toString(),
       codigoMarca: randomCode,
       categoria: 'geral',
       titulo: titleText,
@@ -1064,7 +1067,7 @@ export default function App() {
       unidade: selectedUnidade
     };
 
-    setAmarracoesData(prev => [newItem, ...prev]);
+    await saveDocument(COLLECTIONS.amarracoes, newItem);
     showToast(`Amarração (${randomCode}) criada no Geral!`, 'success');
     setSelectedEmpresaForTie('');
     setSelectedAnoForTie('');
@@ -1126,7 +1129,7 @@ export default function App() {
     setIsAmarracaoModalOpen(true);
   };
 
-  const handleSaveAmarracao = (e: React.FormEvent) => {
+  const handleSaveAmarracao = async (e: React.FormEvent) => {
     e.preventDefault();
     const orig = amarracaoFormData.origem.trim() || amarracaoFormData.titulo.trim() || 'Origem';
     const dest = amarracaoFormData.destino.trim() || amarracaoFormData.titulo.trim() || 'Destino';
@@ -1134,8 +1137,8 @@ export default function App() {
     const formattedHectares = amarracaoFormData.hectares.trim() ? `${amarracaoFormData.hectares.trim().replace(/ha/gi, '').trim()} ha` : undefined;
 
     if (editingAmarracao) {
-      setAmarracoesData(prev => prev.map(item => item.id === editingAmarracao.id ? {
-        ...item,
+      const updated: AmarracaoItem = {
+        ...editingAmarracao,
         categoria: amarracaoFormData.categoria,
         titulo: autoTitle,
         origem: orig,
@@ -1143,11 +1146,11 @@ export default function App() {
         status: amarracaoFormData.status,
         hectares: formattedHectares,
         observacao: amarracaoFormData.observacao
-      } : item));
+      };
+      await saveDocument(COLLECTIONS.amarracoes, updated, editingAmarracao.id);
       showToast('Amarração atualizada com sucesso!', 'success');
     } else {
       const newItem: AmarracaoItem = {
-        id: Date.now().toString(),
         codigoMarca: `#AMR-${Date.now().toString().slice(-5)}`,
         categoria: amarracaoFormData.categoria,
         titulo: autoTitle,
@@ -1158,24 +1161,28 @@ export default function App() {
         observacao: amarracaoFormData.observacao,
         unidade: selectedUnidade
       };
-      setAmarracoesData(prev => [newItem, ...prev]);
+      await saveDocument(COLLECTIONS.amarracoes, newItem);
       showToast('Nova amarração criada com sucesso!', 'success');
     }
     setIsAmarracaoModalOpen(false);
     setEditingAmarracao(null);
   };
 
-  const handleDeleteAmarracao = (id: string) => {
-    setAmarracoesData(prev => prev.filter(item => item.id !== id));
+  const handleDeleteAmarracao = async (id: string) => {
+    await removeDocument(COLLECTIONS.amarracoes, id);
     showToast('Amarração removida.', 'info');
   };
 
-  const handleToggleAmarracaoStatus = (id: string) => {
-    setAmarracoesData(prev => prev.map(item => item.id === id ? {
-      ...item,
-      status: item.status === 'Ativo' ? 'Inativo' : 'Ativo'
-    } : item));
-    showToast('Status da amarração alterado.', 'info');
+  const handleToggleAmarracaoStatus = async (id: string) => {
+    const item = amarracoesData.find(a => a.id === id);
+    if (item && id) {
+      const updated = {
+        ...item,
+        status: item.status === 'Ativo' ? ('Inativo' as const) : ('Ativo' as const)
+      };
+      await saveDocument(COLLECTIONS.amarracoes, updated, id);
+      showToast('Status da amarração alterado.', 'info');
+    }
   };
 
   // Share Modal State
@@ -1452,7 +1459,9 @@ export default function App() {
     const formattedText = generateFilteredShareText();
     setShareText(formattedText);
 
-    if (navigator.share) {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile && navigator.share) {
       try {
         await navigator.share({
           text: formattedText
@@ -1466,9 +1475,36 @@ export default function App() {
     setIsShareOpen(true);
   };
 
+  const fallbackCopyText = (text: string) => {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast('Texto do relatório copiado! Cole no WhatsApp Web.', 'success');
+    } catch (err) {
+      showToast('Erro ao copiar texto.', 'warning');
+    }
+  };
+
   const copyShareText = () => {
-    navigator.clipboard.writeText(shareText);
-    alert('Texto do relatório copiado com sucesso!');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareText)
+        .then(() => {
+          showToast('Texto do relatório copiado! Cole no WhatsApp Web.', 'success');
+        })
+        .catch(() => {
+          fallbackCopyText(shareText);
+        });
+    } else {
+      fallbackCopyText(shareText);
+    }
     setIsShareOpen(false);
   };
 
@@ -1802,49 +1838,42 @@ export default function App() {
       confirmText: 'Mover para Lixeira',
       confirmStyle: 'danger',
       isTrashMove: true,
-      onConfirm: () => {
-        if (category === 'colheita') setColheitaData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'plantio') setPlantioData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'variedades') setVariedadesData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'empresas') setEmpresasData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'anos') setAnosData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'pivos') setPivosData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'glebas') setGlebasData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'fazendas') setFazendasData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'culturas') setCulturasData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'colaboradores') setColaboradoresData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'motoristas') setMotoristasData(prev => prev.filter((_, i) => i !== index));
-        else if (category === 'onibus') setOnibusData(prev => prev.filter((_, i) => i !== index));
+      onConfirm: async () => {
+        let collectionName = '';
+        if (category === 'colheita') collectionName = COLLECTIONS.colheita;
+        else if (category === 'plantio') collectionName = COLLECTIONS.plantio;
+        else if (category === 'variedades') collectionName = COLLECTIONS.variedades;
+        else if (category === 'empresas') collectionName = COLLECTIONS.empresas;
+        else if (category === 'anos') collectionName = COLLECTIONS.anos;
+        else if (category === 'pivos') collectionName = COLLECTIONS.pivos;
+        else if (category === 'glebas') collectionName = COLLECTIONS.glebas;
+        else if (category === 'fazendas') collectionName = COLLECTIONS.fazendas;
+        else if (category === 'culturas') collectionName = COLLECTIONS.culturas;
+        else if (category === 'colaboradores') collectionName = COLLECTIONS.colaboradores;
+        else if (category === 'motoristas') collectionName = COLLECTIONS.motoristas;
+        else if (category === 'onibus') collectionName = COLLECTIONS.onibus;
+
+        if (itemToDelete?.id) {
+          await removeDocument(collectionName, itemToDelete.id);
+        }
 
         if (itemToDelete) {
           const now = new Date();
           const timeStr = `${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-          const trashId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 6);
           const newTrashEntry: TrashItem = {
-            id: trashId,
             category,
             categoryName: titleMap[category],
             itemData: itemToDelete,
             deletedAt: timeStr
           };
-          setTrashData(prev => [newTrashEntry, ...prev]);
+          const savedTrashDoc = await saveDocument(COLLECTIONS.lixeira, newTrashEntry);
 
           // Immediate Undo Handler
-          const handleUndo = () => {
-            if (category === 'colheita') setColheitaData(prev => [...prev, itemToDelete]);
-            else if (category === 'plantio') setPlantioData(prev => [...prev, itemToDelete]);
-            else if (category === 'variedades') setVariedadesData(prev => [...prev, itemToDelete]);
-            else if (category === 'empresas') setEmpresasData(prev => [...prev, itemToDelete]);
-            else if (category === 'anos') setAnosData(prev => [...prev, itemToDelete]);
-            else if (category === 'pivos') setPivosData(prev => [...prev, itemToDelete]);
-            else if (category === 'glebas') setGlebasData(prev => [...prev, itemToDelete]);
-            else if (category === 'fazendas') setFazendasData(prev => [...prev, itemToDelete]);
-            else if (category === 'culturas') setCulturasData(prev => [...prev, itemToDelete]);
-            else if (category === 'colaboradores') setColaboradoresData(prev => [...prev, itemToDelete]);
-            else if (category === 'motoristas') setMotoristasData(prev => [...prev, itemToDelete]);
-            else if (category === 'onibus') setOnibusData(prev => [...prev, itemToDelete]);
-
-            setTrashData(prev => prev.filter(t => t.id !== trashId));
+          const handleUndo = async () => {
+            await saveDocument(collectionName, itemToDelete);
+            if (savedTrashDoc) {
+              await removeDocument(COLLECTIONS.lixeira, savedTrashDoc);
+            }
             showToast('Item restaurado com sucesso!', 'success');
           };
 
@@ -1856,25 +1885,29 @@ export default function App() {
   };
 
   // Restore item from Trash
-  const restoreFromTrash = (id: string) => {
+  const restoreFromTrash = async (id: string) => {
     const itemToRestore = trashData.find(t => t.id === id);
     if (!itemToRestore) return;
 
     const { category, itemData } = itemToRestore;
-    if (category === 'colheita') setColheitaData(prev => [...prev, itemData]);
-    else if (category === 'plantio') setPlantioData(prev => [...prev, itemData]);
-    else if (category === 'variedades') setVariedadesData(prev => [...prev, itemData]);
-    else if (category === 'empresas') setEmpresasData(prev => [...prev, itemData]);
-    else if (category === 'anos') setAnosData(prev => [...prev, itemData]);
-    else if (category === 'pivos') setPivosData(prev => [...prev, itemData]);
-    else if (category === 'glebas') setGlebasData(prev => [...prev, itemData]);
-    else if (category === 'fazendas') setFazendasData(prev => [...prev, itemData]);
-    else if (category === 'culturas') setCulturasData(prev => [...prev, itemData]);
-    else if (category === 'colaboradores') setColaboradoresData(prev => [...prev, itemData]);
-    else if (category === 'motoristas') setMotoristasData(prev => [...prev, itemData]);
-    else if (category === 'onibus') setOnibusData(prev => [...prev, itemData]);
+    let collectionName = '';
+    if (category === 'colheita') collectionName = COLLECTIONS.colheita;
+    else if (category === 'plantio') collectionName = COLLECTIONS.plantio;
+    else if (category === 'variedades') collectionName = COLLECTIONS.variedades;
+    else if (category === 'empresas') collectionName = COLLECTIONS.empresas;
+    else if (category === 'anos') collectionName = COLLECTIONS.anos;
+    else if (category === 'pivos') collectionName = COLLECTIONS.pivos;
+    else if (category === 'glebas') collectionName = COLLECTIONS.glebas;
+    else if (category === 'fazendas') collectionName = COLLECTIONS.fazendas;
+    else if (category === 'culturas') collectionName = COLLECTIONS.culturas;
+    else if (category === 'colaboradores') collectionName = COLLECTIONS.colaboradores;
+    else if (category === 'motoristas') collectionName = COLLECTIONS.motoristas;
+    else if (category === 'onibus') collectionName = COLLECTIONS.onibus;
 
-    setTrashData(prev => prev.filter(t => t.id !== id));
+    await saveDocument(collectionName, itemData);
+    if (id) {
+      await removeDocument(COLLECTIONS.lixeira, id);
+    }
     showToast('Item restaurado da Lixeira com sucesso!', 'success');
   };
 
@@ -1894,8 +1927,10 @@ export default function App() {
       confirmText: 'Excluir Definitivamente',
       confirmStyle: 'danger',
       isTrashMove: false,
-      onConfirm: () => {
-        setTrashData(prev => prev.filter(t => t.id !== id));
+      onConfirm: async () => {
+        if (id) {
+          await removeDocument(COLLECTIONS.lixeira, id);
+        }
         showToast('Item excluído permanentemente!', 'warning');
         setConfirmModal(null);
       }
@@ -1904,17 +1939,21 @@ export default function App() {
 
   // Empty trash for category with confirmation modal
   const emptyTrashForCategory = (cat: MainCategoryKey) => {
-    const count = trashData.filter(t => t.category === cat).length;
+    const targetItems = trashData.filter(t => t.category === cat);
 
     setConfirmModal({
       isOpen: true,
       title: 'Esvaziar Lixeira',
-      message: `Tem certeza de que deseja excluir definitivamente todos os ${count} itens da lixeira de ${titleMap[cat]}?`,
+      message: `Tem certeza de que deseja excluir definitivamente todos os ${targetItems.length} itens da lixeira de ${titleMap[cat]}?`,
       confirmText: 'Esvaziar Lixeira',
       confirmStyle: 'danger',
       isTrashMove: false,
-      onConfirm: () => {
-        setTrashData(prev => prev.filter(t => t.category !== cat));
+      onConfirm: async () => {
+        for (const item of targetItems) {
+          if (item.id) {
+            await removeDocument(COLLECTIONS.lixeira, item.id);
+          }
+        }
         showToast('Lixeira desta categoria esvaziada com sucesso!', 'warning');
         setConfirmModal(null);
       }
@@ -1922,7 +1961,7 @@ export default function App() {
   };
 
   // Handle Form Submit
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const isEdit = editingIndex !== null;
 
@@ -1943,6 +1982,7 @@ export default function App() {
         }
       }
 
+      const existingDoc = editingIndex !== null ? colheitaData[editingIndex] : null;
       const newItem: ColheitaItem = {
         data: inputToDisplayFormat(formData.cData || ''),
         empresa: formData.cEmpresa || '-',
@@ -1964,12 +2004,9 @@ export default function App() {
         unidade: editingIndex !== null ? (colheitaData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
-      if (editingIndex !== null) {
-        setColheitaData(prev => prev.map((item, i) => i === editingIndex ? newItem : item));
-      } else {
-        setColheitaData(prev => [...prev, newItem]);
-      }
+      await saveDocument(COLLECTIONS.colheita, newItem, existingDoc?.id);
     } else if (activePage === 'plantio') {
+      const existingDoc = editingIndex !== null ? plantioData[editingIndex] : null;
       const newItem: PlantioItem = {
         data: inputToDisplayFormat(formData.pData || ''),
         empresa: formData.pEmpresa || '-',
@@ -1988,11 +2025,7 @@ export default function App() {
         unidade: editingIndex !== null ? (plantioData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
-      if (editingIndex !== null) {
-        setPlantioData(prev => prev.map((item, i) => i === editingIndex ? newItem : item));
-      } else {
-        setPlantioData(prev => [...prev, newItem]);
-      }
+      await saveDocument(COLLECTIONS.plantio, newItem, existingDoc?.id);
     } else if (activePage === 'variedades') {
       const code = (formData.autoCode || '').trim();
       if (!code || !/^\d+$/.test(code)) {
@@ -2005,6 +2038,7 @@ export default function App() {
         return;
       }
 
+      const existingDoc = editingIndex !== null ? variedadesData[editingIndex] : null;
       const newItem: VariedadeItem = {
         codigo: code,
         nome: formData.simpleName || '',
@@ -2012,11 +2046,7 @@ export default function App() {
         unidade: editingIndex !== null ? (variedadesData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
-      if (editingIndex !== null) {
-        setVariedadesData(prev => prev.map((item, i) => i === editingIndex ? newItem : item));
-      } else {
-        setVariedadesData(prev => [...prev, newItem]);
-      }
+      await saveDocument(COLLECTIONS.variedades, newItem, existingDoc?.id);
     } else if (activePage === 'colaboradores') {
       const code = (formData.autoCode || '').trim();
       if (!code || !/^\d+$/.test(code)) {
@@ -2029,6 +2059,7 @@ export default function App() {
         return;
       }
 
+      const existingDoc = editingIndex !== null ? colaboradoresData[editingIndex] : null;
       const newItem: ColaboradorItem = {
         codigo: code,
         nome: (formData.nomeCompleto || '').trim(),
@@ -2039,11 +2070,7 @@ export default function App() {
         unidade: editingIndex !== null ? (colaboradoresData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
-      if (editingIndex !== null) {
-        setColaboradoresData(prev => prev.map((item, i) => i === editingIndex ? newItem : item));
-      } else {
-        setColaboradoresData(prev => [...prev, newItem]);
-      }
+      await saveDocument(COLLECTIONS.colaboradores, newItem, existingDoc?.id);
     } else if (activePage === 'motoristas') {
       const code = (formData.autoCode || '').trim();
       if (!code || !/^\d+$/.test(code)) {
@@ -2056,6 +2083,7 @@ export default function App() {
         return;
       }
 
+      const existingDoc = editingIndex !== null ? motoristasData[editingIndex] : null;
       const newItem: MotoristaItem = {
         codigo: code,
         nome: (formData.nomeCompleto || '').trim(),
@@ -2063,11 +2091,7 @@ export default function App() {
         unidade: editingIndex !== null ? (motoristasData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
-      if (editingIndex !== null) {
-        setMotoristasData(prev => prev.map((item, i) => i === editingIndex ? newItem : item));
-      } else {
-        setMotoristasData(prev => [...prev, newItem]);
-      }
+      await saveDocument(COLLECTIONS.motoristas, newItem, existingDoc?.id);
     } else if (activePage === 'onibus') {
       const code = (formData.autoCode || '').trim();
       if (!code || !/^\d+$/.test(code)) {
@@ -2086,6 +2110,7 @@ export default function App() {
         return;
       }
 
+      const existingDoc = editingIndex !== null ? onibusData[editingIndex] : null;
       const newItem: OnibusItem = {
         codigo: code,
         nome: placa,
@@ -2096,11 +2121,7 @@ export default function App() {
         unidade: editingIndex !== null ? (onibusData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
-      if (editingIndex !== null) {
-        setOnibusData(prev => prev.map((item, i) => i === editingIndex ? newItem : item));
-      } else {
-        setOnibusData(prev => [...prev, newItem]);
-      }
+      await saveDocument(COLLECTIONS.onibus, newItem, existingDoc?.id);
     } else {
       const code = (formData.autoCode || '').trim();
       if (!code || !/^\d+$/.test(code)) {
@@ -2109,12 +2130,13 @@ export default function App() {
       }
 
       let currentList: SimpleItem[] = [];
-      if (activePage === 'pivos') currentList = pivosData;
-      else if (activePage === 'glebas') currentList = glebasData;
-      else if (activePage === 'fazendas') currentList = fazendasData;
-      else if (activePage === 'culturas') currentList = culturasData;
-      else if (activePage === 'empresas') currentList = empresasData;
-      else if (activePage === 'anos') currentList = anosData;
+      let collectionName = '';
+      if (activePage === 'pivos') { currentList = pivosData; collectionName = COLLECTIONS.pivos; }
+      else if (activePage === 'glebas') { currentList = glebasData; collectionName = COLLECTIONS.glebas; }
+      else if (activePage === 'fazendas') { currentList = fazendasData; collectionName = COLLECTIONS.fazendas; }
+      else if (activePage === 'culturas') { currentList = culturasData; collectionName = COLLECTIONS.culturas; }
+      else if (activePage === 'empresas') { currentList = empresasData; collectionName = COLLECTIONS.empresas; }
+      else if (activePage === 'anos') { currentList = anosData; collectionName = COLLECTIONS.anos; }
 
       const isDuplicate = currentList.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
       if (isDuplicate) {
@@ -2129,20 +2151,7 @@ export default function App() {
         unidade: existingItem?.unidade || selectedUnidade
       };
 
-      const updateList = (prev: SimpleItem[]) => {
-        if (editingIndex !== null) {
-          return prev.map((item, i) => i === editingIndex ? newItem : item);
-        } else {
-          return [...prev, newItem];
-        }
-      };
-
-      if (activePage === 'pivos') setPivosData(updateList);
-      else if (activePage === 'glebas') setGlebasData(updateList);
-      else if (activePage === 'fazendas') setFazendasData(updateList);
-      else if (activePage === 'culturas') setCulturasData(updateList);
-      else if (activePage === 'empresas') setEmpresasData(updateList);
-      else if (activePage === 'anos') setAnosData(updateList);
+      await saveDocument(collectionName, newItem, existingItem?.id);
     }
 
     closeModal();
@@ -2150,7 +2159,7 @@ export default function App() {
   };
 
   // Inline cell edit in Grid Mode
-  const updateGridCell = (page: PageKey, rowIndex: number, fieldKey: string, value: string) => {
+  const updateGridCell = async (page: PageKey, rowIndex: number, fieldKey: string, value: string) => {
     const trimmed = value.trim();
 
     if (fieldKey === 'codigo') {
@@ -2177,25 +2186,35 @@ export default function App() {
     }
 
     if (page === 'colheita') {
+      const item = colheitaData[rowIndex];
+      if (!item) return;
       const finalVal = ['haGeral', 'haDia', 'haRestante', 'mediaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
-      setColheitaData(prev => prev.map((item, i) => {
-        if (i !== rowIndex) return item;
-        const updated = { ...item, [fieldKey]: finalVal };
-        if (fieldKey === 'haDia' || fieldKey === 'qtdColhido' || fieldKey === 'caixasCortadas') {
-          updated.mediaHa = calculateMediaHaForColheita(updated.qtdColhido || updated.caixasCortadas || updated.caixaBinBag, updated.haDia);
-        }
-        return updated;
-      }));
+      const updated = { ...item, [fieldKey]: finalVal };
+      if (fieldKey === 'haDia' || fieldKey === 'qtdColhido' || fieldKey === 'caixasCortadas') {
+        updated.mediaHa = calculateMediaHaForColheita(updated.qtdColhido || updated.caixasCortadas || updated.caixaBinBag, updated.haDia);
+      }
+      await saveDocument(COLLECTIONS.colheita, updated, item.id);
     } else if (page === 'plantio') {
+      const item = plantioData[rowIndex];
+      if (!item) return;
       const finalVal = ['haGeral', 'haDia', 'haRestante', 'mediaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
-      setPlantioData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: finalVal } : item));
+      const updated = { ...item, [fieldKey]: finalVal };
+      await saveDocument(COLLECTIONS.plantio, updated, item.id);
     } else if (page === 'variedades') {
-      setVariedadesData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = variedadesData[rowIndex];
+      if (!item) return;
+      await saveDocument(COLLECTIONS.variedades, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'colaboradores') {
-      setColaboradoresData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = colaboradoresData[rowIndex];
+      if (!item) return;
+      await saveDocument(COLLECTIONS.colaboradores, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'motoristas') {
-      setMotoristasData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = motoristasData[rowIndex];
+      if (!item) return;
+      await saveDocument(COLLECTIONS.motoristas, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'onibus') {
+      const item = onibusData[rowIndex];
+      if (!item) return;
       let finalVal = value;
       if (fieldKey === 'nome') {
         finalVal = formatPlacaBus(value);
@@ -2204,19 +2223,25 @@ export default function App() {
           return;
         }
       }
-      setOnibusData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: finalVal } : item));
+      await saveDocument(COLLECTIONS.onibus, { ...item, [fieldKey]: finalVal }, item.id);
     } else if (page === 'pivos') {
-      setPivosData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = pivosData[rowIndex];
+      if (item) await saveDocument(COLLECTIONS.pivos, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'glebas') {
-      setGlebasData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = glebasData[rowIndex];
+      if (item) await saveDocument(COLLECTIONS.glebas, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'fazendas') {
-      setFazendasData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = fazendasData[rowIndex];
+      if (item) await saveDocument(COLLECTIONS.fazendas, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'culturas') {
-      setCulturasData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = culturasData[rowIndex];
+      if (item) await saveDocument(COLLECTIONS.culturas, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'empresas') {
-      setEmpresasData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = empresasData[rowIndex];
+      if (item) await saveDocument(COLLECTIONS.empresas, { ...item, [fieldKey]: value }, item.id);
     } else if (page === 'anos') {
-      setAnosData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: value } : item));
+      const item = anosData[rowIndex];
+      if (item) await saveDocument(COLLECTIONS.anos, { ...item, [fieldKey]: value }, item.id);
     }
   };
 
@@ -4465,14 +4490,26 @@ export default function App() {
             </div>
             <div className="share-grid">
               <a
-                id="shareWhatsapp"
+                id="shareWhatsappWeb"
+                target="_blank"
+                rel="noreferrer"
+                href={`https://web.whatsapp.com/send?text=${encodeURIComponent(shareText)}`}
+                className="share-item"
+                title="Abrir no WhatsApp Web (Navegador/Computador)"
+              >
+                <div className="share-icon bg-whatsapp"><i className="fa-brands fa-whatsapp"></i></div>
+                <span>WhatsApp Web (PC)</span>
+              </a>
+              <a
+                id="shareWhatsappApp"
                 target="_blank"
                 rel="noreferrer"
                 href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`}
                 className="share-item"
+                title="Abrir no Aplicativo do WhatsApp"
               >
-                <div className="share-icon bg-whatsapp"><i className="fa-brands fa-whatsapp"></i></div>
-                <span>WhatsApp</span>
+                <div className="share-icon bg-whatsapp" style={{ opacity: 0.85 }}><i className="fa-brands fa-whatsapp"></i></div>
+                <span>WhatsApp App</span>
               </a>
               <a
                 id="shareTelegram"
