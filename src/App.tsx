@@ -3,18 +3,23 @@ import React, { useState, useEffect } from 'react';
 // Data structures
 interface ColheitaItem {
   data: string;
+  empresa?: string;
   cultura: string;
+  os: string;
   fazenda: string;
   pivo: string;
   gleba: string;
   variedade: string;
-  os: string;
-  haGeral: string;
   haDia: string;
   haRestante?: string;
+  qtdColhido?: string;
+  caixasCortadas?: string;
   caixaBinBag?: string;
   glebasFinalizada?: string;
-  caixasCortadas?: string;
+  mediaHa?: string;
+  mes?: string;
+  ano?: string;
+  haGeral?: string;
   unidade?: string;
 }
 
@@ -271,9 +276,8 @@ export default function App() {
   // Table dataset state with localStorage persistence
   const [colheitaData, setColheitaData] = useState<ColheitaItem[]>(() =>
     getInitialData('agri_colheitaData', [
-      { data: '26/02/26', cultura: 'Milho Semente Fêmea', fazenda: 'FAZENDA SÃO BENTO', pivo: '11', gleba: 'C5', variedade: 'LEC20EOPG', os: '150/2026', haGeral: '115 ha', haDia: '14,5 ha', haRestante: '100,5 ha', caixaBinBag: 'Caixas', glebasFinalizada: 'Não', caixasCortadas: '250' },
-      { data: '28/03/26', cultura: 'Cenoura', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', os: 'OS-101', haGeral: '15,00 ha', haDia: '5,00 ha', haRestante: '10,00 ha', caixaBinBag: 'Bin', glebasFinalizada: 'Não', caixasCortadas: '120' },
-      { data: '28/03/26', cultura: 'Alho', fazenda: 'Fazenda Norte', pivo: 'Pivô 02', gleba: 'Gleba B', variedade: 'Variedade B', os: 'OS-102', haGeral: '20,00 ha', haDia: '8,00 ha', haRestante: '12,00 ha', caixaBinBag: 'Bags', glebasFinalizada: 'Sim', caixasCortadas: '300' }
+      { data: '06/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '14,50 ha', haGeral: '31,88 ha', haRestante: '17,38 ha', qtdColhido: '250', glebasFinalizada: 'Não', mediaHa: '17,24 /ha', mes: 'Abril', ano: '2026', caixaBinBag: 'Caixas', caixasCortadas: '250' },
+      { data: '28/03/26', empresa: 'Agro', cultura: 'Cenoura', os: 'OS-102', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', haDia: '5,00 ha', haGeral: '15,00 ha', haRestante: '10,00 ha', qtdColhido: '120', glebasFinalizada: 'Não', mediaHa: '24,00 /ha', mes: 'Março', ano: '2026', caixaBinBag: 'Bin', caixasCortadas: '120' }
     ])
   );
 
@@ -545,6 +549,14 @@ export default function App() {
     if (total <= 0) return '';
     const restante = Math.max(0, total - dia);
     return `${restante.toFixed(2).replace('.', ',')} ha`;
+  };
+
+  const calculateMediaHaForColheita = (qtdColhidoStr: string | undefined, haDiaStr: string | undefined): string => {
+    const qtd = parseHaValue(qtdColhidoStr);
+    const haDia = parseHaValue(haDiaStr);
+    if (qtd <= 0 || haDia <= 0) return '';
+    const media = qtd / haDia;
+    return `${media.toFixed(2).replace('.', ',')} /ha`;
   };
 
   // Helper to lookup full original total hectares bound in amarracoesData for a selected area
@@ -1226,7 +1238,7 @@ export default function App() {
   const getActiveVisibleRows = (): string[][] => {
     if (activePage === 'colheita') {
       return colheitaData
-        .map(item => [item.data, item.cultura, item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.os || '-', item.haGeral || '-', item.haDia || '-', item.haRestante || '-', item.caixaBinBag || '-', item.glebasFinalizada || '-', item.caixasCortadas || '-'])
+        .map(item => [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-'])
         .filter(row => isRowVisible(row));
     } else if (activePage === 'plantio') {
       return plantioData
@@ -1280,7 +1292,7 @@ export default function App() {
 
     let allRows: string[][] = [];
     if (activePage === 'colheita') {
-      allRows = colheitaData.map(item => [item.data, item.cultura, item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.os || '-', item.haGeral || '-', item.haDia || '-', item.haRestante || '-', item.caixaBinBag || '-', item.glebasFinalizada || '-', item.caixasCortadas || '-']);
+      allRows = colheitaData.map(item => [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-']);
     } else if (activePage === 'plantio') {
       allRows = plantioData.map(item => [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haRestante || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.ano || '-']);
     } else if (activePage === 'variedades') {
@@ -1380,19 +1392,23 @@ export default function App() {
     visibleRows.forEach(cells => {
       if (activePage === 'colheita') {
         const block = `*INFORMAÇÕES DE COLHEITA*\n` +
-          `*${(cells[2] || 'FAZENDA').toUpperCase()}*\n\n` +
+          `*${(cells[4] || 'FAZENDA').toUpperCase()}*\n\n` +
           `*Data:* ${cells[0] || '-'}\n` +
-          `*Cultura:* ${cells[1] || '-'}\n` +
-          `*Pivô:* ${cells[3] || '-'}\n` +
-          `*Gleba:* ${cells[4] || '-'}\n` +
-          `*Variedade:* ${cells[5] || '-'}\n` +
-          `*OS:* ${cells[6] || '-'}\n` +
-          `*Área Total:* ${cells[7] || '-'}\n` +
-          `*Área Colhida:* ${cells[8] || '-'}\n` +
-          `*Ha Restante:* ${cells[9] || '-'}\n` +
-          `*Caixa/Bin/Bag:* ${cells[10] || '-'}\n` +
-          `*Glebas Finalizada:* ${cells[11] || '-'}\n` +
-          `*Caixas Cortadas:* ${cells[12] || '-'}`;
+          `*Empresa:* ${cells[1] || '-'}\n` +
+          `*Cultura:* ${cells[2] || '-'}\n` +
+          `*OS:* ${cells[3] || '-'}\n` +
+          `*Fazenda:* ${cells[4] || '-'}\n` +
+          `*Pivô:* ${cells[5] || '-'}\n` +
+          `*Gleba:* ${cells[6] || '-'}\n` +
+          `*Variedade:* ${cells[7] || '-'}\n` +
+          `*HA/Dia:* ${cells[8] || '-'}\n` +
+          `*HA/Geral:* ${cells[9] || '-'}\n` +
+          `*Ha Restante:* ${cells[10] || '-'}\n` +
+          `*Qtd: Colhido:* ${cells[11] || '-'}\n` +
+          `*Finalizada:* ${cells[12] || '-'}\n` +
+          `*Média/ha:* ${cells[13] || '-'}\n` +
+          `*Mês:* ${cells[14] || '-'}\n` +
+          `*Ano:* ${cells[15] || '-'}`;
         textBlocks.push(block);
       } else if (activePage === 'plantio') {
         const block = `*INFORMAÇÕES DE PLANTIO*\n` +
@@ -1449,9 +1465,9 @@ export default function App() {
     let rows: string[][] = [];
 
     if (activePage === 'colheita') {
-      headers = ['DATA', 'CULTURA', 'FAZENDA', 'PIVO', 'GLEBA', 'VARIEDADE', 'OS', 'HA_GERAL', 'HA_DO_DIA', 'HA_RESTANTE', 'CAIXA/BIN/BAG', 'GLEBAS_FINALIZADA', 'CAIXAS_CORTADAS'];
+      headers = ['DATA', 'EMPRESA', 'CULTURA', 'OS', 'FAZENDA', 'PIVÔ', 'GLEBA', 'VARIEDADE', 'HA/DIA', 'HA/GERAL', 'HA/RESTA', 'QTD: COLHIDO', 'FINALIZADA', 'MÉDIA/HA', 'MÊS', 'ANO'];
       rows = colheitaData
-        .map(i => [i.data, i.cultura, i.fazenda, i.pivo, i.gleba, i.variedade, i.os, i.haGeral, i.haDia, i.haRestante || '-', i.caixaBinBag || '-', i.glebasFinalizada || '-', i.caixasCortadas || '-'])
+        .map(i => [i.data, i.empresa || '-', i.cultura, i.os || '-', i.fazenda, i.pivo || '-', i.gleba || '-', i.variedade || '-', i.haDia || '-', i.haGeral || '-', i.haRestante || '-', i.qtdColhido || i.caixasCortadas || i.caixaBinBag || '-', i.glebasFinalizada || '-', i.mediaHa || '-', i.mes || '-', i.ano || '-'])
         .filter(r => isRowVisible(r));
     } else if (activePage === 'plantio') {
       headers = ['DATA', 'EMPRESA', 'CULTURA', 'OS', 'FAZENDA', 'PIVO', 'GLEBA', 'VARIEDADE', 'HA_DIA', 'HA_RESTANTE', 'GLEBAS_FINALIZADA', 'MEDIA_HA', 'ANO'];
@@ -1542,6 +1558,28 @@ export default function App() {
     return trimmed;
   };
 
+  const getMonthNameFromDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const yyyymmdd = dateToInputFormat(dateStr);
+    const parts = yyyymmdd.split('-');
+    if (parts.length === 3) {
+      const monthNum = parseInt(parts[1], 10);
+      const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      return months[monthNum - 1] || '';
+    }
+    return '';
+  };
+
+  const getYearFromDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const yyyymmdd = dateToInputFormat(dateStr);
+    const parts = yyyymmdd.split('-');
+    if (parts.length === 3) {
+      return parts[0];
+    }
+    return '';
+  };
+
   // Open Modal for Add/Edit
   const openCurrentModal = (editData: string[] | null = null, index: number | null = null) => {
     setEditingIndex(index);
@@ -1549,20 +1587,23 @@ export default function App() {
 
     if (activePage === 'colheita') {
       const defaultDate = new Date().toISOString().split('T')[0];
-      initial.cData = editData && editData[0] ? (dateToInputFormat(editData[0]) || editData[0]) : defaultDate;
-      initial.cCultura = editData ? editData[1] : '';
-      initial.cFazenda = editData ? editData[2] : '';
-      initial.cPivo = editData ? editData[3] : '';
-      initial.cGleba = editData ? editData[4] : '';
-      initial.cVariedade = editData ? editData[5] : '';
-      initial.cOs = editData ? editData[6] : '';
-      const autoPlantedHa = (initial.cCultura || initial.cFazenda || initial.cPivo || initial.cGleba) ? lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade) : '';
-      initial.cHaGeral = editData ? editData[7] : autoPlantedHa;
+      const selectedDate = editData && editData[0] ? (dateToInputFormat(editData[0]) || editData[0]) : defaultDate;
+      initial.cData = selectedDate;
+      initial.cEmpresa = editData && editData[1] && editData[1] !== '-' ? editData[1] : (empresasData.filter(isItemInSelectedUnidade)[0]?.nome || '');
+      initial.cCultura = editData ? editData[2] : '';
+      initial.cOs = editData ? editData[3] : '';
+      initial.cFazenda = editData ? editData[4] : '';
+      initial.cPivo = editData ? editData[5] : '';
+      initial.cGleba = editData ? editData[6] : '';
+      initial.cVariedade = editData ? editData[7] : '';
       initial.cHaDia = editData ? editData[8] : '';
-      initial.cHaRestante = editData && editData[9] && editData[9] !== '-' ? editData[9] : calculateHaRestanteForColheita(initial.cHaGeral, initial.cHaDia, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
-      initial.cCaixaBinBag = editData && editData[10] && editData[10] !== '-' ? editData[10] : 'Caixas';
-      initial.cGlebasFinalizada = editData && editData[11] && editData[11] !== '-' ? editData[11] : 'Não';
-      initial.cCaixasCortadas = editData && editData[12] && editData[12] !== '-' ? editData[12] : '';
+      initial.cHaGeral = editData && editData[9] && editData[9] !== '-' ? editData[9] : (lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade) || '');
+      initial.cHaRestante = editData && editData[10] && editData[10] !== '-' ? editData[10] : calculateHaRestanteForColheita(initial.cHaGeral, initial.cHaDia, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
+      initial.cQtdColhido = editData && editData[11] && editData[11] !== '-' ? editData[11] : '';
+      initial.cGlebasFinalizada = editData && editData[12] && editData[12] !== '-' ? editData[12] : 'Não';
+      initial.cMediaHa = editData && editData[13] && editData[13] !== '-' ? editData[13] : calculateMediaHaForColheita(initial.cQtdColhido, initial.cHaDia);
+      initial.cMes = editData && editData[14] && editData[14] !== '-' ? editData[14] : getMonthNameFromDate(selectedDate);
+      initial.cAno = editData && editData[15] && editData[15] !== '-' ? editData[15] : getYearFromDate(selectedDate);
     } else if (activePage === 'plantio') {
       const defaultDate = new Date().toISOString().split('T')[0];
       initial.pData = editData && editData[0] ? (dateToInputFormat(editData[0]) || editData[0]) : defaultDate;
@@ -1875,18 +1916,22 @@ export default function App() {
     if (activePage === 'colheita') {
       const newItem: ColheitaItem = {
         data: inputToDisplayFormat(formData.cData || ''),
+        empresa: formData.cEmpresa || '-',
         cultura: formData.cCultura || '',
+        os: formData.cOs || '-',
         fazenda: formData.cFazenda || '',
         pivo: formData.cPivo || '-',
         gleba: formData.cGleba || '-',
         variedade: formData.cVariedade || '-',
-        os: formData.cOs || '-',
-        haGeral: formData.cHaGeral || '-',
         haDia: formData.cHaDia || '-',
+        haGeral: formData.cHaGeral || '-',
         haRestante: formData.cHaRestante || '-',
-        caixaBinBag: formData.cCaixaBinBag || '-',
+        qtdColhido: formData.cQtdColhido || formData.cCaixasCortadas || '-',
         glebasFinalizada: formData.cGlebasFinalizada || '-',
-        caixasCortadas: formData.cCaixasCortadas || '-',
+        mediaHa: formData.cMediaHa || '-',
+        mes: formData.cMes || getMonthNameFromDate(formData.cData || '') || '-',
+        ano: formData.cAno || getYearFromDate(formData.cData || '') || '-',
+        caixasCortadas: formData.cQtdColhido || formData.cCaixasCortadas || '-',
         unidade: editingIndex !== null ? (colheitaData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
       };
 
@@ -2103,8 +2148,15 @@ export default function App() {
     }
 
     if (page === 'colheita') {
-      const finalVal = ['haGeral', 'haDia', 'haRestante'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
-      setColheitaData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: finalVal } : item));
+      const finalVal = ['haGeral', 'haDia', 'haRestante', 'mediaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
+      setColheitaData(prev => prev.map((item, i) => {
+        if (i !== rowIndex) return item;
+        const updated = { ...item, [fieldKey]: finalVal };
+        if (fieldKey === 'haDia' || fieldKey === 'qtdColhido' || fieldKey === 'caixasCortadas') {
+          updated.mediaHa = calculateMediaHaForColheita(updated.qtdColhido || updated.caixasCortadas || updated.caixaBinBag, updated.haDia);
+        }
+        return updated;
+      }));
     } else if (page === 'plantio') {
       const finalVal = ['haGeral', 'haDia', 'haRestante', 'mediaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
       setPlantioData(prev => prev.map((item, i) => i === rowIndex ? { ...item, [fieldKey]: finalVal } : item));
@@ -2378,6 +2430,10 @@ export default function App() {
             <button className="cmd-btn" onClick={exportToCSV}>
               <i className="fa-solid fa-file-export"></i> Exportar
             </button>
+
+            <button className="cmd-btn" onClick={() => window.print()}>
+              <i className="fa-solid fa-print"></i> Imprimir
+            </button>
           </div>
 
           <div className="sub-bar">
@@ -2401,43 +2457,49 @@ export default function App() {
               <table id="tableColheita" className={`table-large ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead>
                   <tr>
-                    <th><div className="th-content">DATA <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">CULTURA <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">FAZENDA <button className={`btn-filter-col ${isColFiltered(2) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 2)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">PIVÔ <button className={`btn-filter-col ${isColFiltered(3) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 3)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">GLEBA <button className={`btn-filter-col ${isColFiltered(4) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 4)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">VARIEDADE <button className={`btn-filter-col ${isColFiltered(5) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 5)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">OS <button className={`btn-filter-col ${isColFiltered(6) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 6)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">HA GERAL <button className={`btn-filter-col ${isColFiltered(7) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 7)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">HA DIA <button className={`btn-filter-col ${isColFiltered(8) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 8)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">HA RESTANTE <button className={`btn-filter-col ${isColFiltered(9) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 9)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">CAIXA/BIN/BAG/SACO <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">GLEBAS FINALIZADA <button className={`btn-filter-col ${isColFiltered(11) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 11)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">CAIXAS CORTADAS <button className={`btn-filter-col ${isColFiltered(12) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 12)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th style={{ textAlign: 'center' }}>AÇÕES</th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>DATA</strong> <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>EMPRESA</strong> <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>CULTURA</strong> <button className={`btn-filter-col ${isColFiltered(2) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 2)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>OS</strong> <button className={`btn-filter-col ${isColFiltered(3) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 3)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>FAZENDA</strong> <button className={`btn-filter-col ${isColFiltered(4) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 4)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>PIVÔ</strong> <button className={`btn-filter-col ${isColFiltered(5) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 5)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>GLEBA</strong> <button className={`btn-filter-col ${isColFiltered(6) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 6)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>VARIEDADE</strong> <button className={`btn-filter-col ${isColFiltered(7) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 7)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/DIA</strong> <button className={`btn-filter-col ${isColFiltered(8) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 8)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/GERAL</strong> <button className={`btn-filter-col ${isColFiltered(9) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 9)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/RESTA</strong> <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>QTD: COLHIDO</strong> <button className={`btn-filter-col ${isColFiltered(11) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 11)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>FINALIZADA</strong> <button className={`btn-filter-col ${isColFiltered(12) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 12)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>MÉDIA/HA</strong> <button className={`btn-filter-col ${isColFiltered(13) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 13)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>MÊS</strong> <button className={`btn-filter-col ${isColFiltered(14) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 14)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>ANO</strong> <button className={`btn-filter-col ${isColFiltered(15) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 15)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th style={{ textAlign: 'center', fontWeight: 700, textTransform: 'uppercase' }}><strong>AÇÕES</strong></th>
                   </tr>
                 </thead>
                 <tbody id="tbodyColheita">
                   {colheitaData.map((item, idx) => {
                     if (!isItemInSelectedUnidade(item)) return null;
-                    const rowCells = [item.data, item.cultura, item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.os || '-', item.haGeral || '-', item.haDia || '-', item.haRestante || '-', item.caixaBinBag || '-', item.glebasFinalizada || '-', item.caixasCortadas || '-'];
+                    const rowCells = [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-'];
                     if (!isRowVisible(rowCells)) return null;
 
                     return (
                       <tr key={idx}>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'data', e.currentTarget.innerText)}>{item.data}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'empresa', e.currentTarget.innerText)}>{item.empresa || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cultura', e.currentTarget.innerText)}>{item.cultura}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'os', e.currentTarget.innerText)}>{item.os || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'fazenda', e.currentTarget.innerText)}>{item.fazenda}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'pivo', e.currentTarget.innerText)}>{item.pivo || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'gleba', e.currentTarget.innerText)}>{item.gleba || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'variedade', e.currentTarget.innerText)}>{item.variedade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'os', e.currentTarget.innerText)}>{item.os || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haGeral', e.currentTarget.innerText)}>{item.haGeral || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haDia', e.currentTarget.innerText)}>{item.haDia || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haGeral', e.currentTarget.innerText)}>{item.haGeral || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haRestante', e.currentTarget.innerText)}>{item.haRestante || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'caixaBinBag', e.currentTarget.innerText)}>{item.caixaBinBag || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'qtdColhido', e.currentTarget.innerText)}>{item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'glebasFinalizada', e.currentTarget.innerText)}>{item.glebasFinalizada || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'caixasCortadas', e.currentTarget.innerText)}>{item.caixasCortadas || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mediaHa', e.currentTarget.innerText)}>{item.mediaHa || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>{item.mes || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)}>{item.ano || '-'}</td>
                         <td className="action-cell">
                           <button className="btn-action-row" onClick={() => openCurrentModal(rowCells, idx)} title="Editar"><i className="fa-solid fa-pen"></i></button>
                           <button className="btn-action-row" onClick={() => deleteRow('colheita', idx)} title="Mover para Lixeira"><i className="fa-solid fa-trash"></i></button>
@@ -2456,20 +2518,20 @@ export default function App() {
               <table id="tablePlantio" className={`table-large ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead>
                   <tr>
-                    <th><div className="th-content">DATA <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">EMPRESA <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">CULTURA <button className={`btn-filter-col ${isColFiltered(2) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 2)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">OS <button className={`btn-filter-col ${isColFiltered(3) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 3)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">FAZENDA <button className={`btn-filter-col ${isColFiltered(4) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 4)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">PIVÔ <button className={`btn-filter-col ${isColFiltered(5) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 5)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">GLEBA <button className={`btn-filter-col ${isColFiltered(6) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 6)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">VARIEDADE <button className={`btn-filter-col ${isColFiltered(7) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 7)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">HA/ DIA <button className={`btn-filter-col ${isColFiltered(8) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 8)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">HA RESTANTE <button className={`btn-filter-col ${isColFiltered(9) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 9)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">GLEBAS FINALIZADA <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">MÉDIA HA <button className={`btn-filter-col ${isColFiltered(11) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 11)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content">ANO <button className={`btn-filter-col ${isColFiltered(12) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 12)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th style={{ textAlign: 'center' }}>AÇÕES</th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>DATA</strong> <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>EMPRESA</strong> <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>CULTURA</strong> <button className={`btn-filter-col ${isColFiltered(2) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 2)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>OS</strong> <button className={`btn-filter-col ${isColFiltered(3) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 3)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>FAZENDA</strong> <button className={`btn-filter-col ${isColFiltered(4) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 4)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>PIVÔ</strong> <button className={`btn-filter-col ${isColFiltered(5) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 5)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>GLEBA</strong> <button className={`btn-filter-col ${isColFiltered(6) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 6)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>VARIEDADE</strong> <button className={`btn-filter-col ${isColFiltered(7) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 7)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/ DIA</strong> <button className={`btn-filter-col ${isColFiltered(8) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 8)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA RESTANTE</strong> <button className={`btn-filter-col ${isColFiltered(9) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 9)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>GLEBAS FINALIZADA</strong> <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>MÉDIA HA</strong> <button className={`btn-filter-col ${isColFiltered(11) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 11)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>ANO</strong> <button className={`btn-filter-col ${isColFiltered(12) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 12)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th style={{ textAlign: 'center', fontWeight: 700, textTransform: 'uppercase' }}><strong>AÇÕES</strong></th>
                   </tr>
                 </thead>
                 <tbody id="tbodyPlantio">
@@ -3404,7 +3466,41 @@ export default function App() {
                   <>
                     <div className="form-group">
                       <label>Data da Colheita</label>
-                      <input type="date" value={formData.cData || ''} onChange={e => setFormData({ ...formData, cData: e.target.value })} required />
+                      <input
+                        type="date"
+                        value={formData.cData || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setFormData({
+                            ...formData,
+                            cData: val,
+                            cMes: getMonthNameFromDate(val) || formData.cMes,
+                            cAno: getYearFromDate(val) || formData.cAno
+                          });
+                        }}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Empresa</label>
+                      {empresasData.filter(isItemInSelectedUnidade).length > 0 ? (
+                        <select value={formData.cEmpresa || ''} onChange={e => setFormData({ ...formData, cEmpresa: e.target.value })}>
+                          <option value="">Selecione uma empresa...</option>
+                          {empresasData.filter(isItemInSelectedUnidade).map((emp, i) => (
+                            <option key={i} value={emp.nome}>{emp.nome}</option>
+                          ))}
+                          {editingIndex !== null && formData.cEmpresa && !empresasData.filter(isItemInSelectedUnidade).some(e => e.nome === formData.cEmpresa) && (
+                            <option value={formData.cEmpresa}>{formData.cEmpresa}</option>
+                          )}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Ex: Coopercitrus"
+                          value={formData.cEmpresa || ''}
+                          onChange={e => setFormData({ ...formData, cEmpresa: e.target.value })}
+                        />
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Cultura (do Plantio)</label>
@@ -3459,6 +3555,17 @@ export default function App() {
                           <option value={formData.cCultura}>{formData.cCultura}</option>
                         )}
                       </select>
+                    </div>
+                    <div className="form-group">
+                      <label>OS (Somente Números)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Ex: 101"
+                        value={formData.cOs || ''}
+                        onChange={e => setFormData({ ...formData, cOs: e.target.value.replace(/\D/g, '') })}
+                      />
                     </div>
                     <div className="form-group">
                       <label>Fazenda (do Plantio)</label>
@@ -3591,33 +3698,7 @@ export default function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>OS (Somente Números)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="Ex: 101"
-                        value={formData.cOs || ''}
-                        onChange={e => setFormData({ ...formData, cOs: e.target.value.replace(/\D/g, '') })}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Área Total Plantada Geral (ha) - Automático do Plantio</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Puxado automaticamente do plantio..."
-                        value={formData.cHaGeral || ''}
-                        onChange={e => {
-                          const newHaGeral = sanitizeHectaresInput(e.target.value);
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
-                          setFormData({ ...formData, cHaGeral: newHaGeral, cHaRestante: newRestante });
-                        }}
-                        style={{ fontWeight: 600, backgroundColor: '#fdfdfd' }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Área Colhida no Dia (ha)</label>
+                      <label>Área Colhida no Dia (ha/dia)</label>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -3626,12 +3707,27 @@ export default function App() {
                         onChange={e => {
                           const newHaDia = sanitizeHectaresInput(e.target.value);
                           const newRestante = calculateHaRestanteForColheita(formData.cHaGeral, newHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
-                          setFormData({ ...formData, cHaDia: newHaDia, cHaRestante: newRestante });
+                          const newMedia = calculateMediaHaForColheita(formData.cQtdColhido || formData.cCaixasCortadas, newHaDia);
+                          setFormData({ ...formData, cHaDia: newHaDia, cHaRestante: newRestante, cMediaHa: newMedia });
                         }}
                       />
                     </div>
                     <div className="form-group">
-                      <label>Hectare Restante (Cálculo Automático)</label>
+                      <label>HA/GERAL (Área Total Plantada)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 100,00 ha"
+                        value={formData.cHaGeral || ''}
+                        onChange={e => {
+                          const newHaGeral = sanitizeHectaresInput(e.target.value);
+                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
+                          setFormData({ ...formData, cHaGeral: newHaGeral, cHaRestante: newRestante });
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Hectare Restante (ha/resta - Cálculo Automático)</label>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -3642,16 +3738,21 @@ export default function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Caixas / Bin / Bags / Sacos</label>
-                      <select value={formData.cCaixaBinBag || 'Caixas'} onChange={e => setFormData({ ...formData, cCaixaBinBag: e.target.value })}>
-                        <option value="Caixas">Caixas</option>
-                        <option value="Bin">Bin</option>
-                        <option value="Bags">Bags</option>
-                        <option value="Sacos">Sacos</option>
-                      </select>
+                      <label>Qtd: Colhido</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Ex: 250"
+                        value={formData.cQtdColhido || formData.cCaixasCortadas || ''}
+                        onChange={e => {
+                          const newQtd = e.target.value;
+                          const newMedia = calculateMediaHaForColheita(newQtd, formData.cHaDia);
+                          setFormData({ ...formData, cQtdColhido: newQtd, cCaixasCortadas: newQtd, cMediaHa: newMedia });
+                        }}
+                      />
                     </div>
                     <div className="form-group">
-                      <label>Glebas Finalizada</label>
+                      <label>Finalizada</label>
                       <select value={formData.cGlebasFinalizada || 'Não'} onChange={e => setFormData({ ...formData, cGlebasFinalizada: e.target.value })}>
                         <option value="Não">Não</option>
                         <option value="Sim">Sim</option>
@@ -3659,15 +3760,35 @@ export default function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Caixas / Bags / Sacos Cortadas</label>
+                      <label>Média/ha (Cálculo Automático)</label>
                       <input
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="Ex: 250"
-                        value={formData.cCaixasCortadas || ''}
-                        onChange={e => setFormData({ ...formData, cCaixasCortadas: e.target.value.replace(/\D/g, '') })}
+                        placeholder="Calculado automaticamente ex: 17,24 /ha"
+                        value={formData.cMediaHa || ''}
+                        onChange={e => setFormData({ ...formData, cMediaHa: e.target.value })}
+                        style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
                       />
+                    </div>
+                    <div className="form-group">
+                      <label>Mês</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Fevereiro"
+                        value={formData.cMes || ''}
+                        onChange={e => setFormData({ ...formData, cMes: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Ano</label>
+                      <select value={formData.cAno || ''} onChange={e => setFormData({ ...formData, cAno: e.target.value })}>
+                        <option value="">Selecione o ano...</option>
+                        {anosData.filter(isItemInSelectedUnidade).map((a, i) => (
+                          <option key={i} value={a.nome}>{a.nome}</option>
+                        ))}
+                        {editingIndex !== null && formData.cAno && !anosData.filter(isItemInSelectedUnidade).some(a => a.nome === formData.cAno) && (
+                          <option value={formData.cAno}>{formData.cAno}</option>
+                        )}
+                      </select>
                     </div>
                   </>
                 )}
@@ -4318,6 +4439,10 @@ export default function App() {
                 <div className="share-icon bg-copy"><i className="fa-regular fa-copy"></i></div>
                 <span>Copiar Texto</span>
               </div>
+              <div className="share-item" onClick={() => { setIsShareOpen(false); window.print(); }}>
+                <div className="share-icon" style={{ backgroundColor: '#0078d4', color: '#fff' }}><i className="fa-solid fa-print"></i></div>
+                <span>Imprimir</span>
+              </div>
             </div>
             <button className="btn-cancel" style={{ width: '100%' }} onClick={() => setIsShareOpen(false)}>Cancelar</button>
           </div>
@@ -4422,7 +4547,7 @@ export default function App() {
       {/* MODAL PARA AMARRAÇÃO / MARCAÇÃO */}
       {isAmarracaoModalOpen && (
         <div className="modal-backdrop open" onClick={() => { setIsAmarracaoModalOpen(false); setEditingAmarracao(null); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-pen-to-square" style={{ color: '#0078d4' }}></i>
@@ -4431,8 +4556,8 @@ export default function App() {
               <button type="button" className="modal-close" onClick={() => { setIsAmarracaoModalOpen(false); setEditingAmarracao(null); }}>&times;</button>
             </div>
 
-            <form onSubmit={handleSaveAmarracao}>
-              <div className="modal-body">
+            <form onSubmit={handleSaveAmarracao} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px' }}>
                 <div className="form-group">
                   <label>Quadrado / Categoria do Vínculo</label>
                   <select

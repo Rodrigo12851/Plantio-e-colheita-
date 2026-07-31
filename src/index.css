@@ -353,7 +353,8 @@ table {
 th {
   background-color: #faf9f8;
   color: #323130;
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
   padding: 8px 10px;
   border-bottom: 1px solid #edebe9;
   position: sticky;
@@ -367,6 +368,8 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .btn-filter-col {
@@ -535,6 +538,14 @@ table.grid-editing td[contenteditable="true"] {
   border: 1px solid #e1dfdd;
   overflow: hidden;
   animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .modal-header {
@@ -1209,6 +1220,54 @@ table.grid-editing td[contenteditable="true"] {
 @media (max-width: 480px) {
   .amarracoes-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* MEDIAS DE IMPRESSÃO */
+@media print {
+  .topbar,
+  .left-mini-bar,
+  .sidebar,
+  .command-bar,
+  .share-overlay,
+  .modal-overlay,
+  .modal-backdrop,
+  .toast-container,
+  .btn-filter-col,
+  .btn-action-row,
+  .action-cell,
+  th:last-child {
+    display: none !important;
+  }
+
+  body, .app-layout, .main-area {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .table-container {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11px !important;
+  }
+
+  th, td {
+    border: 1px solid #999999 !important;
+    padding: 6px 8px !important;
+    color: #000000 !important;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
   }
 }
 
