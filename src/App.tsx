@@ -8,6 +8,8 @@ import {
 } from './lib/firebase';
 
 // Data structures
+export type SortMode = 'code_asc' | 'code_desc' | 'alpha_asc' | 'alpha_desc';
+
 interface ColheitaItem {
   id?: string;
   data: string;
@@ -351,6 +353,78 @@ export default function App() {
     setSelectedUnidade(name);
     setNewUnidadeInput('');
     showToast(`Unidade "${name}" cadastrada e selecionada!`, 'success');
+  };
+
+  // Sorting state & helper functions
+  const [sortMode, setSortMode] = useState<SortMode>('code_asc');
+
+  const getSortedList = <T extends Record<string, any>>(list: T[], overrideMode?: SortMode): { item: T; originalIndex: number }[] => {
+    if (!list) return [];
+    const activeSortMode = overrideMode || sortMode;
+    const mapped = list.map((item, originalIndex) => ({ item, originalIndex }));
+
+    const parseNum = (val: any) => {
+      if (val === undefined || val === null) return { isNum: false, numVal: 0, strVal: '' };
+      const str = String(val).trim();
+      const num = parseInt(str, 10);
+      if (!isNaN(num) && /^\d+/.test(str)) {
+        return { isNum: true, numVal: num, strVal: str };
+      }
+      return { isNum: false, numVal: 0, strVal: str };
+    };
+
+    mapped.sort((a, b) => {
+      const itemA = a.item;
+      const itemB = b.item;
+
+      const codeA = itemA.codigo ?? itemA.codigoMarca ?? itemA.os ?? itemA.data ?? '';
+      const codeB = itemB.codigo ?? itemB.codigoMarca ?? itemB.os ?? itemB.data ?? '';
+
+      const nameA = itemA.nome ?? itemA.cultura ?? itemA.empresa ?? itemA.fazenda ?? itemA.nomeCompleto ?? itemA.placa ?? itemA.titulo ?? '';
+      const nameB = itemB.nome ?? itemB.cultura ?? itemB.empresa ?? itemB.fazenda ?? itemB.nomeCompleto ?? itemB.placa ?? itemB.titulo ?? '';
+
+      if (activeSortMode === 'code_asc') {
+        const parsedA = parseNum(codeA);
+        const parsedB = parseNum(codeB);
+
+        if (parsedA.isNum && parsedB.isNum && parsedA.numVal !== parsedB.numVal) {
+          return parsedA.numVal - parsedB.numVal;
+        }
+        if (codeA && codeB) {
+          return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        }
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      }
+
+      if (activeSortMode === 'code_desc') {
+        const parsedA = parseNum(codeA);
+        const parsedB = parseNum(codeB);
+
+        if (parsedA.isNum && parsedB.isNum && parsedA.numVal !== parsedB.numVal) {
+          return parsedB.numVal - parsedA.numVal;
+        }
+        if (codeA && codeB) {
+          return codeB.localeCompare(codeA, undefined, { numeric: true, sensitivity: 'base' });
+        }
+        return nameB.localeCompare(nameA, undefined, { numeric: true, sensitivity: 'base' });
+      }
+
+      if (activeSortMode === 'alpha_asc') {
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      }
+
+      if (activeSortMode === 'alpha_desc') {
+        return nameB.localeCompare(nameA, undefined, { numeric: true, sensitivity: 'base' });
+      }
+
+      return 0;
+    });
+
+    return mapped;
+  };
+
+  const getSortedItems = <T extends Record<string, any>>(list: T[], overrideMode?: SortMode): T[] => {
+    return getSortedList(list, overrideMode).map(entry => entry.item);
   };
 
   // Table dataset states with Firestore real-time sync
@@ -2501,7 +2575,31 @@ export default function App() {
               >
                 <i className="fa-solid fa-xmark"></i> Limpar Filtros
               </button>
-              <span>Todos os Itens <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }}></i></span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#ffffff', padding: '3px 8px', borderRadius: '4px', border: '1px solid #c8c6c4', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                <i className="fa-solid fa-arrow-down-short-wide" style={{ color: '#0078d4', fontSize: '12px' }}></i>
+                <span style={{ fontWeight: 600, fontSize: '12px', color: '#323130' }}>Todos os Itens:</span>
+                <select
+                  id="selectSortMode"
+                  value={sortMode}
+                  onChange={e => setSortMode(e.target.value as SortMode)}
+                  style={{
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    color: '#0078d4',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    paddingRight: '2px'
+                  }}
+                  title="Selecione a ordem dos cadastros"
+                >
+                  <option value="code_asc">🔢 Código: Menor ➔ Maior (Padrão)</option>
+                  <option value="code_desc">🔢 Código: Maior ➔ Menor</option>
+                  <option value="alpha_asc">🔤 Ordem: De A a Z</option>
+                  <option value="alpha_desc">🔤 Ordem: De Z a A</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -2531,7 +2629,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody id="tbodyColheita">
-                  {colheitaData.map((item, idx) => {
+                  {getSortedList(colheitaData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-'];
                     if (!isRowVisible(rowCells)) return null;
@@ -2589,7 +2687,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody id="tbodyPlantio">
-                  {plantioData.map((item, idx) => {
+                  {getSortedList(plantioData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haRestante || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.ano || '-'];
                     if (!isRowVisible(rowCells)) return null;
@@ -2634,7 +2732,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody id="tbodyVariedades">
-                  {variedadesData.map((item, idx) => {
+                  {getSortedList(variedadesData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.cultura];
                     if (!isRowVisible(rowCells)) return null;
@@ -2662,7 +2760,7 @@ export default function App() {
               <table id="tablePivos" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyPivos">
-                  {pivosData.map((item, idx) => {
+                  {getSortedList(pivosData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
@@ -2689,7 +2787,7 @@ export default function App() {
               <table id="tableGlebas" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyGlebas">
-                  {glebasData.map((item, idx) => {
+                  {getSortedList(glebasData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
@@ -2716,7 +2814,7 @@ export default function App() {
               <table id="tableFazendas" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyFazendas">
-                  {fazendasData.map((item, idx) => {
+                  {getSortedList(fazendasData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
@@ -2743,7 +2841,7 @@ export default function App() {
               <table id="tableCulturas" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyCulturas">
-                  {culturasData.map((item, idx) => {
+                  {getSortedList(culturasData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
@@ -2770,7 +2868,7 @@ export default function App() {
               <table id="tableEmpresas" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME DA EMPRESA <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyEmpresas">
-                  {empresasData.map((item, idx) => {
+                  {getSortedList(empresasData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
@@ -2797,7 +2895,7 @@ export default function App() {
               <table id="tableAnos" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
                 <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">ANO <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
                 <tbody id="tbodyAnos">
-                  {anosData.map((item, idx) => {
+                  {getSortedList(anosData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome];
                     if (!isRowVisible(rowCells)) return null;
@@ -2833,7 +2931,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody id="tbodyColaboradores">
-                  {colaboradoresData.map((item, idx) => {
+                  {getSortedList(colaboradoresData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.apontador || '-', item.local || '-', item.status || 'Ativo'];
                     if (!isRowVisible(rowCells)) return null;
@@ -2880,7 +2978,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody id="tbodyMotoristas">
-                  {motoristasData.map((item, idx) => {
+                  {getSortedList(motoristasData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.abreviacao];
                     if (!isRowVisible(rowCells)) return null;
@@ -2920,7 +3018,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody id="tbodyOnibus">
-                  {onibusData.map((item, idx) => {
+                  {getSortedList(onibusData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
                     const rowCells = [item.codigo, item.nome, item.cor || 'Branco', item.motorista || '-', item.local || '-', item.cooperado || 'Não'];
                     if (!isRowVisible(rowCells)) return null;
