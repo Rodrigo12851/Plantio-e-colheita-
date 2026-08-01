@@ -297,7 +297,7 @@ body {
   width: 100%;
   min-width: 0;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
 }
 
@@ -424,6 +424,9 @@ body {
   display: none;
   flex-direction: column;
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .page-section.active {
@@ -432,8 +435,11 @@ body {
 
 .table-container {
   width: 100%;
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   position: relative;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
