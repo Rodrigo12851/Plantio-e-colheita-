@@ -56,6 +56,7 @@ interface SimpleItem {
   id?: string;
   codigo: string;
   nome: string;
+  tipo?: 'Hortifruti' | 'Cereais';
   unidade?: string;
 }
 
@@ -427,6 +428,53 @@ export default function App() {
     return getSortedList(list, overrideMode).map(entry => entry.item);
   };
 
+  const sortAlphanumeric = <T extends Record<string, any>>(items: T[]): T[] => {
+    if (!items || items.length === 0) return [];
+    return [...items].sort((a, b) => {
+      const nameA = String(a.nome ?? a.codigo ?? a.titulo ?? '');
+      const nameB = String(b.nome ?? b.codigo ?? b.titulo ?? '');
+      return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  };
+
+  const getCulturaType = (culturaName?: string): 'Hortifruti' | 'Cereais' | null => {
+    if (!culturaName) return null;
+    const cLower = culturaName.trim().toLowerCase();
+    const matched = culturasData.find(c => isItemInSelectedUnidade(c) && c.nome.trim().toLowerCase() === cLower);
+    if (matched?.tipo) return matched.tipo;
+    if (cLower.includes('horti') || cLower.includes('tomate') || cLower.includes('cebola') || cLower.includes('batata') || cLower.includes('cenoura') || cLower.includes('alho')) {
+      return 'Hortifruti';
+    }
+    if (cLower.includes('cereal') || cLower.includes('milho') || cLower.includes('soja') || cLower.includes('feijao') || cLower.includes('trigo') || cLower.includes('algodao')) {
+      return 'Cereais';
+    }
+    return null;
+  };
+
+  const getGlebaCategory = (gleba: { codigo?: string; nome?: string; tipo?: string }): 'Hortifruti' | 'Cereais' | 'Ambos' => {
+    if (gleba.tipo === 'Hortifruti' || gleba.tipo === 'Cereais') return gleba.tipo;
+    const code = (gleba.codigo || '').trim();
+    const name = (gleba.nome || '').trim();
+    const full = `${code} ${name}`.trim();
+
+    if (/^h|h-|\bh\d+/i.test(code) || /^h|h-|\bh\d+/i.test(name)) return 'Hortifruti';
+    if (/^c|c-|\bc\d+/i.test(code) || /^c|c-|\bc\d+/i.test(name)) return 'Cereais';
+
+    if (/^h/i.test(full)) return 'Hortifruti';
+    if (/^c/i.test(full)) return 'Cereais';
+
+    return 'Ambos';
+  };
+
+  const filterGlebasByCulturaType = <T extends { codigo?: string; nome?: string; tipo?: string }>(glebas: T[], culturaName?: string): T[] => {
+    const cType = getCulturaType(culturaName);
+    if (!cType) return glebas;
+    return glebas.filter(g => {
+      const cat = getGlebaCategory(g);
+      return cat === cType || cat === 'Ambos';
+    });
+  };
+
   // Table dataset states with Firestore real-time sync
   const [colheitaData, setColheitaData] = useState<ColheitaItem[]>([]);
   const [plantioData, setPlantioData] = useState<PlantioItem[]>([]);
@@ -701,10 +749,13 @@ export default function App() {
     return unitPivos.filter(p => linkedPivoNames.has(p.nome.trim().toLowerCase()));
   };
 
-  const getLinkedGlebasForPivo = (pivoName: string, fazendaName: string) => {
-    const unitGlebas = glebasData.filter(isItemInSelectedUnidade);
+  const getLinkedGlebasForPivo = (pivoName: string, fazendaName: string, culturaName?: string) => {
+    let unitGlebas = glebasData.filter(isItemInSelectedUnidade);
+    if (culturaName) {
+      unitGlebas = filterGlebasByCulturaType(unitGlebas, culturaName);
+    }
     const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
-    if (!pivoName && !fazendaName) return unitGlebas;
+    if (!pivoName && !fazendaName) return sortAlphanumeric(unitGlebas);
     const pLower = (pivoName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
     const linkedGlebaNames = new Set<string>();
@@ -723,8 +774,9 @@ export default function App() {
       }
     });
 
-    if (linkedGlebaNames.size === 0) return unitGlebas;
-    return unitGlebas.filter(g => linkedGlebaNames.has(g.nome.trim().toLowerCase()));
+    if (linkedGlebaNames.size === 0) return sortAlphanumeric(unitGlebas);
+    const result = unitGlebas.filter(g => linkedGlebaNames.has(g.nome.trim().toLowerCase()));
+    return sortAlphanumeric(result);
   };
 
   // Helper to lookup full original planted hectares in plantioData for Colheita selection
@@ -872,10 +924,13 @@ export default function App() {
   };
 
   const getAmarracoesGlebas = (pivoName?: string, fazendaName?: string, culturaName?: string) => {
-    if (!fazendaName) return [];
-    const baseGlebas = getLinkedGlebasForPivo(pivoName || '', fazendaName || '');
+    if (!fazendaName) {
+      const base = filterGlebasByCulturaType(glebasData.filter(isItemInSelectedUnidade), culturaName);
+      return sortAlphanumeric(base);
+    }
+    const baseGlebas = getLinkedGlebasForPivo(pivoName || '', fazendaName || '', culturaName);
     const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
-    if (!unitAmarracoes || unitAmarracoes.length === 0) return baseGlebas;
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return sortAlphanumeric(baseGlebas);
     const pLower = (pivoName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
@@ -892,7 +947,8 @@ export default function App() {
         return matchGleba && matchPivo && matchFazenda && matchCultura;
       });
     });
-    return linked.length > 0 ? linked : baseGlebas;
+    const result = linked.length > 0 ? linked : baseGlebas;
+    return sortAlphanumeric(result);
   };
 
   const getAmarracoesVariedades = (culturaName?: string) => {
@@ -989,10 +1045,13 @@ export default function App() {
 
   const getPlantioGlebas = (pivoName?: string, fazendaName?: string, culturaName?: string) => {
     const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
-    const unitGlebas = glebasData.filter(isItemInSelectedUnidade);
-    if (!unitPlantio || unitPlantio.length === 0) return [];
+    let unitGlebas = glebasData.filter(isItemInSelectedUnidade);
+    if (culturaName) {
+      unitGlebas = filterGlebasByCulturaType(unitGlebas, culturaName);
+    }
+    if (!unitPlantio || unitPlantio.length === 0) return sortAlphanumeric(unitGlebas);
     const fLower = (fazendaName || '').trim().toLowerCase();
-    if (!fLower) return [];
+    if (!fLower) return sortAlphanumeric(unitGlebas);
     const pLower = (pivoName || '').trim().toLowerCase();
     const cLower = (culturaName || '').trim().toLowerCase();
 
@@ -1009,7 +1068,7 @@ export default function App() {
     const extra = Array.from(glebaNames)
       .filter(name => name && name !== '-' && !unitGlebas.some(g => g.nome.trim().toLowerCase() === name))
       .map((name, i) => ({ codigo: `p-gleb-${i}`, nome: matching.find(p => p.gleba?.trim().toLowerCase() === name)?.gleba || name }));
-    return [...filtered, ...extra];
+    return sortAlphanumeric([...filtered, ...extra]);
   };
 
   const getPlantioVariedades = (culturaName?: string, fazendaName?: string, pivoName?: string, glebaName?: string) => {
@@ -1768,6 +1827,10 @@ export default function App() {
     } else {
       initial.autoCode = editData ? editData[0] : '';
       initial.simpleName = editData ? editData[1] : '';
+      if (activePage === 'culturas') {
+        const existingCult = index !== null && index !== undefined && culturasData[index] ? culturasData[index] : null;
+        initial.cTipoCultura = existingCult?.tipo || (editData && editData[2] ? editData[2] : 'Hortifruti');
+      }
     }
 
     setFormData(initial);
@@ -2222,6 +2285,7 @@ export default function App() {
       const newItem: SimpleItem = {
         codigo: code,
         nome: formData.simpleName || '',
+        tipo: activePage === 'culturas' ? ((formData.cTipoCultura as 'Hortifruti' | 'Cereais') || 'Hortifruti') : existingItem?.tipo,
         unidade: existingItem?.unidade || selectedUnidade
       };
 
@@ -2839,17 +2903,41 @@ export default function App() {
           <div id="pageCulturas" className={`page-section ${activePage === 'culturas' ? 'active' : ''}`}>
             <div className="table-container">
               <table id="tableCulturas" className={`table-compact ${isGridEditing ? 'grid-editing' : ''}`}>
-                <thead><tr><th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th><th><div className="th-content">NOME <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th><th style={{ textAlign: 'center' }}>AÇÕES</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th><div className="th-content">CÓDIGO <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content">NOME DA CULTURA <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th><div className="th-content">TIPO / VINCULAÇÃO <button className={`btn-filter-col ${isColFiltered(2) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 2)}><i className="fa-solid fa-filter"></i></button></div></th>
+                    <th style={{ textAlign: 'center' }}>AÇÕES</th>
+                  </tr>
+                </thead>
                 <tbody id="tbodyCulturas">
                   {getSortedList(culturasData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
-                    const rowCells = [item.codigo, item.nome];
+                    const cType = item.tipo || 'Hortifruti';
+                    const rowCells = [item.codigo, item.nome, cType];
                     if (!isRowVisible(rowCells)) return null;
 
                     return (
                       <tr key={idx}>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('culturas', idx, 'codigo', e.currentTarget.innerText)}><strong>{item.codigo}</strong></td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('culturas', idx, 'nome', e.currentTarget.innerText)}>{item.nome}</td>
+                        <td>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            backgroundColor: cType === 'Hortifruti' ? '#dff6dd' : '#fff4ce',
+                            color: cType === 'Hortifruti' ? '#107c41' : '#794b00',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}>
+                            <i className={`fa-solid ${cType === 'Hortifruti' ? 'fa-apple-whole' : 'fa-wheat-awn'}`} style={{ fontSize: '11px' }}></i>
+                            {cType} ({cType === 'Hortifruti' ? 'Glebas H' : 'Glebas C'})
+                          </span>
+                        </td>
                         <td className="action-cell">
                           <button className="btn-action-row" onClick={() => openCurrentModal(rowCells, idx)} title="Editar"><i className="fa-solid fa-pen"></i></button>
                           <button className="btn-action-row" onClick={() => deleteRow('culturas', idx)} title="Mover para Lixeira"><i className="fa-solid fa-trash"></i></button>
@@ -4553,6 +4641,19 @@ export default function App() {
                         required
                       />
                     </div>
+                    {activePage === 'culturas' && (
+                      <div className="form-group">
+                        <label>Tipo de Cultura (Vinculação de Glebas)</label>
+                        <select
+                          value={formData.cTipoCultura || 'Hortifruti'}
+                          onChange={e => setFormData({ ...formData, cTipoCultura: e.target.value })}
+                          required
+                        >
+                          <option value="Hortifruti">🍎 Hortifruti (Vinculado a Glebas H)</option>
+                          <option value="Cereais">🌾 Cereais (Vinculado a Glebas C)</option>
+                        </select>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -5042,7 +5143,11 @@ export default function App() {
                 : unitVariedades;
 
               const filteredPivosData = getLinkedPivosForFazenda(selectedFazendaForTie);
-              const filteredGlebasData = getLinkedGlebasForPivo(selectedPivoForTie, selectedFazendaForTie);
+              const rawGlebasData = getLinkedGlebasForPivo(selectedPivoForTie, selectedFazendaForTie, selectedCulturaForTie);
+              const filteredGlebasData = filterGlebasByCulturaType(rawGlebasData, selectedCulturaForTie);
+
+              const selectedCulturaObj = unitCulturas.find(c => c.nome.trim().toLowerCase() === (selectedCulturaForTie || '').trim().toLowerCase());
+              const selectedCulturaType = selectedCulturaObj?.tipo || getCulturaType(selectedCulturaForTie);
 
               const squares = [
                 {
@@ -5050,7 +5155,7 @@ export default function App() {
                   name: 'Empresa',
                   icon: 'fa-building',
                   color: '#005a9e',
-                  data: unitEmpresas,
+                  data: sortAlphanumeric(unitEmpresas),
                   selectedVal: selectedEmpresaForTie,
                   onSelect: (val: string) => setSelectedEmpresaForTie(prev => prev === val ? '' : val)
                 },
@@ -5059,7 +5164,7 @@ export default function App() {
                   name: 'Ano Safra',
                   icon: 'fa-calendar-days',
                   color: '#b4009e',
-                  data: unitAnos,
+                  data: sortAlphanumeric(unitAnos),
                   selectedVal: selectedAnoForTie,
                   onSelect: (val: string) => setSelectedAnoForTie(prev => prev === val ? '' : val)
                 },
@@ -5068,7 +5173,7 @@ export default function App() {
                   name: 'Cultura',
                   icon: 'fa-wheat-awn',
                   color: '#107c41',
-                  data: unitCulturas,
+                  data: sortAlphanumeric(unitCulturas),
                   selectedVal: selectedCulturaForTie,
                   onSelect: (val: string) => handleSelectCultura(val)
                 },
@@ -5077,7 +5182,7 @@ export default function App() {
                   name: 'Fazenda',
                   icon: 'fa-location-dot',
                   color: '#0078d4',
-                  data: unitFazendas,
+                  data: sortAlphanumeric(unitFazendas),
                   selectedVal: selectedFazendaForTie,
                   onSelect: (val: string) => setSelectedFazendaForTie(prev => prev === val ? '' : val)
                 },
@@ -5086,16 +5191,20 @@ export default function App() {
                   name: selectedFazendaForTie ? `Pivô (${selectedFazendaForTie})` : 'Pivô',
                   icon: 'fa-circle-notch',
                   color: '#0078d4',
-                  data: filteredPivosData,
+                  data: sortAlphanumeric(filteredPivosData),
                   selectedVal: selectedPivoForTie,
                   onSelect: (val: string) => setSelectedPivoForTie(prev => prev === val ? '' : val)
                 },
                 {
                   key: 'gleba',
-                  name: selectedPivoForTie ? `Gleba (${selectedPivoForTie})` : 'Gleba',
+                  name: selectedCulturaType
+                    ? `Gleba (${selectedCulturaType})`
+                    : selectedPivoForTie
+                    ? `Gleba (${selectedPivoForTie})`
+                    : 'Gleba',
                   icon: 'fa-vector-square',
                   color: '#5c2d91',
-                  data: filteredGlebasData,
+                  data: sortAlphanumeric(filteredGlebasData),
                   selectedVal: selectedGlebaForTie,
                   onSelect: (val: string) => setSelectedGlebaForTie(prev => prev === val ? '' : val)
                 },
@@ -5104,7 +5213,7 @@ export default function App() {
                   name: selectedCulturaForTie ? `Variedade (${selectedCulturaForTie})` : 'Variedade',
                   icon: 'fa-dna',
                   color: '#d13438',
-                  data: filteredVariedadesData,
+                  data: sortAlphanumeric(filteredVariedadesData),
                   selectedVal: selectedVariedadeForTie,
                   onSelect: (val: string) => setSelectedVariedadeForTie(prev => prev === val ? '' : val)
                 },
@@ -5428,6 +5537,14 @@ export default function App() {
                                         </div>
                                       )}
 
+                                      {/* MENSAGEM INFORMATIVA PARA GLEBA COM CULTURA SELECIONADA */}
+                                      {sq.key === 'gleba' && selectedCulturaForTie && selectedCulturaType && (
+                                        <div style={{ fontSize: '10px', color: '#5c2d91', backgroundColor: '#f3f0f8', padding: '4px 8px', borderRadius: '4px', marginBottom: '2px', width: '100%' }}>
+                                          <i className="fa-solid fa-filter" style={{ marginRight: '4px' }}></i>
+                                          Filtrando glebas de <b>{selectedCulturaType}</b> ({selectedCulturaType === 'Hortifruti' ? 'Glebas H' : 'Glebas C'}) para a cultura <b>{selectedCulturaForTie}</b>.
+                                        </div>
+                                      )}
+
                                       {/* LISTA DE ITENS DENTRO DO QUADRADO PARA SELECIONAR */}
                                       {sq.data.length === 0 ? (
                                         <span style={{ fontSize: '10px', color: '#a19f9d', fontStyle: 'italic', padding: '6px 0' }}>
@@ -5463,6 +5580,11 @@ export default function App() {
                                                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                     {item.nome}
                                                   </span>
+                                                  {sq.key === 'cultura' && item.tipo && (
+                                                    <span style={{ fontSize: '9px', fontWeight: 600, color: item.tipo === 'Hortifruti' ? '#107c41' : '#794b00', backgroundColor: item.tipo === 'Hortifruti' ? '#dff6dd' : '#fff4ce', padding: '1px 5px', borderRadius: '3px', whiteSpace: 'nowrap' }}>
+                                                      {item.tipo}
+                                                    </span>
+                                                  )}
                                                   {sq.key === 'variedade' && item.cultura && (
                                                     <span style={{ fontSize: '9px', fontWeight: 600, color: '#107c41', backgroundColor: '#dff6dd', padding: '1px 5px', borderRadius: '3px', whiteSpace: 'nowrap' }}>
                                                       {item.cultura}
