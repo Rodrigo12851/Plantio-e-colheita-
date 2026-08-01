@@ -1347,6 +1347,24 @@ export default function App() {
     amarracoes: 'Marcações e Amarrações'
   };
 
+  // Modal entity name map
+  const modalEntityNameMap: Record<PageKey, string> = {
+    colheita: 'Item - Colheita',
+    plantio: 'Item - Plantio',
+    empresas: 'Empresa',
+    anos: 'Ano Safra',
+    variedades: 'Variedade',
+    pivos: 'Pivô',
+    glebas: 'Gleba',
+    fazendas: 'Fazenda',
+    culturas: 'Cultura',
+    colaboradores: 'Colaborador',
+    motoristas: 'Motorista',
+    onibus: 'Ônibus',
+    lixeira: 'Item',
+    amarracoes: 'Marcação'
+  };
+
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -1762,6 +1780,32 @@ export default function App() {
     return '';
   };
 
+  const getNextAutoCodeForPage = (page: string): string => {
+    let list: { codigo?: string; unidade?: string }[] = [];
+    if (page === 'variedades') list = variedadesData;
+    else if (page === 'colaboradores') list = colaboradoresData;
+    else if (page === 'motoristas') list = motoristasData;
+    else if (page === 'onibus') list = onibusData;
+    else if (page === 'pivos') list = pivosData;
+    else if (page === 'glebas') list = glebasData;
+    else if (page === 'fazendas') list = fazendasData;
+    else if (page === 'culturas') list = culturasData;
+    else if (page === 'empresas') list = empresasData;
+    else if (page === 'anos') list = anosData;
+
+    const unitItems = list.filter(isItemInSelectedUnidade);
+    let max = 0;
+    for (const item of unitItems) {
+      if (item.codigo) {
+        const val = parseInt(item.codigo.replace(/\D/g, ''), 10);
+        if (!isNaN(val) && val > max) {
+          max = val;
+        }
+      }
+    }
+    return String(max + 1);
+  };
+
   // Open Modal for Add/Edit
   const openCurrentModal = (editData: string[] | null = null, index: number | null = null) => {
     setEditingIndex(index);
@@ -1804,28 +1848,28 @@ export default function App() {
       initial.pMediaHa = editData && editData[11] && editData[11] !== '-' ? editData[11] : '';
       initial.pAno = editData && editData[12] ? editData[12] : '';
     } else if (activePage === 'variedades') {
-      initial.autoCode = editData ? editData[0] : '';
+      initial.autoCode = editData ? editData[0] : getNextAutoCodeForPage('variedades');
       initial.simpleName = editData ? editData[1] : '';
-      initial.vCultura = editData ? editData[2] : (culturasData[0]?.nome || '');
+      initial.vCultura = editData ? editData[2] : (culturasData.filter(isItemInSelectedUnidade)[0]?.nome || '');
     } else if (activePage === 'colaboradores') {
-      initial.autoCode = editData ? editData[0] : '';
+      initial.autoCode = editData ? editData[0] : getNextAutoCodeForPage('colaboradores');
       initial.nomeCompleto = editData ? editData[1] : '';
       initial.cApontador = editData && editData[2] && editData[2] !== '-' ? editData[2] : '';
-      initial.cLocal = editData && editData[3] && editData[3] !== '-' ? editData[3] : (fazendasData[0]?.nome || '');
+      initial.cLocal = editData && editData[3] && editData[3] !== '-' ? editData[3] : (fazendasData.filter(isItemInSelectedUnidade)[0]?.nome || '');
       initial.cStatus = editData && editData[4] && editData[4] !== '-' ? editData[4] : 'Ativo';
     } else if (activePage === 'motoristas') {
-      initial.autoCode = editData ? editData[0] : '';
+      initial.autoCode = editData ? editData[0] : getNextAutoCodeForPage('motoristas');
       initial.nomeCompleto = editData ? editData[1] : '';
       initial.abreviacao = editData ? editData[2] : '';
     } else if (activePage === 'onibus') {
-      initial.autoCode = editData ? editData[0] : '';
+      initial.autoCode = editData ? editData[0] : getNextAutoCodeForPage('onibus');
       initial.nomeOnibus = editData ? editData[1] : '';
       initial.corOnibus = editData && editData[2] ? editData[2] : 'Branco';
-      initial.oMotorista = editData && editData[3] ? editData[3] : (motoristasData[0] ? `${motoristasData[0].nome} (${motoristasData[0].abreviacao})` : '');
+      initial.oMotorista = editData && editData[3] ? editData[3] : (motoristasData.filter(isItemInSelectedUnidade)[0] ? `${motoristasData.filter(isItemInSelectedUnidade)[0].nome} (${motoristasData.filter(isItemInSelectedUnidade)[0].abreviacao})` : '');
       initial.oCooperado = editData && editData[5] && editData[5] !== '-' ? editData[5] : 'Não';
-      initial.oLocal = editData && editData[4] && editData[4] !== '-' ? editData[4] : (initial.oCooperado === 'Sim' ? 'COOPERATIVA AGRO' : (fazendasData[0]?.nome || ''));
+      initial.oLocal = editData && editData[4] && editData[4] !== '-' ? editData[4] : (initial.oCooperado === 'Sim' ? 'COOPERATIVA AGRO' : (fazendasData.filter(isItemInSelectedUnidade)[0]?.nome || ''));
     } else {
-      initial.autoCode = editData ? editData[0] : '';
+      initial.autoCode = editData ? editData[0] : getNextAutoCodeForPage(activePage);
       initial.simpleName = editData ? editData[1] : '';
       if (activePage === 'culturas') {
         const existingCult = index !== null && index !== undefined && culturasData[index] ? culturasData[index] : null;
@@ -2102,198 +2146,208 @@ export default function App() {
     e.preventDefault();
     const isEdit = editingIndex !== null;
 
-    if (activePage === 'colheita') {
-      const cCult = (formData.cCultura || '').trim().toLowerCase();
-      const cFaz = (formData.cFazenda || '').trim().toLowerCase();
-      const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
-      if (unitPlantio.length > 0) {
-        const hasMatchingPlantio = unitPlantio.some(p => {
-          const matchCult = !cCult || (p.cultura || '').trim().toLowerCase() === cCult;
-          const matchFaz = !cFaz || (p.fazenda || '').trim().toLowerCase() === cFaz;
-          return matchCult && matchFaz;
-        });
+    try {
+      if (activePage === 'colheita') {
+        const cCult = (formData.cCultura || '').trim().toLowerCase();
+        const cFaz = (formData.cFazenda || '').trim().toLowerCase();
+        const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
+        if (unitPlantio.length > 0) {
+          const hasMatchingPlantio = unitPlantio.some(p => {
+            const matchCult = !cCult || (p.cultura || '').trim().toLowerCase() === cCult;
+            const matchFaz = !cFaz || (p.fazenda || '').trim().toLowerCase() === cFaz;
+            return matchCult && matchFaz;
+          });
 
-        if (!hasMatchingPlantio) {
-          showToast('Não é possível salvar: não existe registro de plantio para esta Cultura e Fazenda.', 'warning');
+          if (!hasMatchingPlantio) {
+            showToast('Não é possível salvar: não existe registro de plantio para esta Cultura e Fazenda.', 'warning');
+            return;
+          }
+        }
+
+        const existingDoc = editingIndex !== null ? colheitaData[editingIndex] : null;
+        const newItem: ColheitaItem = {
+          data: inputToDisplayFormat(formData.cData || ''),
+          empresa: formData.cEmpresa || '-',
+          cultura: formData.cCultura || '',
+          os: formData.cOs || '-',
+          fazenda: formData.cFazenda || '',
+          pivo: formData.cPivo || '-',
+          gleba: formData.cGleba || '-',
+          variedade: formData.cVariedade || '-',
+          haDia: formData.cHaDia || '-',
+          haGeral: formData.cHaGeral || '-',
+          haRestante: formData.cHaRestante || '-',
+          qtdColhido: formData.cQtdColhido || formData.cCaixasCortadas || '-',
+          glebasFinalizada: formData.cGlebasFinalizada || '-',
+          mediaHa: formData.cMediaHa || '-',
+          mes: formData.cMes || getMonthNameFromDate(formData.cData || '') || '-',
+          ano: formData.cAno || getYearFromDate(formData.cData || '') || '-',
+          caixasCortadas: formData.cQtdColhido || formData.cCaixasCortadas || '-',
+          unidade: editingIndex !== null ? (colheitaData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+        };
+
+        await saveDocument(COLLECTIONS.colheita, newItem, existingDoc?.id);
+      } else if (activePage === 'plantio') {
+        const existingDoc = editingIndex !== null ? plantioData[editingIndex] : null;
+        const newItem: PlantioItem = {
+          data: inputToDisplayFormat(formData.pData || ''),
+          empresa: formData.pEmpresa || '-',
+          cultura: formData.pCultura || '',
+          os: formData.pOs || '-',
+          fazenda: formData.pFazenda || '',
+          pivo: formData.pPivo || '-',
+          gleba: formData.pGleba || '-',
+          variedade: formData.pVariedade || '-',
+          haGeral: formData.pHaGeral || '-',
+          haDia: formData.pHaDia || '-',
+          haRestante: formData.pHaRestante || '-',
+          glebasFinalizada: formData.pGlebasFinalizada || '-',
+          mediaHa: formData.pMediaHa || '-',
+          ano: formData.pAno || '-',
+          unidade: editingIndex !== null ? (plantioData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+        };
+
+        await saveDocument(COLLECTIONS.plantio, newItem, existingDoc?.id);
+      } else if (activePage === 'variedades') {
+        let code = (formData.autoCode || '').trim();
+        if (!code) code = getNextAutoCodeForPage('variedades');
+        if (!/^\d+$/.test(code)) {
+          showToast('O código deve conter apenas números.', 'warning');
           return;
         }
+        const isDuplicate = variedadesData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
+        if (isDuplicate) {
+          showToast(`O código '${code}' já está cadastrado em Variedades.`, 'warning');
+          return;
+        }
+
+        const existingDoc = editingIndex !== null ? variedadesData[editingIndex] : null;
+        const newItem: VariedadeItem = {
+          codigo: code,
+          nome: (formData.simpleName || '').trim(),
+          cultura: formData.vCultura || (culturasData.filter(isItemInSelectedUnidade)[0]?.nome || '-'),
+          unidade: editingIndex !== null ? (variedadesData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+        };
+
+        await saveDocument(COLLECTIONS.variedades, newItem, existingDoc?.id);
+      } else if (activePage === 'colaboradores') {
+        let code = (formData.autoCode || '').trim();
+        if (!code) code = getNextAutoCodeForPage('colaboradores');
+        if (!/^\d+$/.test(code)) {
+          showToast('A matrícula deve conter apenas números.', 'warning');
+          return;
+        }
+        const isDuplicate = colaboradoresData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
+        if (isDuplicate) {
+          showToast(`A matrícula '${code}' já está cadastrada em Colaboradores.`, 'warning');
+          return;
+        }
+
+        const existingDoc = editingIndex !== null ? colaboradoresData[editingIndex] : null;
+        const newItem: ColaboradorItem = {
+          codigo: code,
+          nome: (formData.nomeCompleto || '').trim(),
+          apontador: (formData.cApontador || '').trim() || '-',
+          local: formData.cLocal || '-',
+          status: formData.cStatus || 'Ativo',
+          abreviacao: (formData.nomeCompleto || '').trim().split(' ')[0],
+          unidade: editingIndex !== null ? (colaboradoresData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+        };
+
+        await saveDocument(COLLECTIONS.colaboradores, newItem, existingDoc?.id);
+      } else if (activePage === 'motoristas') {
+        let code = (formData.autoCode || '').trim();
+        if (!code) code = getNextAutoCodeForPage('motoristas');
+        if (!/^\d+$/.test(code)) {
+          showToast('O código deve conter apenas números.', 'warning');
+          return;
+        }
+        const isDuplicate = motoristasData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
+        if (isDuplicate) {
+          showToast(`O código '${code}' já está cadastrado em Motoristas.`, 'warning');
+          return;
+        }
+
+        const existingDoc = editingIndex !== null ? motoristasData[editingIndex] : null;
+        const newItem: MotoristaItem = {
+          codigo: code,
+          nome: (formData.nomeCompleto || '').trim(),
+          abreviacao: (formData.abreviacao || '').trim(),
+          unidade: editingIndex !== null ? (motoristasData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+        };
+
+        await saveDocument(COLLECTIONS.motoristas, newItem, existingDoc?.id);
+      } else if (activePage === 'onibus') {
+        let code = (formData.autoCode || '').trim();
+        if (!code) code = getNextAutoCodeForPage('onibus');
+        if (!/^\d+$/.test(code)) {
+          showToast('O código deve conter apenas números.', 'warning');
+          return;
+        }
+        const isDuplicate = onibusData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
+        if (isDuplicate) {
+          showToast(`O código '${code}' já está cadastrado em Ônibus.`, 'warning');
+          return;
+        }
+
+        const placa = (formData.nomeOnibus || '').trim().toUpperCase();
+        if (!isValidPlacaBus(placa)) {
+          showToast('Informe uma placa válida no padrão tradicional (ex: GMJ-5434) ou Mercosul (ex: GMJ-5F34).', 'warning');
+          return;
+        }
+
+        const existingDoc = editingIndex !== null ? onibusData[editingIndex] : null;
+        const newItem: OnibusItem = {
+          codigo: code,
+          nome: placa,
+          cor: (formData.corOnibus || '').trim() || 'Branco',
+          motorista: formData.oMotorista || '-',
+          local: formData.oLocal || '-',
+          cooperado: formData.oCooperado || 'Não',
+          unidade: editingIndex !== null ? (onibusData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+        };
+
+        await saveDocument(COLLECTIONS.onibus, newItem, existingDoc?.id);
+      } else {
+        let code = (formData.autoCode || '').trim();
+        if (!code) code = getNextAutoCodeForPage(activePage);
+        if (!/^\d+$/.test(code)) {
+          showToast('O código deve conter apenas números.', 'warning');
+          return;
+        }
+
+        let currentList: SimpleItem[] = [];
+        let collectionName = '';
+        if (activePage === 'pivos') { currentList = pivosData; collectionName = COLLECTIONS.pivos; }
+        else if (activePage === 'glebas') { currentList = glebasData; collectionName = COLLECTIONS.glebas; }
+        else if (activePage === 'fazendas') { currentList = fazendasData; collectionName = COLLECTIONS.fazendas; }
+        else if (activePage === 'culturas') { currentList = culturasData; collectionName = COLLECTIONS.culturas; }
+        else if (activePage === 'empresas') { currentList = empresasData; collectionName = COLLECTIONS.empresas; }
+        else if (activePage === 'anos') { currentList = anosData; collectionName = COLLECTIONS.anos; }
+
+        const isDuplicate = currentList.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
+        if (isDuplicate) {
+          showToast(`O código '${code}' já está cadastrado nesta lista.`, 'warning');
+          return;
+        }
+
+        const existingItem = editingIndex !== null ? currentList[editingIndex] : null;
+        const newItem: SimpleItem = {
+          codigo: code,
+          nome: (formData.simpleName || '').trim(),
+          tipo: activePage === 'culturas' ? ((formData.cTipoCultura as 'Hortifruti' | 'Cereais') || 'Hortifruti') : existingItem?.tipo,
+          unidade: existingItem?.unidade || selectedUnidade
+        };
+
+        await saveDocument(collectionName, newItem, existingItem?.id);
       }
 
-      const existingDoc = editingIndex !== null ? colheitaData[editingIndex] : null;
-      const newItem: ColheitaItem = {
-        data: inputToDisplayFormat(formData.cData || ''),
-        empresa: formData.cEmpresa || '-',
-        cultura: formData.cCultura || '',
-        os: formData.cOs || '-',
-        fazenda: formData.cFazenda || '',
-        pivo: formData.cPivo || '-',
-        gleba: formData.cGleba || '-',
-        variedade: formData.cVariedade || '-',
-        haDia: formData.cHaDia || '-',
-        haGeral: formData.cHaGeral || '-',
-        haRestante: formData.cHaRestante || '-',
-        qtdColhido: formData.cQtdColhido || formData.cCaixasCortadas || '-',
-        glebasFinalizada: formData.cGlebasFinalizada || '-',
-        mediaHa: formData.cMediaHa || '-',
-        mes: formData.cMes || getMonthNameFromDate(formData.cData || '') || '-',
-        ano: formData.cAno || getYearFromDate(formData.cData || '') || '-',
-        caixasCortadas: formData.cQtdColhido || formData.cCaixasCortadas || '-',
-        unidade: editingIndex !== null ? (colheitaData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
-      };
-
-      await saveDocument(COLLECTIONS.colheita, newItem, existingDoc?.id);
-    } else if (activePage === 'plantio') {
-      const existingDoc = editingIndex !== null ? plantioData[editingIndex] : null;
-      const newItem: PlantioItem = {
-        data: inputToDisplayFormat(formData.pData || ''),
-        empresa: formData.pEmpresa || '-',
-        cultura: formData.pCultura || '',
-        os: formData.pOs || '-',
-        fazenda: formData.pFazenda || '',
-        pivo: formData.pPivo || '-',
-        gleba: formData.pGleba || '-',
-        variedade: formData.pVariedade || '-',
-        haGeral: formData.pHaGeral || '-',
-        haDia: formData.pHaDia || '-',
-        haRestante: formData.pHaRestante || '-',
-        glebasFinalizada: formData.pGlebasFinalizada || '-',
-        mediaHa: formData.pMediaHa || '-',
-        ano: formData.pAno || '-',
-        unidade: editingIndex !== null ? (plantioData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
-      };
-
-      await saveDocument(COLLECTIONS.plantio, newItem, existingDoc?.id);
-    } else if (activePage === 'variedades') {
-      const code = (formData.autoCode || '').trim();
-      if (!code || !/^\d+$/.test(code)) {
-        showToast('O código deve conter apenas números.', 'warning');
-        return;
-      }
-      const isDuplicate = variedadesData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
-      if (isDuplicate) {
-        showToast(`O código '${code}' já está cadastrado em Variedades.`, 'warning');
-        return;
-      }
-
-      const existingDoc = editingIndex !== null ? variedadesData[editingIndex] : null;
-      const newItem: VariedadeItem = {
-        codigo: code,
-        nome: formData.simpleName || '',
-        cultura: formData.vCultura || (culturasData[0]?.nome || '-'),
-        unidade: editingIndex !== null ? (variedadesData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
-      };
-
-      await saveDocument(COLLECTIONS.variedades, newItem, existingDoc?.id);
-    } else if (activePage === 'colaboradores') {
-      const code = (formData.autoCode || '').trim();
-      if (!code || !/^\d+$/.test(code)) {
-        showToast('A matrícula deve conter apenas números.', 'warning');
-        return;
-      }
-      const isDuplicate = colaboradoresData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
-      if (isDuplicate) {
-        showToast(`A matrícula '${code}' já está cadastrada em Colaboradores.`, 'warning');
-        return;
-      }
-
-      const existingDoc = editingIndex !== null ? colaboradoresData[editingIndex] : null;
-      const newItem: ColaboradorItem = {
-        codigo: code,
-        nome: (formData.nomeCompleto || '').trim(),
-        apontador: (formData.cApontador || '').trim() || '-',
-        local: formData.cLocal || '-',
-        status: formData.cStatus || 'Ativo',
-        abreviacao: (formData.nomeCompleto || '').trim().split(' ')[0],
-        unidade: editingIndex !== null ? (colaboradoresData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
-      };
-
-      await saveDocument(COLLECTIONS.colaboradores, newItem, existingDoc?.id);
-    } else if (activePage === 'motoristas') {
-      const code = (formData.autoCode || '').trim();
-      if (!code || !/^\d+$/.test(code)) {
-        showToast('O código deve conter apenas números.', 'warning');
-        return;
-      }
-      const isDuplicate = motoristasData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
-      if (isDuplicate) {
-        showToast(`O código '${code}' já está cadastrado em Motoristas.`, 'warning');
-        return;
-      }
-
-      const existingDoc = editingIndex !== null ? motoristasData[editingIndex] : null;
-      const newItem: MotoristaItem = {
-        codigo: code,
-        nome: (formData.nomeCompleto || '').trim(),
-        abreviacao: (formData.abreviacao || '').trim(),
-        unidade: editingIndex !== null ? (motoristasData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
-      };
-
-      await saveDocument(COLLECTIONS.motoristas, newItem, existingDoc?.id);
-    } else if (activePage === 'onibus') {
-      const code = (formData.autoCode || '').trim();
-      if (!code || !/^\d+$/.test(code)) {
-        showToast('O código deve conter apenas números.', 'warning');
-        return;
-      }
-      const isDuplicate = onibusData.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
-      if (isDuplicate) {
-        showToast(`O código '${code}' já está cadastrado em Ônibus.`, 'warning');
-        return;
-      }
-
-      const placa = (formData.nomeOnibus || '').trim().toUpperCase();
-      if (!isValidPlacaBus(placa)) {
-        showToast('Informe uma placa válida no padrão tradicional (ex: GMJ-5434) ou Mercosul (ex: GMJ-5F34).', 'warning');
-        return;
-      }
-
-      const existingDoc = editingIndex !== null ? onibusData[editingIndex] : null;
-      const newItem: OnibusItem = {
-        codigo: code,
-        nome: placa,
-        cor: (formData.corOnibus || '').trim() || 'Branco',
-        motorista: formData.oMotorista || '-',
-        local: formData.oLocal || '-',
-        cooperado: formData.oCooperado || 'Não',
-        unidade: editingIndex !== null ? (onibusData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
-      };
-
-      await saveDocument(COLLECTIONS.onibus, newItem, existingDoc?.id);
-    } else {
-      const code = (formData.autoCode || '').trim();
-      if (!code || !/^\d+$/.test(code)) {
-        showToast('O código deve conter apenas números.', 'warning');
-        return;
-      }
-
-      let currentList: SimpleItem[] = [];
-      let collectionName = '';
-      if (activePage === 'pivos') { currentList = pivosData; collectionName = COLLECTIONS.pivos; }
-      else if (activePage === 'glebas') { currentList = glebasData; collectionName = COLLECTIONS.glebas; }
-      else if (activePage === 'fazendas') { currentList = fazendasData; collectionName = COLLECTIONS.fazendas; }
-      else if (activePage === 'culturas') { currentList = culturasData; collectionName = COLLECTIONS.culturas; }
-      else if (activePage === 'empresas') { currentList = empresasData; collectionName = COLLECTIONS.empresas; }
-      else if (activePage === 'anos') { currentList = anosData; collectionName = COLLECTIONS.anos; }
-
-      const isDuplicate = currentList.some((v, i) => i !== editingIndex && isItemInSelectedUnidade(v) && v.codigo.trim() === code);
-      if (isDuplicate) {
-        showToast(`O código '${code}' já está cadastrado nesta lista.`, 'warning');
-        return;
-      }
-
-      const existingItem = editingIndex !== null ? currentList[editingIndex] : null;
-      const newItem: SimpleItem = {
-        codigo: code,
-        nome: formData.simpleName || '',
-        tipo: activePage === 'culturas' ? ((formData.cTipoCultura as 'Hortifruti' | 'Cereais') || 'Hortifruti') : existingItem?.tipo,
-        unidade: existingItem?.unidade || selectedUnidade
-      };
-
-      await saveDocument(collectionName, newItem, existingItem?.id);
+      closeModal();
+      showToast(isEdit ? 'Item atualizado com sucesso!' : 'Novo item salvo com sucesso!', 'success');
+    } catch (err: any) {
+      console.error("Erro ao salvar documento:", err);
+      showToast(`Erro ao salvar item: ${err?.message || 'Falha na conexão com o banco de dados.'}`, 'warning');
     }
-
-    closeModal();
-    showToast(isEdit ? 'Item atualizado com sucesso!' : 'Novo item salvo com sucesso!', 'success');
   };
 
   // Inline cell edit in Grid Mode
@@ -3666,48 +3720,8 @@ export default function App() {
           <div className="modal-panel">
             <h2 id="modalTitle">
               {editingIndex !== null
-                ? activePage === 'colheita'
-                  ? 'Editar Item - Colheita'
-                  : activePage === 'plantio'
-                  ? 'Editar Item - Plantio'
-                  : `Editar ${
-                      activePage === 'variedades'
-                        ? 'Variedade'
-                        : activePage === 'colaboradores'
-                        ? 'Colaborador'
-                        : activePage === 'motoristas'
-                        ? 'Motorista'
-                        : activePage === 'onibus'
-                        ? 'Ônibus'
-                        : activePage === 'pivos'
-                        ? 'Pivô'
-                        : activePage === 'glebas'
-                        ? 'Gleba'
-                        : activePage === 'fazendas'
-                        ? 'Fazenda'
-                        : 'Cultura'
-                    }`
-                : activePage === 'colheita'
-                ? 'Novo Item - Colheita'
-                : activePage === 'plantio'
-                ? 'Novo Item - Plantio'
-                : `Cadastrar ${
-                    activePage === 'variedades'
-                      ? 'Variedade'
-                      : activePage === 'colaboradores'
-                      ? 'Colaborador'
-                      : activePage === 'motoristas'
-                      ? 'Motorista'
-                      : activePage === 'onibus'
-                      ? 'Ônibus'
-                      : activePage === 'pivos'
-                      ? 'Pivô'
-                      : activePage === 'glebas'
-                      ? 'Gleba'
-                      : activePage === 'fazendas'
-                      ? 'Fazenda'
-                      : 'Cultura'
-                  }`}
+                ? `Editar ${modalEntityNameMap[activePage] || 'Item'}`
+                : `Cadastrar ${modalEntityNameMap[activePage] || 'Item'}`}
             </h2>
             <form id="genericForm" onSubmit={handleFormSubmit}>
               <div id="modalFields">
