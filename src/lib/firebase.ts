@@ -61,24 +61,33 @@ export function subscribeToCollection<T extends { id?: string }>(
   initialSeedIfEmpty?: T[]
 ) {
   const colRef = collection(db, collectionName);
+  const seedKey = `agri_seeded_${collectionName}`;
 
   return onSnapshot(colRef, async (snapshot: QuerySnapshot<DocumentData>) => {
-    if (snapshot.empty && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
-      // Seed default initial data into Firestore if collection is empty
-      console.log(`Coleção ${collectionName} vazia. Populando dados iniciais no Firestore...`);
-      try {
-        const batch = writeBatch(db);
-        for (const item of initialSeedIfEmpty) {
-          const newDocRef = doc(colRef);
-          const { id, ...itemWithoutId } = item as any;
-          batch.set(newDocRef, { ...itemWithoutId, createdAt: new Date().toISOString() });
+    const isAlreadySeeded = localStorage.getItem(seedKey) === 'true';
+
+    if (snapshot.empty) {
+      if (!isAlreadySeeded && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
+        localStorage.setItem(seedKey, 'true');
+        console.log(`Coleção ${collectionName} vazia no primeiro carregamento. Populando dados iniciais no Firestore...`);
+        try {
+          const batch = writeBatch(db);
+          for (const item of initialSeedIfEmpty) {
+            const newDocRef = doc(colRef);
+            const { id, ...itemWithoutId } = item as any;
+            batch.set(newDocRef, { ...itemWithoutId, createdAt: new Date().toISOString() });
+          }
+          await batch.commit();
+        } catch (err) {
+          console.error(`Erro ao semear dados na coleção ${collectionName}:`, err);
         }
-        await batch.commit();
-      } catch (err) {
-        console.error(`Erro ao semear dados na coleção ${collectionName}:`, err);
+        return;
       }
+      onUpdate([]);
       return;
     }
+
+    localStorage.setItem(seedKey, 'true');
 
     const items: T[] = [];
     snapshot.forEach((docSnap) => {
