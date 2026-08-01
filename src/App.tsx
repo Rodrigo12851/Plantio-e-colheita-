@@ -2335,7 +2335,9 @@ export default function App() {
         const newItem: SimpleItem = {
           codigo: code,
           nome: (formData.simpleName || '').trim(),
-          tipo: activePage === 'culturas' ? ((formData.cTipoCultura as 'Hortifruti' | 'Cereais') || 'Hortifruti') : existingItem?.tipo,
+          ...(activePage === 'culturas' 
+            ? { tipo: (formData.cTipoCultura as 'Hortifruti' | 'Cereais') || 'Hortifruti' }
+            : (existingItem?.tipo ? { tipo: existingItem.tipo } : {})),
           unidade: existingItem?.unidade || selectedUnidade
         };
 

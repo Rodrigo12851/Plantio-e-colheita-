@@ -131,6 +131,27 @@ export function subscribeToCollection<T extends { id?: string }>(
   });
 }
 
+// Helper to strip undefined values recursively so Firestore never throws unsupported field errors
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): any {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForFirestore);
+  }
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+        clean[key] = sanitizeForFirestore(value);
+      } else {
+        clean[key] = value;
+      }
+    }
+  }
+  return clean;
+}
+
 // Save or Update item in Firestore
 export async function saveDocument<T extends Record<string, any>>(
   collectionName: string,
@@ -138,7 +159,8 @@ export async function saveDocument<T extends Record<string, any>>(
   docId?: string
 ) {
   const colRef = collection(db, collectionName);
-  const dataToSave = { ...data, updatedAt: new Date().toISOString() };
+  const rawDataToSave = { ...data, updatedAt: new Date().toISOString() };
+  const dataToSave = sanitizeForFirestore(rawDataToSave);
   
   if (docId || data.id) {
     const targetId = docId || data.id!;
@@ -178,12 +200,13 @@ export async function syncCollection<T extends { id?: string }>(
   // Add/Update items
   for (const item of items) {
     const { id, ...dataWithoutId } = item as any;
+    const cleanData = sanitizeForFirestore(dataWithoutId);
     if (id) {
       const docRef = doc(db, collectionName, id);
-      batch.set(docRef, { ...dataWithoutId, updatedAt: new Date().toISOString() }, { merge: true });
+      batch.set(docRef, { ...cleanData, updatedAt: new Date().toISOString() }, { merge: true });
     } else {
       const newRef = doc(colRef);
-      batch.set(newRef, { ...dataWithoutId, createdAt: new Date().toISOString() });
+      batch.set(newRef, { ...cleanData, createdAt: new Date().toISOString() });
     }
   }
 
