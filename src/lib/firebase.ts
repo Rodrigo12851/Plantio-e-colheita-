@@ -6,6 +6,7 @@ import {
   addDoc,
   setDoc,
   doc,
+  getDoc,
   deleteDoc,
   getDocs,
   writeBatch,
@@ -54,6 +55,28 @@ export const COLLECTIONS = {
 
 export type CollectionKey = keyof typeof COLLECTIONS;
 
+let isDbInitializedMemory = false;
+
+async function checkOrMarkDbInitialized(hasData: boolean): Promise<boolean> {
+  if (isDbInitializedMemory) return true;
+  const metaRef = doc(db, "system_metadata", "database_init");
+  try {
+    const metaSnap = await getDoc(metaRef);
+    if (metaSnap.exists()) {
+      isDbInitializedMemory = true;
+      return true;
+    }
+    if (hasData) {
+      await setDoc(metaRef, { initialized: true, initializedAt: new Date().toISOString() }, { merge: true });
+      isDbInitializedMemory = true;
+      return true;
+    }
+  } catch (err) {
+    console.warn("Erro ao verificar/marcar inicialização do banco de dados:", err);
+  }
+  return false;
+}
+
 // Generic helper to subscribe to a Firestore collection with real-time updates
 export function subscribeToCollection<T extends { id?: string }>(
   collectionName: string,
@@ -61,15 +84,13 @@ export function subscribeToCollection<T extends { id?: string }>(
   initialSeedIfEmpty?: T[]
 ) {
   const colRef = collection(db, collectionName);
-  const seedKey = `agri_seeded_${collectionName}`;
 
   return onSnapshot(colRef, async (snapshot: QuerySnapshot<DocumentData>) => {
-    const isAlreadySeeded = localStorage.getItem(seedKey) === 'true';
-
     if (snapshot.empty) {
-      if (!isAlreadySeeded && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
-        localStorage.setItem(seedKey, 'true');
-        console.log(`Coleção ${collectionName} vazia no primeiro carregamento. Populando dados iniciais no Firestore...`);
+      const isAlreadyInitialized = await checkOrMarkDbInitialized(false);
+
+      if (!isAlreadyInitialized && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
+        console.log(`Coleção ${collectionName} vazia no primeiro carregamento do sistema. Populando dados iniciais no Firestore...`);
         try {
           const batch = writeBatch(db);
           for (const item of initialSeedIfEmpty) {
@@ -77,17 +98,24 @@ export function subscribeToCollection<T extends { id?: string }>(
             const { id, ...itemWithoutId } = item as any;
             batch.set(newDocRef, { ...itemWithoutId, createdAt: new Date().toISOString() });
           }
+          // Mark system initialized in Firestore so empty collections won't re-seed in future deployments or sessions
+          const metaRef = doc(db, "system_metadata", "database_init");
+          batch.set(metaRef, { initialized: true, initializedAt: new Date().toISOString() }, { merge: true });
+
           await batch.commit();
+          isDbInitializedMemory = true;
         } catch (err) {
           console.error(`Erro ao semear dados na coleção ${collectionName}:`, err);
         }
         return;
       }
+
       onUpdate([]);
       return;
     }
 
-    localStorage.setItem(seedKey, 'true');
+    // Mark DB as initialized in Firestore since at least one collection has data
+    checkOrMarkDbInitialized(true);
 
     const items: T[] = [];
     snapshot.forEach((docSnap) => {

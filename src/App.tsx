@@ -2076,7 +2076,7 @@ export default function App() {
 
   // Empty trash for category with confirmation modal
   const emptyTrashForCategory = (cat: MainCategoryKey) => {
-    const targetItems = trashData.filter(t => t.category === cat);
+    const targetItems = trashData.filter(t => t.category === cat && isItemInSelectedUnidade(t.itemData));
 
     setConfirmModal({
       isOpen: true,
@@ -2513,18 +2513,22 @@ export default function App() {
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <i className="fa-solid fa-trash-can"></i> Lixeira
             </span>
-            {trashData.length > 0 && (
-              <span style={{
-                backgroundColor: '#d13438',
-                color: '#ffffff',
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '2px 7px',
-                borderRadius: '10px'
-              }}>
-                {trashData.length}
-              </span>
-            )}
+            {(() => {
+              const unidadeTrashCount = trashData.filter(t => isItemInSelectedUnidade(t.itemData)).length;
+              if (unidadeTrashCount === 0) return null;
+              return (
+                <span style={{
+                  backgroundColor: '#d13438',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 7px',
+                  borderRadius: '10px'
+                }}>
+                  {unidadeTrashCount}
+                </span>
+              );
+            })()}
           </div>
         </div>
 
@@ -2583,27 +2587,32 @@ export default function App() {
                 {cat.label}
               </button>
             ))}
-            <button
-              onClick={() => switchPage('lixeira')}
-              style={{
-                padding: '7px 14px',
-                borderRadius: '4px 4px 0 0',
-                border: '1px solid',
-                borderColor: activePage === 'lixeira' ? '#e1dfdd #e1dfdd #ffffff #e1dfdd' : 'transparent',
-                borderBottom: activePage === 'lixeira' ? '3px solid #d13438' : '3px solid transparent',
-                backgroundColor: activePage === 'lixeira' ? '#ffffff' : 'transparent',
-                color: activePage === 'lixeira' ? '#d13438' : '#605e5c',
-                fontWeight: activePage === 'lixeira' ? 600 : 400,
-                fontSize: '12px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <i className="fa-solid fa-trash-can"></i> Lixeira {trashData.length > 0 && `(${trashData.length})`}
-            </button>
+            {(() => {
+              const unidadeTrashCount = trashData.filter(t => isItemInSelectedUnidade(t.itemData)).length;
+              return (
+                <button
+                  onClick={() => switchPage('lixeira')}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '4px 4px 0 0',
+                    border: '1px solid',
+                    borderColor: activePage === 'lixeira' ? '#e1dfdd #e1dfdd #ffffff #e1dfdd' : 'transparent',
+                    borderBottom: activePage === 'lixeira' ? '3px solid #d13438' : '3px solid transparent',
+                    backgroundColor: activePage === 'lixeira' ? '#ffffff' : 'transparent',
+                    color: activePage === 'lixeira' ? '#d13438' : '#605e5c',
+                    fontWeight: activePage === 'lixeira' ? 600 : 400,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <i className="fa-solid fa-trash-can"></i> Lixeira {unidadeTrashCount > 0 && `(${unidadeTrashCount})`}
+                </button>
+              );
+            })()}
           </div>
 
           <div className="command-bar">
