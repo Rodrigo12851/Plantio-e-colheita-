@@ -297,8 +297,7 @@ body {
   width: 100%;
   min-width: 0;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: auto;
   position: relative;
 }
 
@@ -308,7 +307,6 @@ body {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #f3f2f1;
-  flex-shrink: 0;
 }
 
 .list-header-left {
@@ -434,9 +432,8 @@ body {
 
 .table-container {
   width: 100%;
-  overflow-x: auto;
+  overflow: visible;
   position: relative;
-  -webkit-overflow-scrolling: touch;
 }
 
 table {
