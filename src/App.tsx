@@ -2575,29 +2575,29 @@ export default function App() {
               >
                 <i className="fa-solid fa-xmark"></i> Limpar Filtros
               </button>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#ffffff', padding: '3px 8px', borderRadius: '4px', border: '1px solid #c8c6c4', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                <i className="fa-solid fa-arrow-down-short-wide" style={{ color: '#0078d4', fontSize: '12px' }}></i>
-                <span style={{ fontWeight: 600, fontSize: '12px', color: '#323130' }}>Todos os Itens:</span>
+              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#323130', fontWeight: 500 }}>
+                  Todos os Itens <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }}></i>
+                </span>
                 <select
                   id="selectSortMode"
                   value={sortMode}
                   onChange={e => setSortMode(e.target.value as SortMode)}
                   style={{
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    fontWeight: 600,
-                    fontSize: '12px',
-                    color: '#0078d4',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    paddingRight: '2px'
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    cursor: 'pointer'
                   }}
-                  title="Selecione a ordem dos cadastros"
+                  title="Ordenar Todos os Itens"
                 >
-                  <option value="code_asc">🔢 Código: Menor ➔ Maior (Padrão)</option>
-                  <option value="code_desc">🔢 Código: Maior ➔ Menor</option>
-                  <option value="alpha_asc">🔤 Ordem: De A a Z</option>
-                  <option value="alpha_desc">🔤 Ordem: De Z a A</option>
+                  <option value="code_asc">Código: Menor ➔ Maior (Padrão)</option>
+                  <option value="code_desc">Código: Maior ➔ Menor</option>
+                  <option value="alpha_asc">De A a Z</option>
+                  <option value="alpha_desc">De Z a A</option>
                 </select>
               </div>
             </div>
