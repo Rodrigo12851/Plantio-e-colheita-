@@ -308,6 +308,7 @@ export default function App() {
   } | null>(null);
 
   // Unidade de Produção state (Cristalina, São Gabriel, Uberlândia, etc.)
+  const [unidadesDocs, setUnidadesDocs] = useState<{ id?: string; nome: string }[]>([]);
   const [unidadesList, setUnidadesList] = useState<string[]>(['Cristalina', 'São Gabriel', 'Uberlândia']);
   const [selectedUnidade, setSelectedUnidade] = useState<string>('Cristalina');
   const [showUnidadeModal, setShowUnidadeModal] = useState<boolean>(false);
@@ -509,9 +510,8 @@ export default function App() {
     const unsubOnibus = subscribeToCollection<OnibusItem>(COLLECTIONS.onibus, setOnibusData, DEFAULT_ONIBUS);
     const unsubAmarracoes = subscribeToCollection<AmarracaoItem>(COLLECTIONS.amarracoes, setAmarracoesData, DEFAULT_AMARRACOES);
     const unsubUnidades = subscribeToCollection<{ id?: string; nome: string }>(COLLECTIONS.unidades, (docs) => {
-      if (docs.length > 0) {
-        setUnidadesList(docs.map(d => d.nome));
-      }
+      setUnidadesDocs(docs);
+      setUnidadesList(docs.map(d => d.nome));
     }, DEFAULT_UNIDADES);
     const unsubTrash = subscribeToCollection<TrashItem>(COLLECTIONS.lixeira, setTrashData, []);
 
@@ -1123,6 +1123,20 @@ export default function App() {
     const name = newSquareItemName.trim();
     const newCode = Date.now().toString();
 
+    let targetList: SimpleItem[] = [];
+    if (category === 'empresa') targetList = empresasData;
+    else if (category === 'ano') targetList = anosData;
+    else if (category === 'cultura') targetList = culturasData;
+    else if (category === 'fazenda') targetList = fazendasData;
+    else if (category === 'pivo') targetList = pivosData;
+    else if (category === 'gleba') targetList = glebasData;
+    else if (category === 'variedade') targetList = variedadesData as any;
+
+    if (targetList.some(item => (item.nome || '').trim().toLowerCase() === name.toLowerCase())) {
+      showToast(`O item "${name}" já está cadastrado.`, 'warning');
+      return;
+    }
+
     if (category === 'empresa') {
       await saveDocument(COLLECTIONS.empresas, { codigo: newCode, nome: name, unidade: selectedUnidade });
       showToast(`Empresa "${name}" cadastrada!`, 'success');
@@ -1162,8 +1176,13 @@ export default function App() {
     else if (category === 'variedade') { targetList = variedadesData as any; colName = COLLECTIONS.variedades; }
 
     const item = targetList.find(x => x.codigo === codigo);
-    if (item?.id) {
-      await removeDocument(colName, item.id);
+    if (item) {
+      const matches = targetList.filter(x => x.codigo === codigo || (item.nome && x.nome && x.nome.trim().toLowerCase() === item.nome.trim().toLowerCase()));
+      for (const m of matches) {
+        if (m.id) {
+          await removeDocument(colName, m.id);
+        }
+      }
     }
     showToast('Item removido com sucesso.', 'info');
   };
@@ -3630,9 +3649,15 @@ export default function App() {
                       )}
                       {unidadesList.length > 1 && (
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
                             if (window.confirm(`Deseja realmente excluir a unidade "${unit}"?`)) {
+                              const docsToDel = unidadesDocs.filter(d => d.nome.trim().toLowerCase() === unit.trim().toLowerCase());
+                              for (const docToDel of docsToDel) {
+                                if (docToDel.id) {
+                                  await removeDocument(COLLECTIONS.unidades, docToDel.id);
+                                }
+                              }
                               const updated = unidadesList.filter(u => u !== unit);
                               setUnidadesList(updated);
                               if (selectedUnidade === unit) {

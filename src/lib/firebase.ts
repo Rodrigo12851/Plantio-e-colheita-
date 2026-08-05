@@ -117,15 +117,45 @@ export function subscribeToCollection<T extends { id?: string }>(
     // Mark DB as initialized in Firestore since at least one collection has data
     checkOrMarkDbInitialized(true);
 
-    const items: T[] = [];
+    const rawItems: T[] = [];
     snapshot.forEach((docSnap) => {
-      items.push({
+      rawItems.push({
         id: docSnap.id,
         ...docSnap.data()
       } as unknown as T);
     });
 
-    onUpdate(items);
+    // Deduplicate items by 'nome' / name fields to purge any existing duplicate documents in Firestore
+    const nameBasedCollections = [
+      'empresas', 'unidades', 'fazendas', 'pivos', 'glebas', 
+      'culturas', 'anos', 'colaboradores', 'motoristas', 'onibus'
+    ];
+
+    let cleanItems = rawItems;
+    if (nameBasedCollections.includes(collectionName)) {
+      const seenNames = new Set<string>();
+      cleanItems = [];
+      for (const item of rawItems) {
+        const nameVal = (item as any).nome || (item as any).empresa || (item as any).titulo || '';
+        const normKey = nameVal.toString().trim().toLowerCase();
+        if (!normKey) {
+          cleanItems.push(item);
+          continue;
+        }
+        if (seenNames.has(normKey)) {
+          if (item.id) {
+            deleteDoc(doc(db, collectionName, item.id)).catch(err => {
+              console.warn(`[Firebase Cleanup] Erro ao deletar documento duplicado ${item.id} da coleção ${collectionName}:`, err);
+            });
+          }
+        } else {
+          seenNames.add(normKey);
+          cleanItems.push(item);
+        }
+      }
+    }
+
+    onUpdate(cleanItems);
   }, (error) => {
     console.error(`Erro no listener da coleção ${collectionName}:`, error);
   });
