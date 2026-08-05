@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { canInstallPWA, isIOS, isStandalone, promptInstallPWA, subscribePWAState } from '../pwaManager';
+import { 
+  canInstallPWA, 
+  hasDeferredPrompt, 
+  isIOS, 
+  isInIframe, 
+  isStandalone, 
+  promptInstallPWA, 
+  subscribePWAState 
+} from '../pwaManager';
 
 interface PWAInstallModalProps {
   isOpen: boolean;
@@ -8,34 +16,51 @@ interface PWAInstallModalProps {
 
 export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClose }) => {
   const [canInstall, setCanInstall] = useState(canInstallPWA());
+  const [hasPrompt, setHasPrompt] = useState(hasDeferredPrompt());
+  const [showInstructions, setShowInstructions] = useState(false);
   const ios = isIOS();
   const standalone = isStandalone();
+  const inIframe = isInIframe();
 
   useEffect(() => {
-    const unsubscribe = subscribePWAState(() => {
+    const checkState = () => {
       setCanInstall(canInstallPWA());
-    });
+      setHasPrompt(hasDeferredPrompt());
+    };
+    checkState();
+    const unsubscribe = subscribePWAState(checkState);
     return unsubscribe;
   }, []);
 
   if (!isOpen) return null;
 
   const handleInstallClick = async () => {
-    if (ios) {
-      // iOS step-by-step instructions are shown in modal body
+    if (inIframe) {
+      window.open(window.location.href, '_blank');
       return;
     }
-    const installed = await promptInstallPWA();
-    if (installed) {
-      onClose();
+
+    if (hasPrompt) {
+      const installed = await promptInstallPWA();
+      if (installed) {
+        onClose();
+      } else {
+        setShowInstructions(true);
+      }
+    } else {
+      setShowInstructions(true);
     }
+  };
+
+  const handleOpenNewTab = () => {
+    window.open(window.location.href, '_blank');
   };
 
   return (
     <div className="confirm-modal-backdrop" onClick={onClose}>
       <div 
         className="confirm-modal-card" 
-        style={{ maxWidth: '460px' }} 
+        style={{ maxWidth: '480px' }} 
         onClick={(e) => e.stopPropagation()}
       >
         <button className="confirm-modal-close" onClick={onClose} title="Fechar">
@@ -47,7 +72,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
             <img 
               src="/icon-192.png" 
               alt="Cristalina Logo" 
-              style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }}
+              style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }}
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}
@@ -55,20 +80,54 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
           </div>
           <div className="confirm-modal-header-text">
             <h3>Instalar Cristalina Agrícola</h3>
-            <span className="confirm-modal-subtitle">Aplicativo de Controle Agrícola</span>
+            <span className="confirm-modal-subtitle">Aplicativo de Controle Agrícola (PWA)</span>
           </div>
         </div>
 
         <div className="confirm-modal-body">
           {standalone ? (
             <div className="confirm-modal-info-banner">
-              <i className="fa-solid fa-circle-check" style={{ color: '#107c41', fontSize: '18px' }}></i>
+              <i className="fa-solid fa-circle-check" style={{ color: '#107c41', fontSize: '20px' }}></i>
               <div>
                 <strong>Aplicativo já instalado!</strong>
                 <p style={{ marginTop: '4px', fontSize: '12px' }}>
                   Você já está executando o Cristalina em modo aplicativo de tela cheia.
                 </p>
               </div>
+            </div>
+          ) : inIframe ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="confirm-modal-info-banner" style={{ backgroundColor: '#fff8e5', borderColor: '#ffcc00' }}>
+                <i className="fa-solid fa-up-right-from-square" style={{ color: '#d97706', fontSize: '18px' }}></i>
+                <div>
+                  <strong style={{ color: '#92400e' }}>Atenção: Visualização em Quadro (Iframe)</strong>
+                  <p style={{ marginTop: '4px', fontSize: '12px', color: '#78350f' }}>
+                    Os navegadores bloqueiam a instalação direta de aplicativos dentro da pré-visualização. Clique no botão abaixo para abrir o Cristalina em uma <strong>nova aba do navegador</strong> e concluir a instalação.
+                  </p>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleOpenNewTab}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                Abrir em Nova Aba para Instalar
+              </button>
             </div>
           ) : ios ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -134,7 +193,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <p className="confirm-modal-message">
-                Instale o aplicativo <strong>Cristalina - Controle Agrícola</strong> no seu dispositivo para acesso rápido, navegação sem barra de navegação e funcionamento otimizado.
+                Instale o aplicativo <strong>Cristalina - Controle Agrícola</strong> no seu dispositivo para acesso rápido, navegação em tela cheia e suporte offline.
               </p>
 
               <div className="confirm-modal-details-card">
@@ -152,10 +211,16 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
                 </div>
               </div>
 
-              {!canInstall && (
-                <div className="confirm-modal-info-banner">
-                  <i className="fa-solid fa-circle-info"></i>
-                  <span>Se o botão abaixo não acionar o instalador automaticamente, use a opção <strong>"Instalar Aplicativo"</strong> no menu de três pontos do seu navegador (Chrome/Edge/Samsung).</span>
+              {(showInstructions || !hasPrompt) && (
+                <div style={{ marginTop: '8px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <strong style={{ fontSize: '13px', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-circle-info" style={{ color: '#0078d4' }}></i> Como instalar no Chrome / Android / PC:
+                  </strong>
+                  <ol style={{ margin: '8px 0 0 18px', padding: 0, fontSize: '12px', color: '#4b5563', lineHeight: '1.6' }}>
+                    <li>Clique no menu de <strong>3 pontos</strong> <i className="fa-solid fa-ellipsis-vertical" style={{ color: '#0078d4' }}></i> do navegador (no canto superior direito).</li>
+                    <li>Selecione <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à Tela Inicial"</strong>.</li>
+                    <li>Confirme a instalação e o app ficará disponível no seu celular ou computador!</li>
+                  </ol>
                 </div>
               )}
             </div>
@@ -164,11 +229,23 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
 
         <div className="confirm-modal-footer">
           <button className="btn-modal-cancel" onClick={onClose}>
-            Entendi / Fechar
+            Fechar
           </button>
           {!standalone && !ios && (
             <button className="btn-modal-save" onClick={handleInstallClick}>
-              <i className="fa-solid fa-download"></i> Instalar Agora
+              {inIframe ? (
+                <>
+                  <i className="fa-solid fa-arrow-up-right-from-square"></i> Abrir &amp; Instalar
+                </>
+              ) : hasPrompt ? (
+                <>
+                  <i className="fa-solid fa-download"></i> Instalar Agora
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-circle-question"></i> Ver Como Instalar
+                </>
+              )}
             </button>
           )}
         </div>

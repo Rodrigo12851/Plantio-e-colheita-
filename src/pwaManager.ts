@@ -23,9 +23,22 @@ export function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
 }
 
+export function isInIframe(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true;
+  }
+}
+
+export function hasDeferredPrompt(): boolean {
+  return deferredPrompt !== null;
+}
+
 export function canInstallPWA(): boolean {
   if (isStandalone()) return false;
-  return deferredPrompt !== null || isIOS();
+  return deferredPrompt !== null || isIOS() || isInIframe();
 }
 
 export function promptInstallPWA(): Promise<boolean> {
