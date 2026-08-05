@@ -4,10 +4,10 @@ const PRECACHE_URLS = [
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
-  '/favicon-32x32.png',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png'
+  '/icon-192.svg',
+  '/icon-512.svg',
+  '/icon-maskable-192.svg',
+  '/icon-maskable-512.svg'
 ];
 
 // Installation phase: cache core shell files
