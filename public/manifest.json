@@ -1,0 +1,72 @@
+{
+  "name": "Cristalina - Controle Agrícola",
+  "short_name": "Cristalina",
+  "description": "Controle Agrícola Apontadores - Gestão de Colheita, Plantio e Cadastros",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#0078d4",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lançamentos de Colheita",
+      "short_name": "Colheita",
+      "description": "Acessar controle de colheita agrícola",
+      "url": "/?page=colheita",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Lançamentos de Plantio",
+      "short_name": "Plantio",
+      "description": "Acessar controle de plantio agrícola",
+      "url": "/?page=plantio",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { PWAInstallModal } from './components/PWAInstallModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 import {
   subscribeToCollection,
   saveDocument,
@@ -265,6 +267,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isGridEditing, setIsGridEditing] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
 
   // Toast notification state with Undo support
   const [toast, setToast] = useState<{
@@ -2488,11 +2491,35 @@ export default function App() {
         </div>
 
         <div className="topbar-right">
+          <button
+            onClick={() => setIsPwaModalOpen(true)}
+            title="Instalar Aplicativo (PWA)"
+            style={{
+              background: 'rgba(255, 255, 255, 0.18)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              color: '#ffffff',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              padding: '4px 10px',
+              borderRadius: '4px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <i className="fa-solid fa-download"></i>
+            <span>Instalar App</span>
+          </button>
           <i className="fa-regular fa-bell"></i>
           <i className="fa-solid fa-gear"></i>
           <div className="user-avatar">R</div>
         </div>
       </div>
+
+      {/* PWA INSTALL BANNER */}
+      <PWAInstallBanner onOpenModal={() => setIsPwaModalOpen(true)} />
 
       {/* LAYOUT PRINCIPAL */}
       <div className="app-layout">
@@ -5816,6 +5843,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* PWA INSTALL MODAL */}
+      <PWAInstallModal isOpen={isPwaModalOpen} onClose={() => setIsPwaModalOpen(false)} />
 
     </div>
   );
