@@ -83,6 +83,8 @@ export function registerServiceWorker() {
       .register('/sw.js')
       .then((registration) => {
         console.log('PWA ServiceWorker registered successfully with scope:', registration.scope);
+        // Force update check to replace old cached app icons
+        registration.update().catch(() => {});
       })
       .catch((error) => {
         console.error('PWA ServiceWorker registration failed:', error);
