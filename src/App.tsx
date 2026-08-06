@@ -172,6 +172,21 @@ const cadastroSubCategories: { key: MainCategoryKey; label: string; icon: string
   { key: 'motoristas', label: 'Motoristas', icon: 'fa-user-gear' }
 ];
 
+const lixeiraCategories: { key: MainCategoryKey; label: string }[] = [
+  { key: 'plantio', label: 'BdPlantio' },
+  { key: 'colheita', label: 'BdColheita' },
+  { key: 'empresas', label: 'Cadastro_Empresas' },
+  { key: 'anos', label: 'Cadastro_Anos' },
+  { key: 'fazendas', label: 'Cadastro_Fazendas' },
+  { key: 'pivos', label: 'Cadastro_Pivos' },
+  { key: 'glebas', label: 'Cadastro_Glebas' },
+  { key: 'variedades', label: 'Cadastro_Variedades' },
+  { key: 'culturas', label: 'Cadastro_Culturas' },
+  { key: 'colaboradores', label: 'Cadastro_Colaboradores' },
+  { key: 'onibus', label: 'Cadastro_Onibus' },
+  { key: 'motoristas', label: 'Cadastro_Motoristas' }
+];
+
 const isCadastroPage = (page: PageKey) => {
   return [
     'cadastro_geral', 'empresas', 'anos', 'fazendas', 'pivos', 'glebas',
@@ -3447,7 +3462,7 @@ export default function App() {
               <span style={{ fontWeight: 600, color: '#605e5c', fontSize: '12px', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <i className="fa-solid fa-filter"></i> Filtrar Lixeira por Categoria:
               </span>
-              {mainCategories.map(cat => {
+              {lixeiraCategories.map(cat => {
                 const count = trashData.filter(t => t.category === cat.key && isItemInSelectedUnidade(t.itemData)).length;
                 const isSelected = lixeiraCategory === cat.key;
                 return (
