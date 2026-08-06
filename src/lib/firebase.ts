@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getFirestore,
+  enableIndexedDbPersistence,
   collection,
   onSnapshot,
   addDoc,
@@ -34,6 +35,17 @@ export const db = (customDatabaseId && customDatabaseId !== "(default)")
   ? getFirestore(app, customDatabaseId)
   : getFirestore(app);
 
+// Enable Firestore offline cache in browser IndexedDB
+if (typeof window !== "undefined") {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('[Firebase] Persistência mantida na aba ativa primária.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('[Firebase] Navegador atual não suporta IndexedDB.');
+    }
+  });
+}
+
 // Collection names helper
 export const COLLECTIONS = {
   colheita: 'colheita',
@@ -55,24 +67,40 @@ export const COLLECTIONS = {
 
 export type CollectionKey = keyof typeof COLLECTIONS;
 
-let isDbInitializedMemory = false;
+const LOCAL_INIT_KEY = 'cristalina_system_initialized_v2';
+let isDbInitializedMemory = typeof window !== 'undefined' && localStorage.getItem(LOCAL_INIT_KEY) === 'true';
 
-async function checkOrMarkDbInitialized(hasData: boolean): Promise<boolean> {
+export async function checkOrMarkDbInitialized(hasData: boolean): Promise<boolean> {
   if (isDbInitializedMemory) return true;
+  if (typeof window !== 'undefined' && localStorage.getItem(LOCAL_INIT_KEY) === 'true') {
+    isDbInitializedMemory = true;
+    return true;
+  }
+  
+  // If offline, assume initialized to prevent any accidental re-seeding
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    isDbInitializedMemory = true;
+    return true;
+  }
+
   const metaRef = doc(db, "system_metadata", "database_init");
   try {
     const metaSnap = await getDoc(metaRef);
     if (metaSnap.exists()) {
       isDbInitializedMemory = true;
+      if (typeof window !== 'undefined') localStorage.setItem(LOCAL_INIT_KEY, 'true');
       return true;
     }
     if (hasData) {
       await setDoc(metaRef, { initialized: true, initializedAt: new Date().toISOString() }, { merge: true });
       isDbInitializedMemory = true;
+      if (typeof window !== 'undefined') localStorage.setItem(LOCAL_INIT_KEY, 'true');
       return true;
     }
   } catch (err) {
-    console.warn("Erro ao verificar/marcar inicialização do banco de dados:", err);
+    console.warn("Aviso ao verificar inicialização do banco de dados (offline/erro):", err);
+    // Return true on error/offline so we NEVER re-seed deleted items
+    return true;
   }
   return false;
 }
@@ -87,6 +115,13 @@ export function subscribeToCollection<T extends { id?: string }>(
 
   return onSnapshot(colRef, async (snapshot: QuerySnapshot<DocumentData>) => {
     if (snapshot.empty) {
+      // If offline or snapshot came from local cache, do NOT attempt re-seeding
+      const isOfflineOrCache = (typeof navigator !== 'undefined' && !navigator.onLine) || snapshot.metadata.fromCache;
+      if (isOfflineOrCache) {
+        onUpdate([]);
+        return;
+      }
+
       const isAlreadyInitialized = await checkOrMarkDbInitialized(false);
 
       if (!isAlreadyInitialized && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
@@ -98,12 +133,13 @@ export function subscribeToCollection<T extends { id?: string }>(
             const { id, ...itemWithoutId } = item as any;
             batch.set(newDocRef, { ...itemWithoutId, createdAt: new Date().toISOString() });
           }
-          // Mark system initialized in Firestore so empty collections won't re-seed in future deployments or sessions
+          // Mark system initialized in Firestore & LocalStorage
           const metaRef = doc(db, "system_metadata", "database_init");
           batch.set(metaRef, { initialized: true, initializedAt: new Date().toISOString() }, { merge: true });
 
           await batch.commit();
           isDbInitializedMemory = true;
+          if (typeof window !== 'undefined') localStorage.setItem(LOCAL_INIT_KEY, 'true');
         } catch (err) {
           console.error(`Erro ao semear dados na coleção ${collectionName}:`, err);
         }
@@ -114,7 +150,7 @@ export function subscribeToCollection<T extends { id?: string }>(
       return;
     }
 
-    // Mark DB as initialized in Firestore since at least one collection has data
+    // Mark DB as initialized since at least one collection has data
     checkOrMarkDbInitialized(true);
 
     const rawItems: T[] = [];
