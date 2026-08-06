@@ -79,8 +79,8 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
             />
           </div>
           <div className="confirm-modal-header-text">
-            <h3>Instalar Controle Agrícola</h3>
-            <span className="confirm-modal-subtitle">Aplicativo de Gestão e Apontamentos (PWA)</span>
+            <h3>Instalar Cristalina Agrícola</h3>
+            <span className="confirm-modal-subtitle">Aplicativo de Controle Agrícola (PWA)</span>
           </div>
         </div>
 

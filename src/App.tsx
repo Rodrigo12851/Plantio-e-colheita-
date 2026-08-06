@@ -116,7 +116,7 @@ export interface AmarracaoItem {
   unidade?: string;
 }
 
-type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes';
+type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes' | 'cadastro_geral';
 
 export interface TrashItem {
   id?: string;
@@ -153,20 +153,31 @@ export function sanitizeHectaresInput(val: string): string {
   return clean;
 }
 
-const mainCategories: { key: MainCategoryKey; label: string }[] = [
+const mainCategories: { key: PageKey; label: string }[] = [
   { key: 'plantio', label: 'BdPlantio' },
   { key: 'colheita', label: 'BdColheita' },
-  { key: 'empresas', label: 'Cadastro_Empresas' },
-  { key: 'anos', label: 'Cadastro_Anos' },
-  { key: 'fazendas', label: 'Cadastro_Fazendas' },
-  { key: 'pivos', label: 'Cadastro_Pivos' },
-  { key: 'glebas', label: 'Cadastro_Glebas' },
-  { key: 'variedades', label: 'Cadastro_Variedades' },
-  { key: 'culturas', label: 'Cadastro_Culturas' },
-  { key: 'colaboradores', label: 'Cadastro_Colaboradores' },
-  { key: 'onibus', label: 'Cadastro_Onibus' },
-  { key: 'motoristas', label: 'Cadastro_Motoristas' }
+  { key: 'cadastro_geral', label: 'Cadastro_Geral' }
 ];
+
+const cadastroSubCategories: { key: MainCategoryKey; label: string; icon: string }[] = [
+  { key: 'empresas', label: 'Empresas', icon: 'fa-building' },
+  { key: 'anos', label: 'Anos Safra', icon: 'fa-calendar' },
+  { key: 'fazendas', label: 'Fazendas', icon: 'fa-wheat-awn' },
+  { key: 'pivos', label: 'Pivôs', icon: 'fa-water' },
+  { key: 'glebas', label: 'Glebas', icon: 'fa-vector-square' },
+  { key: 'variedades', label: 'Variedades', icon: 'fa-seedling' },
+  { key: 'culturas', label: 'Culturas', icon: 'fa-plant-wilt' },
+  { key: 'colaboradores', label: 'Colaboradores', icon: 'fa-id-card-clip' },
+  { key: 'onibus', label: 'Ônibus', icon: 'fa-bus' },
+  { key: 'motoristas', label: 'Motoristas', icon: 'fa-user-gear' }
+];
+
+const isCadastroPage = (page: PageKey) => {
+  return [
+    'cadastro_geral', 'empresas', 'anos', 'fazendas', 'pivos', 'glebas',
+    'variedades', 'culturas', 'colaboradores', 'onibus', 'motoristas'
+  ].includes(page);
+};
 
 const DEFAULT_COLHEITA: ColheitaItem[] = [
   { data: '06/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '14,50 ha', haGeral: '31,88 ha', haRestante: '17,38 ha', qtdColhido: '250', glebasFinalizada: 'Não', mediaHa: '17,24 /ha', mes: 'Abril', ano: '2026', caixaBinBag: 'Caixas', caixasCortadas: '250', unidade: 'Cristalina' },
@@ -262,6 +273,8 @@ const DEFAULT_UNIDADES = [
 export default function App() {
   const [activePage, setActivePage] = useState<PageKey>('plantio');
   const [lixeiraCategory, setLixeiraCategory] = useState<MainCategoryKey>('plantio');
+  const [isCadastroGroupOpen, setIsCadastroGroupOpen] = useState<boolean>(true);
+  const [cadastroSubPage, setCadastroSubPage] = useState<MainCategoryKey>('empresas');
 
   const [trashData, setTrashData] = useState<TrashItem[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1410,7 +1423,8 @@ export default function App() {
     motoristas: 'Cadastro_Motoristas',
     onibus: 'Cadastro_Onibus',
     lixeira: 'Lixeira',
-    amarracoes: 'Marcações e Amarrações'
+    amarracoes: 'Marcações e Amarrações',
+    cadastro_geral: 'Cadastro Geral'
   };
 
   // Modal entity name map
@@ -1428,7 +1442,8 @@ export default function App() {
     motoristas: 'Motorista',
     onibus: 'Ônibus',
     lixeira: 'Item',
-    amarracoes: 'Marcação'
+    amarracoes: 'Marcação',
+    cadastro_geral: 'Cadastro'
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -1437,10 +1452,19 @@ export default function App() {
   const switchPage = (page: PageKey) => {
     if (isGridEditing) setIsGridEditing(false);
     setPopoverState(null);
-    if (page !== 'lixeira') {
-      setLixeiraCategory(page);
+    if (page === 'cadastro_geral') {
+      const target = cadastroSubPage || 'empresas';
+      setActivePage(target);
+      if (target !== 'lixeira') setLixeiraCategory(target as MainCategoryKey);
+    } else {
+      if (page !== 'lixeira' && page !== 'amarracoes') {
+        setLixeiraCategory(page as MainCategoryKey);
+        if (isCadastroPage(page)) {
+          setCadastroSubPage(page as MainCategoryKey);
+        }
+      }
+      setActivePage(page);
     }
-    setActivePage(page);
     closeSidebar();
   };
 
@@ -2634,24 +2658,61 @@ export default function App() {
           </div>
           <div className={`sidebar-item ${activePage === 'plantio' ? 'active' : ''}`} onClick={() => switchPage('plantio')}>BdPlantio</div>
           <div className={`sidebar-item ${activePage === 'colheita' ? 'active' : ''}`} onClick={() => switchPage('colheita')}>BdColheita</div>
-          <div className={`sidebar-item ${activePage === 'empresas' ? 'active' : ''}`} onClick={() => switchPage('empresas')}>Cadastro_Empresas</div>
-          <div className={`sidebar-item ${activePage === 'anos' ? 'active' : ''}`} onClick={() => switchPage('anos')}>Cadastro_Anos</div>
-          <div className={`sidebar-item ${activePage === 'fazendas' ? 'active' : ''}`} onClick={() => switchPage('fazendas')}>Cadastro_Fazendas</div>
-          <div className={`sidebar-item ${activePage === 'pivos' ? 'active' : ''}`} onClick={() => switchPage('pivos')}>Cadastro_Pivos</div>
-          <div className={`sidebar-item ${activePage === 'glebas' ? 'active' : ''}`} onClick={() => switchPage('glebas')}>Cadastro_Glebas</div>
-          <div className={`sidebar-item ${activePage === 'variedades' ? 'active' : ''}`} onClick={() => switchPage('variedades')}>Cadastro_Variedades</div>
-          <div className={`sidebar-item ${activePage === 'culturas' ? 'active' : ''}`} onClick={() => switchPage('culturas')}>Cadastro_Culturas</div>
+          
+          {/* GRUPO CADASTRO GERAL */}
+          <div style={{ margin: '4px 0' }}>
+            <div
+              className={`sidebar-item ${isCadastroPage(activePage) ? 'active' : ''}`}
+              onClick={() => {
+                setIsCadastroGroupOpen(!isCadastroGroupOpen);
+                if (!isCadastroPage(activePage)) {
+                  switchPage(cadastroSubPage || 'empresas');
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontWeight: isCadastroPage(activePage) ? 600 : 500,
+                color: isCadastroPage(activePage) ? '#0078d4' : '#323130'
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-folder-tree" style={{ color: '#0078d4' }}></i>
+                <span>Cadastro_Geral</span>
+              </span>
+              <i className={`fa-solid fa-chevron-${isCadastroGroupOpen ? 'down' : 'right'}`} style={{ fontSize: '10px', color: '#605e5c' }}></i>
+            </div>
+
+            {isCadastroGroupOpen && (
+              <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                {cadastroSubCategories.map(sub => (
+                  <div
+                    key={sub.key}
+                    className={`sidebar-item ${activePage === sub.key ? 'active' : ''}`}
+                    onClick={() => {
+                      setCadastroSubPage(sub.key);
+                      switchPage(sub.key);
+                    }}
+                    style={{
+                      fontSize: '12px',
+                      padding: '5px 8px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <i className={`fa-solid ${sub.icon}`} style={{ fontSize: '11px', width: '14px', textAlign: 'center', color: activePage === sub.key ? '#0078d4' : '#605e5c' }}></i>
+                    <span>Cadastro_{sub.label.replace(/\s+/g, '')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="sidebar-item">Documentos</div>
           <div className="sidebar-item">Ciclos_Cultivo</div>
-          <div className={`sidebar-item ${activePage === 'colaboradores' ? 'active' : ''}`} onClick={() => switchPage('colaboradores')}>
-            <i className="fa-solid fa-id-card-clip" style={{ marginRight: '8px' }}></i>Cadastro_Colaboradores
-          </div>
-          <div className={`sidebar-item ${activePage === 'onibus' ? 'active' : ''}`} onClick={() => switchPage('onibus')}>
-            <i className="fa-solid fa-bus" style={{ marginRight: '8px' }}></i>Cadastro_Onibus
-          </div>
-          <div className={`sidebar-item ${activePage === 'motoristas' ? 'active' : ''}`} onClick={() => switchPage('motoristas')}>
-            <i className="fa-solid fa-user-gear" style={{ marginRight: '8px' }}></i>Cadastro_Motoristas
-          </div>
           <div className="sidebar-item">TbFrentesTrabalho_APS...</div>
           <div className="sidebar-item">TbApontamentos_APSa...</div>
           <div className="sidebar-item">TbApontamentosSafris...</div>
@@ -2702,7 +2763,7 @@ export default function App() {
                 {getUnitInitials(selectedUnidade)}
               </div>
               <div className="list-title-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{selectedUnidade} - Controle Agrícola</span>
+                <span>{selectedUnidade} - Controle Agricola Apontadores</span>
                 <i className="fa-solid fa-chevron-down" style={{ fontSize: '12px', color: '#605e5c' }}></i>
               </div>
             </div>
@@ -2721,28 +2782,31 @@ export default function App() {
             borderBottom: '1px solid #e1dfdd',
             scrollbarWidth: 'thin'
           }}>
-            {mainCategories.map(cat => (
-              <button
-                key={cat.key}
-                onClick={() => switchPage(cat.key)}
-                style={{
-                  padding: '7px 14px',
-                  borderRadius: '4px 4px 0 0',
-                  border: '1px solid',
-                  borderColor: activePage === cat.key ? '#e1dfdd #e1dfdd #ffffff #e1dfdd' : 'transparent',
-                  borderBottom: activePage === cat.key ? '3px solid #0078d4' : '3px solid transparent',
-                  backgroundColor: activePage === cat.key ? '#ffffff' : 'transparent',
-                  color: activePage === cat.key ? '#0078d4' : '#605e5c',
-                  fontWeight: activePage === cat.key ? 600 : 400,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {cat.label}
-              </button>
-            ))}
+            {mainCategories.map(cat => {
+              const isActive = cat.key === 'cadastro_geral' ? isCadastroPage(activePage) : activePage === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => switchPage(cat.key)}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '4px 4px 0 0',
+                    border: '1px solid',
+                    borderColor: isActive ? '#e1dfdd #e1dfdd #ffffff #e1dfdd' : 'transparent',
+                    borderBottom: isActive ? '3px solid #0078d4' : '3px solid transparent',
+                    backgroundColor: isActive ? '#ffffff' : 'transparent',
+                    color: isActive ? '#0078d4' : '#605e5c',
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
             {(() => {
               const unidadeTrashCount = trashData.filter(t => isItemInSelectedUnidade(t.itemData)).length;
               return (
@@ -2770,6 +2834,56 @@ export default function App() {
               );
             })()}
           </div>
+
+          {/* SUB TABS PARA CADASTRO GERAL */}
+          {isCadastroPage(activePage) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              overflowX: 'auto',
+              padding: '8px 16px',
+              backgroundColor: '#f3f2f1',
+              borderBottom: '1px solid #e1dfdd',
+              scrollbarWidth: 'thin'
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#323130', marginRight: '6px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                <i className="fa-solid fa-folder-tree" style={{ color: '#0078d4' }}></i>
+                Cadastro Geral:
+              </span>
+              {cadastroSubCategories.map(sub => {
+                const isSubActive = activePage === sub.key;
+                return (
+                  <button
+                    key={sub.key}
+                    onClick={() => {
+                      setCadastroSubPage(sub.key);
+                      switchPage(sub.key);
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '14px',
+                      border: '1px solid',
+                      borderColor: isSubActive ? '#0078d4' : '#d2d0ce',
+                      backgroundColor: isSubActive ? '#0078d4' : '#ffffff',
+                      color: isSubActive ? '#ffffff' : '#323130',
+                      fontWeight: isSubActive ? 600 : 400,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <i className={`fa-solid ${sub.icon}`} style={{ fontSize: '11px' }}></i>
+                    <span>{sub.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="command-bar">
             <button className="btn-add-item" onClick={() => openCurrentModal()} style={{ display: activePage === 'lixeira' ? 'none' : 'inline-flex' }}>
@@ -3778,329 +3892,58 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE CONFIGURAÇÕES DO SISTEMA */}
+      {/* TELA DE CONFIGURAÇÕES EM TELA CHEIA EM BRANCO COM BOTÃO VOLTAR EM AZUL */}
       {showSettingsModal && (
         <div
-          className="modal-overlay"
-          onClick={() => setShowSettingsModal(false)}
-          style={{ display: 'flex', zIndex: 99999 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: '#ffffff',
+            zIndex: 999999,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
         >
+          {/* Topo com Botão Voltar no padrão Azul (#0078d4) */}
           <div
-            className="modal-content"
-            onClick={e => e.stopPropagation()}
             style={{
-              maxWidth: '680px',
-              width: '92%',
-              padding: '0',
-              borderRadius: '12px',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-              border: '1px solid #d2d0ce',
-              overflow: 'hidden',
+              padding: '10px 16px',
+              borderBottom: '1px solid #e1dfdd',
               display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '90vh'
+              alignItems: 'center',
+              backgroundColor: '#ffffff'
             }}
           >
-            {/* Modal Header */}
-            <div style={{ backgroundColor: '#187a41', color: '#ffffff', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
-                  <i className="fa-solid fa-gear"></i>
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#ffffff' }}>
-                    Configurações do Sistema
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '12px', opacity: 0.9 }}>
-                    Controle Agrícola • Grupo IGARASHI
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '18px', cursor: 'pointer', padding: '4px' }}
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-
-            {/* Modal Tabs Header */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #e1dfdd', backgroundColor: '#f3f2f1', padding: '0 12px', overflowX: 'auto' }}>
-              <button
-                onClick={() => setSettingsTab('geral')}
-                style={{
-                  padding: '12px 16px',
-                  border: 'none',
-                  borderBottom: settingsTab === 'geral' ? '3px solid #187a41' : '3px solid transparent',
-                  backgroundColor: settingsTab === 'geral' ? '#ffffff' : 'transparent',
-                  color: settingsTab === 'geral' ? '#187a41' : '#605e5c',
-                  fontWeight: settingsTab === 'geral' ? 700 : 500,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <i className="fa-solid fa-sliders"></i> Geral & PWA
-              </button>
-              <button
-                onClick={() => setSettingsTab('unidades')}
-                style={{
-                  padding: '12px 16px',
-                  border: 'none',
-                  borderBottom: settingsTab === 'unidades' ? '3px solid #187a41' : '3px solid transparent',
-                  backgroundColor: settingsTab === 'unidades' ? '#ffffff' : 'transparent',
-                  color: settingsTab === 'unidades' ? '#187a41' : '#605e5c',
-                  fontWeight: settingsTab === 'unidades' ? 700 : 500,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <i className="fa-solid fa-building"></i> Unidades ({unidadesList.length})
-              </button>
-              <button
-                onClick={() => setSettingsTab('offline')}
-                style={{
-                  padding: '12px 16px',
-                  border: 'none',
-                  borderBottom: settingsTab === 'offline' ? '3px solid #187a41' : '3px solid transparent',
-                  backgroundColor: settingsTab === 'offline' ? '#ffffff' : 'transparent',
-                  color: settingsTab === 'offline' ? '#187a41' : '#605e5c',
-                  fontWeight: settingsTab === 'offline' ? 700 : 500,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <i className="fa-solid fa-wifi"></i> Modo Offline
-              </button>
-              <button
-                onClick={() => setSettingsTab('backup')}
-                style={{
-                  padding: '12px 16px',
-                  border: 'none',
-                  borderBottom: settingsTab === 'backup' ? '3px solid #187a41' : '3px solid transparent',
-                  backgroundColor: settingsTab === 'backup' ? '#ffffff' : 'transparent',
-                  color: settingsTab === 'backup' ? '#187a41' : '#605e5c',
-                  fontWeight: settingsTab === 'backup' ? 700 : 500,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <i className="fa-solid fa-database"></i> Backup & Dados
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              {settingsTab === 'geral' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: '#f8f9fa', border: '1px solid #e1dfdd', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <img src="/icon-192.png" alt="Logo IGARASHI" style={{ width: '56px', height: '56px', borderRadius: '12px', objectFit: 'cover' }} />
-                    <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#323130' }}>Controle Agrícola PWA</h4>
-                      <p style={{ margin: 0, fontSize: '12px', color: '#605e5c' }}>
-                        Versão 2.4.0 • Logística Agrícola & Apontamentos IGARASHI
-                      </p>
-                      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '11px', fontWeight: 600, color: '#187a41', backgroundColor: '#e8f5e9', padding: '2px 8px', borderRadius: '12px' }}>
-                        PWA Atualizado & Ativo
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ border: '1px solid #e1dfdd', borderRadius: '8px', padding: '16px' }}>
-                    <h5 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#323130', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <i className="fa-solid fa-mobile-screen-button" style={{ color: '#187a41' }}></i> Instalação no Dispositivo
-                    </h5>
-                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#605e5c', lineHeight: 1.5 }}>
-                      Instale o Controle Agrícola na tela inicial do seu celular Android ou computador para acesso rápido direto em tela cheia e suporte offline completo.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setShowSettingsModal(false);
-                        setIsPwaModalOpen(true);
-                      }}
-                      style={{
-                        backgroundColor: '#187a41',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '10px 18px',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <i className="fa-solid fa-download"></i> Abrir Menu de Instalação PWA
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {settingsTab === 'unidades' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ margin: 0, fontSize: '15px', color: '#323130' }}>Unidades de Produção Cadastradas</h4>
-                    <span style={{ fontSize: '12px', color: '#605e5c' }}>Unidade ativa atual: <strong>{selectedUnidade}</strong></span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                    {unidadesList.map((unit) => {
-                      const isSelected = unit === selectedUnidade;
-                      return (
-                        <div
-                          key={unit}
-                          onClick={() => {
-                            setSelectedUnidade(unit);
-                            showToast(`Unidade alterada para "${unit}"`, 'info');
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 14px',
-                            borderRadius: '6px',
-                            border: isSelected ? '2px solid #187a41' : '1px solid #e1dfdd',
-                            backgroundColor: isSelected ? '#e8f5e9' : '#ffffff',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '30px', height: '30px', borderRadius: '4px', backgroundColor: isSelected ? '#187a41' : '#605e5c', color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {getUnitInitials(unit)}
-                            </div>
-                            <span style={{ fontSize: '14px', fontWeight: isSelected ? 600 : 400, color: '#323130' }}>{unit}</span>
-                          </div>
-                          {isSelected && (
-                            <span style={{ fontSize: '12px', color: '#187a41', fontWeight: 600 }}>
-                              <i className="fa-solid fa-circle-check"></i> Ativa
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ borderTop: '1px solid #e1dfdd', paddingTop: '14px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#323130', display: 'block', marginBottom: '6px' }}>
-                      Adicionar Nova Unidade:
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        value={newUnidadeInput}
-                        onChange={e => setNewUnidadeInput(e.target.value)}
-                        placeholder="Ex: São Gabriel, Uberlândia..."
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #8a8886', fontSize: '13px' }}
-                      />
-                      <button
-                        onClick={handleAddUnidade}
-                        style={{ backgroundColor: '#187a41', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '8px 16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        + Cadastrar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {settingsTab === 'offline' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: isOnline ? '#e8f5e9' : '#fff3e0', border: `1px solid ${isOnline ? '#c8e6c9' : '#ffe0b2'}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <i className={`fa-solid ${isOnline ? 'fa-wifi' : 'fa-plane'}`} style={{ fontSize: '24px', color: isOnline ? '#2e7d32' : '#e65100' }}></i>
-                    <div>
-                      <h4 style={{ margin: '0 0 2px 0', fontSize: '15px', color: isOnline ? '#1b5e20' : '#e65100' }}>
-                        {isOnline ? 'Status: Conectado à Nuvem (Online)' : 'Status: Modo Offline (Sem Internet)'}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: '12px', color: '#555' }}>
-                        {isOnline 
-                          ? 'Seus lançamentos, edições e exclusões são sincronizados em tempo real com o Firestore.'
-                          : 'As alterações feitas agora são salvas com segurança no IndexedDB do dispositivo e serão enviadas automaticamente assim que a conexão retornar.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ border: '1px solid #e1dfdd', borderRadius: '8px', padding: '14px' }}>
-                    <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#323130' }}>
-                      <i className="fa-solid fa-shield-halved" style={{ color: '#187a41', marginRight: '6px' }}></i> Garantia de Exclusões e Sincronização
-                    </h5>
-                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12px', color: '#605e5c', lineHeight: 1.6 }}>
-                      <li><strong>Exclusões offline são definitivas:</strong> Se você excluir um item estando offline, a exclusão é gravada na fila do dispositivo. Quando a internet voltar, o item é deletado da nuvem e NUNCA mais reaparece.</li>
-                      <li><strong>Nenhum item antigo volta:</strong> O sistema bloqueia a recriação automática de dados padrão enquanto estiver offline ou lendo do cache local.</li>
-                      <li><strong>Cache em IndexedDB:</strong> Os dados armazenados continuam visíveis mesmo que o celular seja desligado ou reiniciado.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {settingsTab === 'backup' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ border: '1px solid #e1dfdd', borderRadius: '8px', padding: '16px' }}>
-                    <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#323130', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <i className="fa-solid fa-file-arrow-down" style={{ color: '#187a41' }}></i> Exportar Backup dos Dados (JSON)
-                    </h5>
-                    <p style={{ margin: '0 0 14px 0', fontSize: '12px', color: '#605e5c', lineHeight: 1.5 }}>
-                      Baixe um arquivo seguro de backup contendo todos os lançamentos de Colheita, Plantio, Variedades, Pessoas, Veículos e Amarrações da sua unidade.
-                    </p>
-                    <button
-                      onClick={handleExportBackup}
-                      style={{
-                        backgroundColor: '#187a41',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '10px 18px',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <i className="fa-solid fa-download"></i> Baixar Backup Completo
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #e1dfdd', backgroundColor: '#f3f2f1', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                style={{
-                  backgroundColor: '#ffffff',
-                  color: '#323130',
-                  border: '1px solid #8a8886',
-                  borderRadius: '4px',
-                  padding: '8px 18px',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              >
-                Fechar
-              </button>
-            </div>
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              style={{
+                backgroundColor: '#0078d4',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: '0 1px 3px rgba(0, 120, 212, 0.2)',
+                transition: 'background-color 0.15s ease'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#106ebe')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0078d4')}
+            >
+              <i className="fa-solid fa-arrow-left" style={{ fontSize: '11px' }}></i>
+              <span>Voltar</span>
+            </button>
           </div>
+
+          {/* Conteúdo em branco da tela */}
+          <div style={{ flex: 1, backgroundColor: '#ffffff' }}></div>
         </div>
       )}
 
