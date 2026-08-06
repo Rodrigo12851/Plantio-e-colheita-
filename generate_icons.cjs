@@ -1,4 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+
+// Create high quality SVG matching the user's uploaded logo image
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <!-- Mask or Clip paths if needed -->
   </defs>
@@ -97,4 +102,36 @@
     font-size="52" 
     letter-spacing="5"
   >IGARASHI</text>
-</svg>
+</svg>`;
+
+async function main() {
+  const publicDir = path.join(__dirname, 'public');
+  const distDir = path.join(__dirname, 'dist');
+
+  fs.writeFileSync(path.join(publicDir, 'favicon.svg'), svgContent);
+  fs.writeFileSync(path.join(publicDir, 'icon-192.svg'), svgContent);
+  fs.writeFileSync(path.join(publicDir, 'icon-512.svg'), svgContent);
+
+  const svgBuffer = Buffer.from(svgContent);
+
+  // Generate PNGs
+  const targets = [
+    { name: 'icon-192.png', size: 192 },
+    { name: 'icon-512.png', size: 512 },
+    { name: 'apple-touch-icon.png', size: 180 },
+    { name: 'icon-maskable-192.png', size: 192 },
+    { name: 'icon-maskable-512.png', size: 512 },
+  ];
+
+  for (const t of targets) {
+    const pngBuf = await sharp(svgBuffer).resize(t.size, t.size).png().toBuffer();
+    fs.writeFileSync(path.join(publicDir, t.name), pngBuf);
+    if (fs.existsSync(distDir)) {
+      fs.writeFileSync(path.join(distDir, t.name), pngBuf);
+    }
+  }
+
+  console.log('Icons generated successfully!');
+}
+
+main().catch(console.error);

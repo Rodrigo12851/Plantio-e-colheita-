@@ -1,6 +1,6 @@
 {
-  "name": "Cristalina - Controle Agrícola",
-  "description": "Controle Agrícola Apontadores - Gestão de Colheita, Plantio e Cadastros",
+  "name": "Controle Agrícola",
+  "description": "Controle Agrícola - Gestão de Colheita, Plantio e Cadastros",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
