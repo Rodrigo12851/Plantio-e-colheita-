@@ -187,6 +187,75 @@ const lixeiraCategories: { key: MainCategoryKey; label: string }[] = [
   { key: 'motoristas', label: 'Cadastro_Motoristas' }
 ];
 
+export interface UserAccount {
+  id: string; // ID do Usuário (ex: USR-001)
+  nome: string; // Nome do Usuário
+  senha: string; // Senha do Usuário
+  permissoes: string[]; // Lista de chaves de permissões
+  createdAt?: string;
+}
+
+export interface PermissionCategory {
+  key: string;
+  label: string;
+  icon: string;
+  group: string;
+}
+
+const ALL_PERMISSION_CATEGORIES: PermissionCategory[] = [
+  // OPERACIONAL & LANÇAMENTOS
+  { key: 'amarracoes', label: 'Marcações e Amarrações', icon: 'fa-grip-vertical', group: 'Operacional & Lançamentos' },
+  { key: 'plantio', label: 'BdPlantio', icon: 'fa-seedling', group: 'Operacional & Lançamentos' },
+  { key: 'colheita', label: 'BdColheita', icon: 'fa-wheat-awn', group: 'Operacional & Lançamentos' },
+  { key: 'documentos', label: 'Documentos', icon: 'fa-file-lines', group: 'Operacional & Lançamentos' },
+  { key: 'ciclos_cultivo', label: 'Ciclos_Cultivo', icon: 'fa-arrows-spin', group: 'Operacional & Lançamentos' },
+  { key: 'frentes_trabalho', label: 'TbFrentesTrabalho_APS', icon: 'fa-users-gear', group: 'Operacional & Lançamentos' },
+  { key: 'apontamentos_apsa', label: 'TbApontamentos_APSa', icon: 'fa-clipboard-check', group: 'Operacional & Lançamentos' },
+  { key: 'apontamentos_safris', label: 'TbApontamentosSafris', icon: 'fa-clipboard-list', group: 'Operacional & Lançamentos' },
+
+  // CADASTRO GERAL
+  { key: 'empresas', label: 'Cadastro_Empresas', icon: 'fa-building', group: 'Cadastro Geral' },
+  { key: 'anos', label: 'Cadastro_Anos (Safra)', icon: 'fa-calendar', group: 'Cadastro Geral' },
+  { key: 'fazendas', label: 'Cadastro_Fazendas', icon: 'fa-wheat-awn', group: 'Cadastro Geral' },
+  { key: 'pivos', label: 'Cadastro_Pivos', icon: 'fa-water', group: 'Cadastro Geral' },
+  { key: 'glebas', label: 'Cadastro_Glebas', icon: 'fa-vector-square', group: 'Cadastro Geral' },
+  { key: 'variedades', label: 'Cadastro_Variedades', icon: 'fa-seedling', group: 'Cadastro Geral' },
+  { key: 'culturas', label: 'Cadastro_Culturas', icon: 'fa-plant-wilt', group: 'Cadastro Geral' },
+
+  // EQUIPE & TRANSPORTE
+  { key: 'colaboradores', label: 'Cadastro_Colaboradores', icon: 'fa-id-card-clip', group: 'Equipe & Transporte' },
+  { key: 'onibus', label: 'Cadastro_Onibus', icon: 'fa-bus', group: 'Equipe & Transporte' },
+  { key: 'motoristas', label: 'Cadastro_Motoristas', icon: 'fa-user-gear', group: 'Equipe & Transporte' },
+
+  // SISTEMA E SEGURANÇA
+  { key: 'lixeira', label: 'Lixeira do Sistema', icon: 'fa-trash-can', group: 'Sistema & Segurança' },
+  { key: 'configuracoes', label: 'Configurações & Permissões', icon: 'fa-gear', group: 'Sistema & Segurança' }
+];
+
+const DEFAULT_USER_ACCOUNTS: UserAccount[] = [
+  {
+    id: 'USR-001',
+    nome: 'Administrador Geral',
+    senha: 'admin',
+    permissoes: ALL_PERMISSION_CATEGORIES.map(c => c.key),
+    createdAt: '01/01/2026'
+  },
+  {
+    id: 'USR-002',
+    nome: 'Operador de Campo',
+    senha: 'campo',
+    permissoes: ['amarracoes', 'plantio', 'colheita', 'variedades', 'culturas', 'frentes_trabalho', 'apontamentos_apsa', 'apontamentos_safris'],
+    createdAt: '15/03/2026'
+  },
+  {
+    id: 'USR-003',
+    nome: 'Gestor de Frota',
+    senha: 'frota',
+    permissoes: ['onibus', 'motoristas', 'colaboradores', 'empresas'],
+    createdAt: '20/04/2026'
+  }
+];
+
 const isCadastroPage = (page: PageKey) => {
   return [
     'cadastro_geral', 'empresas', 'anos', 'fazendas', 'pivos', 'glebas',
@@ -341,9 +410,120 @@ export default function App() {
   const [selectedUnidade, setSelectedUnidade] = useState<string>('Cristalina');
   const [showUnidadeModal, setShowUnidadeModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [settingsTab, setSettingsTab] = useState<'geral' | 'unidades' | 'offline' | 'backup'>('geral');
+  const [settingsTab, setSettingsTab] = useState<'geral' | 'unidades' | 'offline' | 'backup' | 'permissoes'>('permissoes');
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [newUnidadeInput, setNewUnidadeInput] = useState<string>('');
+
+  // Gestão de Usuários e Permissões
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem('CRISTALINA_USER_ACCOUNTS');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_USER_ACCOUNTS;
+  });
+
+  const [searchUserQuery, setSearchUserQuery] = useState('');
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
+  const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
+
+  const [userIdInput, setUserIdInput] = useState('');
+  const [userNameInput, setUserNameInput] = useState('');
+  const [userPasswordInput, setUserPasswordInput] = useState('');
+  const [userPermissionsInput, setUserPermissionsInput] = useState<MainCategoryKey[]>([]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('CRISTALINA_USER_ACCOUNTS', JSON.stringify(userAccounts));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userAccounts]);
+
+  const handleOpenUserModal = (user?: UserAccount) => {
+    if (user) {
+      setEditingUser(user);
+      setUserIdInput(user.id);
+      setUserNameInput(user.nome);
+      setUserPasswordInput(user.senha);
+      setUserPermissionsInput(user.permissoes || []);
+    } else {
+      setEditingUser(null);
+      const nextNum = userAccounts.length + 1;
+      const autoId = `USR-${String(nextNum).padStart(3, '0')}`;
+      setUserIdInput(autoId);
+      setUserNameInput('');
+      setUserPasswordInput('');
+      setUserPermissionsInput(ALL_PERMISSION_CATEGORIES.map(c => c.key));
+    }
+    setShowUserModal(true);
+  };
+
+  const handleSaveUser = () => {
+    if (!userIdInput.trim()) {
+      showToast('O ID do Usuário é obrigatório.', 'warning');
+      return;
+    }
+    if (!userNameInput.trim()) {
+      showToast('O Nome do Usuário é obrigatório.', 'warning');
+      return;
+    }
+    if (!userPasswordInput.trim()) {
+      showToast('A Senha do Usuário é obrigatória.', 'warning');
+      return;
+    }
+
+    const cleanId = userIdInput.trim().toUpperCase();
+
+    if (!editingUser && userAccounts.some(u => u.id === cleanId)) {
+      showToast(`Já existe um usuário cadastrado com o ID "${cleanId}".`, 'warning');
+      return;
+    }
+
+    const newUser: UserAccount = {
+      id: cleanId,
+      nome: userNameInput.trim(),
+      senha: userPasswordInput.trim(),
+      permissoes: userPermissionsInput,
+      createdAt: editingUser?.createdAt || new Date().toLocaleDateString('pt-BR')
+    };
+
+    if (editingUser) {
+      setUserAccounts(prev => prev.map(u => u.id === editingUser.id ? newUser : u));
+      showToast(`Usuário "${newUser.nome}" atualizado com sucesso!`, 'success');
+    } else {
+      setUserAccounts(prev => [...prev, newUser]);
+      showToast(`Usuário "${newUser.nome}" cadastrado com sucesso!`, 'success');
+    }
+
+    setShowUserModal(false);
+  };
+
+  const handleDeleteUser = (user: UserAccount) => {
+    if (window.confirm(`Tem certeza que deseja excluir o usuário "${user.nome}" (${user.id})?`)) {
+      setUserAccounts(prev => prev.filter(u => u.id !== user.id));
+      showToast(`Usuário "${user.nome}" foi excluído com sucesso.`, 'info');
+    }
+  };
+
+  const toggleAllPermissions = (checkAll: boolean) => {
+    if (checkAll) {
+      setUserPermissionsInput(ALL_PERMISSION_CATEGORIES.map(c => c.key));
+    } else {
+      setUserPermissionsInput([]);
+    }
+  };
+
+  const toggleCategoryPermission = (catKey: MainCategoryKey) => {
+    setUserPermissionsInput(prev =>
+      prev.includes(catKey)
+        ? prev.filter(k => k !== catKey)
+        : [...prev, catKey]
+    );
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -3907,7 +4087,7 @@ export default function App() {
         </div>
       )}
 
-      {/* TELA DE CONFIGURAÇÕES EM TELA CHEIA EM BRANCO COM BOTÃO VOLTAR EM AZUL */}
+      {/* TELA DE CONFIGURAÇÕES EM TELA CHEIA COM NOME PERMISSÕES NO MESMO PADRÃO E TAMANHO DO BOTÃO VOLTAR */}
       {showSettingsModal && (
         <div
           style={{
@@ -3916,49 +4096,610 @@ export default function App() {
             left: 0,
             width: '100vw',
             height: '100vh',
-            backgroundColor: '#ffffff',
+            backgroundColor: '#f8f9fa',
             zIndex: 999999,
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}
         >
-          {/* Topo com Botão Voltar no padrão Azul (#0078d4) */}
+          {/* Topo com Botão Voltar e Botão Permissões no mesmo padrão Azul (#0078d4) e mesmo tamanho */}
           <div
             style={{
               padding: '10px 16px',
               borderBottom: '1px solid #e1dfdd',
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: '#ffffff'
+              justifyContent: 'space-between',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
             }}
           >
-            <button
-              onClick={() => setShowSettingsModal(false)}
-              style={{
-                backgroundColor: '#0078d4',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                boxShadow: '0 1px 3px rgba(0, 120, 212, 0.2)',
-                transition: 'background-color 0.15s ease'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#106ebe')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0078d4')}
-            >
-              <i className="fa-solid fa-arrow-left" style={{ fontSize: '11px' }}></i>
-              <span>Voltar</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 1px 3px rgba(0, 120, 212, 0.2)',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#106ebe')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0078d4')}
+              >
+                <i className="fa-solid fa-arrow-left" style={{ fontSize: '11px' }}></i>
+                <span>Voltar</span>
+              </button>
+
+              <button
+                onClick={() => setSettingsTab('permissoes')}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 1px 3px rgba(0, 120, 212, 0.2)',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#106ebe')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0078d4')}
+              >
+                <i className="fa-solid fa-user-shield" style={{ fontSize: '11px' }}></i>
+                <span>Permissões</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#323130', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i className="fa-solid fa-gear" style={{ color: '#0078d4' }}></i>
+                Configurações & Controle de Acesso
+              </span>
+            </div>
           </div>
 
-          {/* Conteúdo em branco da tela */}
-          <div style={{ flex: 1, backgroundColor: '#ffffff' }}></div>
+          {/* Conteúdo Principal da Tela de Permissões */}
+          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+            {/* Banner Informativo */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e1dfdd',
+              borderRadius: '8px',
+              padding: '20px',
+              marginBottom: '20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0078d4', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-users-gear"></i>
+                  Cadastro e Permissões de Usuários
+                </h2>
+                <p style={{ fontSize: '13px', color: '#605e5c', margin: 0 }}>
+                  Cadastre novos usuários com ID, Nome e Senha, e selecione as categorias que cada usuário pode mexer/acessar.
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleOpenUserModal()}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 4px rgba(0, 120, 212, 0.25)',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#106ebe')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0078d4')}
+              >
+                <i className="fa-solid fa-user-plus"></i>
+                <span>+ Cadastrar Novo Usuário</span>
+              </button>
+            </div>
+
+            {/* Barra de Busca e Filtros */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e1dfdd',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#a19f9d', fontSize: '12px' }}></i>
+                <input
+                  type="text"
+                  value={searchUserQuery}
+                  onChange={e => setSearchUserQuery(e.target.value)}
+                  placeholder="Buscar por ID ou Nome do Usuário..."
+                  style={{
+                    width: '100%',
+                    padding: '6px 12px 6px 32px',
+                    borderRadius: '4px',
+                    border: '1px solid #8a8886',
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ fontSize: '12px', color: '#605e5c', fontWeight: 500 }}>
+                Total de Usuários Cadastrados: <strong style={{ color: '#0078d4' }}>{userAccounts.length}</strong>
+              </div>
+            </div>
+
+            {/* Tabela de Usuários */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e1dfdd',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f3f2f1', borderBottom: '1px solid #e1dfdd', color: '#323130' }}>
+                    <th style={{ padding: '10px 14px', fontWeight: 700, width: '130px' }}>ID DO USUÁRIO</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 700, minWidth: '180px' }}>NOME DO USUÁRIO</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 700, width: '160px' }}>SENHA</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 700 }}>PERMISSÕES POR CATEGORIA</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 700, width: '120px', textAlign: 'center' }}>AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const filteredUsers = userAccounts.filter(u =>
+                      u.id.toLowerCase().includes(searchUserQuery.toLowerCase()) ||
+                      u.nome.toLowerCase().includes(searchUserQuery.toLowerCase())
+                    );
+
+                    if (filteredUsers.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#605e5c' }}>
+                            <i className="fa-solid fa-user-slash" style={{ fontSize: '24px', color: '#a19f9d', marginBottom: '8px', display: 'block' }}></i>
+                            Nenhum usuário encontrado com os critérios digitados.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filteredUsers.map((user, idx) => {
+                      const isShowPass = !!showPasswordMap[user.id];
+                      const isAllPerms = user.permissoes.length === ALL_PERMISSION_CATEGORIES.length;
+
+                      return (
+                        <tr
+                          key={user.id}
+                          style={{
+                            borderBottom: '1px solid #edebe9',
+                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#faf9f8'
+                          }}
+                        >
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: '#eff6fc',
+                              color: '#0078d4',
+                              border: '1px solid #c7e0f4',
+                              fontWeight: 700,
+                              fontSize: '11px'
+                            }}>
+                              <i className="fa-solid fa-id-badge"></i>
+                              {user.id}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#323130' }}>
+                            {user.nome}
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontFamily: isShowPass ? 'inherit' : 'monospace', fontSize: '13px', fontWeight: 600, letterSpacing: isShowPass ? 'normal' : '2px' }}>
+                                {isShowPass ? user.senha : '••••••••'}
+                              </span>
+                              <button
+                                onClick={() => setShowPasswordMap(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                                title={isShowPass ? "Ocultar Senha" : "Exibir Senha"}
+                                style={{ background: 'none', border: 'none', color: '#605e5c', cursor: 'pointer', fontSize: '12px', padding: '2px' }}
+                              >
+                                <i className={`fa-solid ${isShowPass ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            {isAllPerms ? (
+                              <span style={{
+                                backgroundColor: '#dff6dd',
+                                color: '#107c41',
+                                border: '1px solid #92c353',
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                fontWeight: 600,
+                                fontSize: '11px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <i className="fa-solid fa-check-double"></i> Acesso Total (Todas as 12 Categorias)
+                              </span>
+                            ) : user.permissoes.length === 0 ? (
+                              <span style={{
+                                backgroundColor: '#fde7e9',
+                                color: '#a80000',
+                                border: '1px solid #f3b2b3',
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                fontWeight: 600,
+                                fontSize: '11px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <i className="fa-solid fa-ban"></i> Nenhuma permissão selecionada
+                              </span>
+                            ) : (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {user.permissoes.map(permKey => {
+                                  const catObj = ALL_PERMISSION_CATEGORIES.find(c => c.key === permKey);
+                                  return (
+                                    <span
+                                      key={permKey}
+                                      style={{
+                                        backgroundColor: '#f3f2f1',
+                                        color: '#323130',
+                                        border: '1px solid #d2d0ce',
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <i className={`fa-solid ${catObj?.icon || 'fa-folder'}`} style={{ color: '#0078d4', fontSize: '10px' }}></i>
+                                      {catObj ? catObj.label : permKey}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                              <button
+                                onClick={() => handleOpenUserModal(user)}
+                                title="Editar Usuário"
+                                style={{
+                                  backgroundColor: '#eff6fc',
+                                  color: '#0078d4',
+                                  border: '1px solid #c7e0f4',
+                                  borderRadius: '4px',
+                                  padding: '4px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <i className="fa-solid fa-pen-to-square"></i>
+                                <span>Editar</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteUser(user)}
+                                title="Excluir Usuário"
+                                style={{
+                                  backgroundColor: '#fde7e9',
+                                  color: '#a80000',
+                                  border: '1px solid #f3b2b3',
+                                  borderRadius: '4px',
+                                  padding: '4px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CADASTRO / EDIÇÃO DE USUÁRIO E PERMISSÕES */}
+      {showUserModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          zIndex: 9999999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '8px',
+            width: '100%',
+            maxWidth: '650px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Cabeçalho do Modal */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid #e1dfdd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0078d4', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-user-lock"></i>
+                {editingUser ? `Editar Usuário: ${editingUser.nome}` : 'Cadastrar Novo Usuário'}
+              </h3>
+              <button
+                onClick={() => setShowUserModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '16px', color: '#605e5c', cursor: 'pointer' }}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            {/* Corpo do Modal */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* ID DO USUÁRIO, NOME E SENHA */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#323130', display: 'block', marginBottom: '4px' }}>
+                    ID do Usuário <span style={{ color: '#a80000' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={userIdInput}
+                    onChange={e => setUserIdInput(e.target.value)}
+                    placeholder="Ex: USR-001"
+                    disabled={!!editingUser}
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '4px',
+                      border: '1px solid #8a8886',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      backgroundColor: editingUser ? '#f3f2f1' : '#ffffff'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#323130', display: 'block', marginBottom: '4px' }}>
+                    Nome do Usuário <span style={{ color: '#a80000' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={userNameInput}
+                    onChange={e => setUserNameInput(e.target.value)}
+                    placeholder="Ex: João da Silva"
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '4px',
+                      border: '1px solid #8a8886',
+                      fontSize: '12px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#323130', display: 'block', marginBottom: '4px' }}>
+                  Senha de Acesso <span style={{ color: '#a80000' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={userPasswordInput}
+                  onChange={e => setUserPasswordInput(e.target.value)}
+                  placeholder="Digite a senha..."
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #8a8886',
+                    fontSize: '12px'
+                  }}
+                />
+              </div>
+
+              {/* SELEÇÃO DE PERMISSÕES POR CATEGORIA */}
+              <div style={{ borderTop: '1px solid #e1dfdd', paddingTop: '16px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: '#323130', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-list-check" style={{ color: '#0078d4' }}></i>
+                    Permissões por Categoria (O que o usuário pode mexer):
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleAllPermissions(true)}
+                      style={{
+                        backgroundColor: '#eff6fc',
+                        color: '#0078d4',
+                        border: '1px solid #c7e0f4',
+                        borderRadius: '4px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Marcar Todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleAllPermissions(false)}
+                      style={{
+                        backgroundColor: '#f3f2f1',
+                        color: '#605e5c',
+                        border: '1px solid #d2d0ce',
+                        borderRadius: '4px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Desmarcar Todas
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                  gap: '8px',
+                  backgroundColor: '#f8f9fa',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e1dfdd',
+                  maxHeight: '260px',
+                  overflowY: 'auto'
+                }}>
+                  {ALL_PERMISSION_CATEGORIES.map(cat => {
+                    const isChecked = userPermissionsInput.includes(cat.key);
+                    return (
+                      <label
+                        key={cat.key}
+                        onClick={() => toggleCategoryPermission(cat.key)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 10px',
+                          borderRadius: '4px',
+                          backgroundColor: isChecked ? '#eff6fc' : '#ffffff',
+                          border: isChecked ? '1px solid #0078d4' : '1px solid #e1dfdd',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}} // handled by parent label onClick
+                          style={{ accentColor: '#0078d4', cursor: 'pointer' }}
+                        />
+                        <i className={`fa-solid ${cat.icon}`} style={{ fontSize: '11px', color: isChecked ? '#0078d4' : '#605e5c', width: '14px', textAlign: 'center' }}></i>
+                        <span style={{ fontSize: '12px', fontWeight: isChecked ? 600 : 400, color: isChecked ? '#0078d4' : '#323130' }}>
+                          {cat.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div style={{
+              padding: '12px 20px',
+              borderTop: '1px solid #e1dfdd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '8px',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <button
+                onClick={() => setShowUserModal(false)}
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#323130',
+                  border: '1px solid #8a8886',
+                  borderRadius: '4px',
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveUser}
+                style={{
+                  backgroundColor: '#0078d4',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 16px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0, 120, 212, 0.25)'
+                }}
+              >
+                <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i>
+                Salvar Usuário
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
