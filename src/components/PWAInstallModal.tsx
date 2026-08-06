@@ -68,11 +68,11 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
         </button>
 
         <div className="confirm-modal-header">
-          <div className="confirm-modal-icon-badge primary" style={{ backgroundColor: '#eff6fc', color: '#0078d4' }}>
+          <div className="confirm-modal-icon-badge primary" style={{ backgroundColor: '#e8f5e9', color: '#187a41', padding: '2px' }}>
             <img 
               src="/icon-192.png" 
-              alt="Cristalina Logo" 
-              style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }}
+              alt="Logo IGARASHI" 
+              style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'cover' }}
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
               }}

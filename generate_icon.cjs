@@ -1,4 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+
+// Create the green IGARASHI logo SVG matching Image 2
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <!-- Green Squircle Background -->
   <rect width="512" height="512" rx="105" fill="#187a41"/>
 
@@ -63,4 +68,28 @@
 
   <!-- IGARASHI TEXT -->
   <text x="256" y="462" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="52" letter-spacing="4">IGARASHI</text>
-</svg>
+</svg>`;
+
+async function run() {
+  const publicDir = path.join(__dirname, 'public');
+  
+  // Save SVGs
+  fs.writeFileSync(path.join(publicDir, 'favicon.svg'), svgContent);
+  fs.writeFileSync(path.join(publicDir, 'icon-192.svg'), svgContent);
+  fs.writeFileSync(path.join(publicDir, 'icon-512.svg'), svgContent);
+  fs.writeFileSync(path.join(publicDir, 'icon-maskable-192.svg'), svgContent);
+  fs.writeFileSync(path.join(publicDir, 'icon-maskable-512.svg'), svgContent);
+
+  const buffer = Buffer.from(svgContent);
+
+  // Render PNGs
+  await sharp(buffer).resize(192, 192).png().toFile(path.join(publicDir, 'icon-192.png'));
+  await sharp(buffer).resize(512, 512).png().toFile(path.join(publicDir, 'icon-512.png'));
+  await sharp(buffer).resize(192, 192).png().toFile(path.join(publicDir, 'icon-maskable-192.png'));
+  await sharp(buffer).resize(512, 512).png().toFile(path.join(publicDir, 'icon-maskable-512.png'));
+  await sharp(buffer).resize(180, 180).png().toFile(path.join(publicDir, 'apple-touch-icon.png'));
+
+  console.log('Icons generated successfully!');
+}
+
+run().catch(console.error);
