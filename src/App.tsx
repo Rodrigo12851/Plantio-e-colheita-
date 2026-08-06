@@ -312,7 +312,51 @@ export default function App() {
   const [unidadesList, setUnidadesList] = useState<string[]>(['Cristalina', 'São Gabriel', 'Uberlândia']);
   const [selectedUnidade, setSelectedUnidade] = useState<string>('Cristalina');
   const [showUnidadeModal, setShowUnidadeModal] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [settingsTab, setSettingsTab] = useState<'geral' | 'unidades' | 'offline' | 'backup'>('geral');
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [newUnidadeInput, setNewUnidadeInput] = useState<string>('');
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleExportBackup = () => {
+    const backupData = {
+      exportDate: new Date().toISOString(),
+      unidades: unidadesList,
+      selectedUnidade,
+      colheita: colheitaData,
+      plantio: plantioData,
+      culturas: culturasData,
+      variedades: variedadesData,
+      pivos: pivosData,
+      glebas: glebasData,
+      fazendas: fazendasData,
+      empresas: empresasData,
+      anos: anosData,
+      colaboradores: colaboradoresData,
+      motoristas: motoristasData,
+      onibus: onibusData,
+      amarracoes: amarracoesData,
+      lixeira: trashData,
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `cristalina_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showToast('Backup dos dados exportado com sucesso!', 'success');
+  };
 
   useEffect(() => {
     setSelectedEmpresaForTie('');
@@ -2520,20 +2564,30 @@ export default function App() {
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              fontWeight: 600,
-              padding: '4px 10px',
+              justifyContent: 'center',
+              fontSize: '14px',
+              padding: '6px 10px',
               borderRadius: '4px',
               transition: 'all 0.15s ease'
             }}
           >
             <i className="fa-solid fa-download"></i>
-            <span>Instalar App</span>
           </button>
-          <i className="fa-regular fa-bell"></i>
-          <i className="fa-solid fa-gear"></i>
-          <div className="user-avatar">R</div>
+          <i className="fa-regular fa-bell" title="Notificações" style={{ cursor: 'pointer' }}></i>
+          <i
+            className="fa-solid fa-gear"
+            title="Configurações do Sistema"
+            onClick={() => setShowSettingsModal(true)}
+            style={{ cursor: 'pointer', fontSize: '16px', padding: '6px', borderRadius: '4px', transition: 'background-color 0.15s' }}
+          ></i>
+          <div
+            className="user-avatar"
+            title="Configurações do Perfil"
+            onClick={() => setShowSettingsModal(true)}
+            style={{ cursor: 'pointer' }}
+          >
+            R
+          </div>
         </div>
       </div>
 
@@ -2648,7 +2702,7 @@ export default function App() {
                 {getUnitInitials(selectedUnidade)}
               </div>
               <div className="list-title-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{selectedUnidade} - Controle Agricola Apontadores</span>
+                <span>{selectedUnidade} - Controle Agrícola</span>
                 <i className="fa-solid fa-chevron-down" style={{ fontSize: '12px', color: '#605e5c' }}></i>
               </div>
             </div>
@@ -3719,6 +3773,332 @@ export default function App() {
                   + Adicionar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIGURAÇÕES DO SISTEMA */}
+      {showSettingsModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowSettingsModal(false)}
+          style={{ display: 'flex', zIndex: 99999 }}
+        >
+          <div
+            className="modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '680px',
+              width: '92%',
+              padding: '0',
+              borderRadius: '12px',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
+              border: '1px solid #d2d0ce',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '90vh'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ backgroundColor: '#187a41', color: '#ffffff', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                  <i className="fa-solid fa-gear"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#ffffff' }}>
+                    Configurações do Sistema
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '12px', opacity: 0.9 }}>
+                    Controle Agrícola • Grupo IGARASHI
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '18px', cursor: 'pointer', padding: '4px' }}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            {/* Modal Tabs Header */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #e1dfdd', backgroundColor: '#f3f2f1', padding: '0 12px', overflowX: 'auto' }}>
+              <button
+                onClick={() => setSettingsTab('geral')}
+                style={{
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderBottom: settingsTab === 'geral' ? '3px solid #187a41' : '3px solid transparent',
+                  backgroundColor: settingsTab === 'geral' ? '#ffffff' : 'transparent',
+                  color: settingsTab === 'geral' ? '#187a41' : '#605e5c',
+                  fontWeight: settingsTab === 'geral' ? 700 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <i className="fa-solid fa-sliders"></i> Geral & PWA
+              </button>
+              <button
+                onClick={() => setSettingsTab('unidades')}
+                style={{
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderBottom: settingsTab === 'unidades' ? '3px solid #187a41' : '3px solid transparent',
+                  backgroundColor: settingsTab === 'unidades' ? '#ffffff' : 'transparent',
+                  color: settingsTab === 'unidades' ? '#187a41' : '#605e5c',
+                  fontWeight: settingsTab === 'unidades' ? 700 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <i className="fa-solid fa-building"></i> Unidades ({unidadesList.length})
+              </button>
+              <button
+                onClick={() => setSettingsTab('offline')}
+                style={{
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderBottom: settingsTab === 'offline' ? '3px solid #187a41' : '3px solid transparent',
+                  backgroundColor: settingsTab === 'offline' ? '#ffffff' : 'transparent',
+                  color: settingsTab === 'offline' ? '#187a41' : '#605e5c',
+                  fontWeight: settingsTab === 'offline' ? 700 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <i className="fa-solid fa-wifi"></i> Modo Offline
+              </button>
+              <button
+                onClick={() => setSettingsTab('backup')}
+                style={{
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderBottom: settingsTab === 'backup' ? '3px solid #187a41' : '3px solid transparent',
+                  backgroundColor: settingsTab === 'backup' ? '#ffffff' : 'transparent',
+                  color: settingsTab === 'backup' ? '#187a41' : '#605e5c',
+                  fontWeight: settingsTab === 'backup' ? 700 : 500,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <i className="fa-solid fa-database"></i> Backup & Dados
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+              {settingsTab === 'geral' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: '#f8f9fa', border: '1px solid #e1dfdd', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <img src="/icon-192.png" alt="Logo IGARASHI" style={{ width: '56px', height: '56px', borderRadius: '12px', objectFit: 'cover' }} />
+                    <div>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#323130' }}>Controle Agrícola PWA</h4>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#605e5c' }}>
+                        Versão 2.4.0 • Logística Agrícola & Apontamentos IGARASHI
+                      </p>
+                      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '11px', fontWeight: 600, color: '#187a41', backgroundColor: '#e8f5e9', padding: '2px 8px', borderRadius: '12px' }}>
+                        PWA Atualizado & Ativo
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ border: '1px solid #e1dfdd', borderRadius: '8px', padding: '16px' }}>
+                    <h5 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#323130', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-mobile-screen-button" style={{ color: '#187a41' }}></i> Instalação no Dispositivo
+                    </h5>
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#605e5c', lineHeight: 1.5 }}>
+                      Instale o Controle Agrícola na tela inicial do seu celular Android ou computador para acesso rápido direto em tela cheia e suporte offline completo.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        setIsPwaModalOpen(true);
+                      }}
+                      style={{
+                        backgroundColor: '#187a41',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '10px 18px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <i className="fa-solid fa-download"></i> Abrir Menu de Instalação PWA
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === 'unidades' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', color: '#323130' }}>Unidades de Produção Cadastradas</h4>
+                    <span style={{ fontSize: '12px', color: '#605e5c' }}>Unidade ativa atual: <strong>{selectedUnidade}</strong></span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                    {unidadesList.map((unit) => {
+                      const isSelected = unit === selectedUnidade;
+                      return (
+                        <div
+                          key={unit}
+                          onClick={() => {
+                            setSelectedUnidade(unit);
+                            showToast(`Unidade alterada para "${unit}"`, 'info');
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            borderRadius: '6px',
+                            border: isSelected ? '2px solid #187a41' : '1px solid #e1dfdd',
+                            backgroundColor: isSelected ? '#e8f5e9' : '#ffffff',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '30px', height: '30px', borderRadius: '4px', backgroundColor: isSelected ? '#187a41' : '#605e5c', color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {getUnitInitials(unit)}
+                            </div>
+                            <span style={{ fontSize: '14px', fontWeight: isSelected ? 600 : 400, color: '#323130' }}>{unit}</span>
+                          </div>
+                          {isSelected && (
+                            <span style={{ fontSize: '12px', color: '#187a41', fontWeight: 600 }}>
+                              <i className="fa-solid fa-circle-check"></i> Ativa
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #e1dfdd', paddingTop: '14px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#323130', display: 'block', marginBottom: '6px' }}>
+                      Adicionar Nova Unidade:
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        value={newUnidadeInput}
+                        onChange={e => setNewUnidadeInput(e.target.value)}
+                        placeholder="Ex: São Gabriel, Uberlândia..."
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #8a8886', fontSize: '13px' }}
+                      />
+                      <button
+                        onClick={handleAddUnidade}
+                        style={{ backgroundColor: '#187a41', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '8px 16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
+                      >
+                        + Cadastrar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === 'offline' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: isOnline ? '#e8f5e9' : '#fff3e0', border: `1px solid ${isOnline ? '#c8e6c9' : '#ffe0b2'}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <i className={`fa-solid ${isOnline ? 'fa-wifi' : 'fa-plane'}`} style={{ fontSize: '24px', color: isOnline ? '#2e7d32' : '#e65100' }}></i>
+                    <div>
+                      <h4 style={{ margin: '0 0 2px 0', fontSize: '15px', color: isOnline ? '#1b5e20' : '#e65100' }}>
+                        {isOnline ? 'Status: Conectado à Nuvem (Online)' : 'Status: Modo Offline (Sem Internet)'}
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#555' }}>
+                        {isOnline 
+                          ? 'Seus lançamentos, edições e exclusões são sincronizados em tempo real com o Firestore.'
+                          : 'As alterações feitas agora são salvas com segurança no IndexedDB do dispositivo e serão enviadas automaticamente assim que a conexão retornar.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ border: '1px solid #e1dfdd', borderRadius: '8px', padding: '14px' }}>
+                    <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#323130' }}>
+                      <i className="fa-solid fa-shield-halved" style={{ color: '#187a41', marginRight: '6px' }}></i> Garantia de Exclusões e Sincronização
+                    </h5>
+                    <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12px', color: '#605e5c', lineHeight: 1.6 }}>
+                      <li><strong>Exclusões offline são definitivas:</strong> Se você excluir um item estando offline, a exclusão é gravada na fila do dispositivo. Quando a internet voltar, o item é deletado da nuvem e NUNCA mais reaparece.</li>
+                      <li><strong>Nenhum item antigo volta:</strong> O sistema bloqueia a recriação automática de dados padrão enquanto estiver offline ou lendo do cache local.</li>
+                      <li><strong>Cache em IndexedDB:</strong> Os dados armazenados continuam visíveis mesmo que o celular seja desligado ou reiniciado.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === 'backup' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ border: '1px solid #e1dfdd', borderRadius: '8px', padding: '16px' }}>
+                    <h5 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#323130', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="fa-solid fa-file-arrow-down" style={{ color: '#187a41' }}></i> Exportar Backup dos Dados (JSON)
+                    </h5>
+                    <p style={{ margin: '0 0 14px 0', fontSize: '12px', color: '#605e5c', lineHeight: 1.5 }}>
+                      Baixe um arquivo seguro de backup contendo todos os lançamentos de Colheita, Plantio, Variedades, Pessoas, Veículos e Amarrações da sua unidade.
+                    </p>
+                    <button
+                      onClick={handleExportBackup}
+                      style={{
+                        backgroundColor: '#187a41',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '10px 18px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <i className="fa-solid fa-download"></i> Baixar Backup Completo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #e1dfdd', backgroundColor: '#f3f2f1', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#323130',
+                  border: '1px solid #8a8886',
+                  borderRadius: '4px',
+                  padding: '8px 18px',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
