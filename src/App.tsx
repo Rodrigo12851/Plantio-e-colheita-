@@ -2471,28 +2471,17 @@ export default function App() {
       
       {/* BARRA SUPERIOR */}
       <div className="topbar">
-        <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button className="btn-toggle-menu" onClick={toggleSidebar} aria-label="Abrir Menu">
             <i className="fa-solid fa-bars"></i>
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => switchPage('plantio')}>
-            <img 
-              src="/icon-192.png" 
-              alt="Controle Agrícola Logo" 
-              style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover' }} 
-              referrerPolicy="no-referrer"
-            />
-            <span style={{ fontWeight: 700, fontSize: '15px', color: '#ffffff', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
-              Controle Agrícola
-            </span>
-          </div>
           <button
             className="btn-6-dots"
             onClick={() => setIsAmarracoesWindowOpen(true)}
             title="Abrir Janela de Marcações e Amarrações (6 pontinhos)"
             style={{
-              backgroundColor: isAmarracoesWindowOpen ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-              color: '#ffffff',
+              backgroundColor: isAmarracoesWindowOpen ? '#0078d4' : 'transparent',
+              color: isAmarracoesWindowOpen ? '#ffffff' : '#323130',
               border: 'none',
               borderRadius: '4px',
               padding: '6px 8px',
@@ -2569,13 +2558,6 @@ export default function App() {
 
         {/* MENU LATERAL */}
         <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`} id="sidebar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 12px 16px', borderBottom: '1px solid #edebe9', marginBottom: '8px' }}>
-            <img src="/icon-192.png" alt="Controle Agrícola" style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '14px', color: '#187a36', lineHeight: 1.2 }}>Controle Agrícola</div>
-              <div style={{ fontSize: '11px', color: '#605e5c', fontWeight: 600 }}>IGARASHI</div>
-            </div>
-          </div>
           <div className="sidebar-title">Navegação</div>
           <div
             className="sidebar-item"
