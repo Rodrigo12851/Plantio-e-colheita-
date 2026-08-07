@@ -2811,7 +2811,7 @@ export default function App() {
   if (!currentUser) {
     return (
       <div style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         width: '100vw',
         display: 'flex',
         alignItems: 'center',
@@ -2819,7 +2819,7 @@ export default function App() {
         backgroundColor: '#002050',
         backgroundImage: 'radial-gradient(circle at 50% 30%, #003366 0%, #001529 100%)',
         fontFamily: 'Segoe UI, system-ui, -apple-system, sans-serif',
-        padding: '16px',
+        padding: '16px 12px',
         boxSizing: 'border-box'
       }}>
         <div style={{
@@ -2830,42 +2830,41 @@ export default function App() {
           boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
           overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column',
-          margin: 'auto'
+          flexDirection: 'column'
         }}>
           {/* Header da Tela de Login */}
           <div style={{
             backgroundColor: '#0078d4',
-            padding: '28px 24px 22px 24px',
+            padding: '24px 20px 20px 20px',
             color: '#ffffff',
             textAlign: 'center',
             position: 'relative'
           }}>
             <div style={{
-              width: '56px',
-              height: '56px',
+              width: '52px',
+              height: '52px',
               borderRadius: '50%',
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '12px',
+              marginBottom: '10px',
               backdropFilter: 'blur(4px)',
               border: '2px solid rgba(255, 255, 255, 0.3)'
             }}>
-              <i className="fa-solid fa-wheat-awn" style={{ fontSize: '26px', color: '#ffffff' }}></i>
+              <i className="fa-solid fa-wheat-awn" style={{ fontSize: '24px', color: '#ffffff' }}></i>
             </div>
 
-            <h1 style={{ margin: '0 0 4px 0', fontSize: '22px', fontWeight: 700, letterSpacing: '0.5px' }}>
+            <h1 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: 700, letterSpacing: '0.5px' }}>
               CRISTALINA
             </h1>
-            <p style={{ margin: 0, fontSize: '13px', opacity: 0.9, fontWeight: 500 }}>
+            <p style={{ margin: 0, fontSize: '12px', opacity: 0.9, fontWeight: 500 }}>
               Sistema Agromineiro / Controle Agrícola
             </p>
           </div>
 
           {/* Form de Login */}
-          <form onSubmit={handleLoginSubmit} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleLoginSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {loginErrorMsg && (
               <div style={{
@@ -2898,10 +2897,10 @@ export default function App() {
                 autoFocus
                 style={{
                   width: '100%',
-                  padding: '10px 12px',
+                  padding: '12px 14px',
                   borderRadius: '6px',
                   border: '1px solid #8a8886',
-                  fontSize: '13px',
+                  fontSize: '15px',
                   outline: 'none',
                   boxSizing: 'border-box'
                 }}
@@ -2921,10 +2920,10 @@ export default function App() {
                   placeholder="Digite sua senha..."
                   style={{
                     width: '100%',
-                    padding: '10px 38px 10px 12px',
+                    padding: '12px 42px 12px 14px',
                     borderRadius: '6px',
                     border: '1px solid #8a8886',
-                    fontSize: '13px',
+                    fontSize: '15px',
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
@@ -2934,14 +2933,15 @@ export default function App() {
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
                   style={{
                     position: 'absolute',
-                    right: '10px',
+                    right: '12px',
                     top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'none',
                     border: 'none',
                     color: '#605e5c',
                     cursor: 'pointer',
-                    fontSize: '14px'
+                    fontSize: '16px',
+                    padding: '4px'
                   }}
                   title={showLoginPassword ? "Ocultar Senha" : "Exibir Senha"}
                 >
@@ -2960,10 +2960,10 @@ export default function App() {
                 onChange={e => setLoginUnidade(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '10px 12px',
+                  padding: '12px 14px',
                   borderRadius: '6px',
                   border: '1px solid #8a8886',
-                  fontSize: '13px',
+                  fontSize: '15px',
                   backgroundColor: '#ffffff',
                   outline: 'none',
                   boxSizing: 'border-box'
@@ -2983,8 +2983,8 @@ export default function App() {
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '6px',
-                padding: '12px',
-                fontSize: '14px',
+                padding: '14px',
+                fontSize: '15px',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',

@@ -787,70 +787,6 @@ table.grid-editing td[contenteditable="true"] {
   }
 }
 
-@media (max-width: 640px) {
-  .topbar {
-    padding: 0 8px;
-    gap: 6px;
-  }
-
-  .search-box-container {
-    margin: 0 4px;
-  }
-
-  .list-header {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 8px;
-    padding: 10px 12px;
-  }
-
-  .list-header-left {
-    justify-content: center;
-  }
-
-  .command-bar {
-    justify-content: center;
-    padding: 8px;
-    gap: 6px;
-  }
-
-  .sub-bar {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 8px;
-    padding: 8px;
-  }
-
-  .sub-controls {
-    justify-content: center;
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .modal-backdrop {
-    padding: 12px;
-  }
-
-  .modal-content {
-    max-width: 100%;
-    margin: auto;
-  }
-
-  .toast-container {
-    bottom: 12px;
-    right: 12px;
-    left: 12px;
-  }
-
-  .toast-message {
-    max-width: 100%;
-  }
-}
-
 /* TOAST NOTIFICATION BANNER */
 .toast-container {
   position: fixed;
@@ -1284,6 +1220,221 @@ table.grid-editing td[contenteditable="true"] {
 @media (max-width: 480px) {
   .amarracoes-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* OTIMIZAÇÃO COMPLETA PARA MODO MOBILE (CELULAR < 768px) */
+@media (max-width: 768px) {
+  /* BARRA SUPERIOR E NAVEGAÇÃO */
+  .topbar {
+    padding: 6px 10px;
+    height: auto;
+    min-height: 48px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-left {
+    gap: 8px;
+  }
+
+  .topbar-left span {
+    font-size: 14px !important;
+  }
+
+  .search-box-container {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+    margin: 4px 0 2px 0;
+  }
+
+  .search-box {
+    height: 36px;
+  }
+
+  .search-box input {
+    font-size: 14px;
+  }
+
+  .topbar-right {
+    gap: 8px;
+  }
+
+  /* DESLOCAMENTO E MENU LATERAL DRAWER */
+  .left-mini-bar {
+    display: none !important;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100dvh;
+    background-color: #ffffff;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 3500;
+    overflow-y: auto;
+    transition: transform 0.25s ease-in-out;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    z-index: 3400;
+  }
+
+  .sidebar-item {
+    min-height: 44px;
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+
+  /* BARRA DE COMANDOS E FILTROS DO APP */
+  .command-bar {
+    padding: 8px 10px;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+  }
+
+  .cmd-btn, .btn-add-item {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .sub-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .sub-controls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* TABELAS E ROLAGEM TOUCH NO CELULAR */
+  .table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 12px;
+    border-radius: 0;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th {
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+
+  td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .action-cell {
+    width: 80px;
+  }
+
+  .btn-action-row {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-height: 32px;
+  }
+
+  /* PAINÉIS E MODAIS EM MODO FULL-SCREEN MOBILE */
+  .modal-overlay {
+    align-items: flex-end;
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-width: 100%;
+    height: 92dvh;
+    border-radius: 16px 16px 0 0;
+    padding: 16px 16px 24px 16px;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .confirm-modal-card {
+    width: 95%;
+    max-width: 100%;
+    margin: 10px auto;
+    border-radius: 12px;
+  }
+
+  .confirm-modal-header {
+    padding: 16px;
+  }
+
+  .confirm-modal-body {
+    padding: 16px;
+  }
+
+  .confirm-modal-footer {
+    padding: 14px 16px;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .confirm-modal-footer button {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  /* FORMULÁRIOS E INPUTS RESPONSIVOS */
+  .form-group input, 
+  .form-group select, 
+  .form-group textarea {
+    font-size: 16px !important; /* Evita zoom forçado do iOS ao focar input */
+    padding: 12px 10px;
+    min-height: 44px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .modal-actions button {
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+    justify-content: center;
+  }
+
+  /* NOTIFICAÇÕES (TOASTS) NO CELULAR */
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: 16px;
+    width: auto;
+  }
+
+  .toast-message {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px 14px;
+    font-size: 13px;
   }
 }
 
