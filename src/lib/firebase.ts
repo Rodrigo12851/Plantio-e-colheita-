@@ -105,27 +105,88 @@ export async function checkOrMarkDbInitialized(hasData: boolean): Promise<boolea
   return false;
 }
 
-// Generic helper to subscribe to a Firestore collection with real-time updates
+// Local Storage Cache Helpers for Offline Support
+const getLocalCacheKey = (colName: string) => `CRISTALINA_OFFLINE_CACHE_${colName}`;
+
+export function getLocalCache<T>(colName: string): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(getLocalCacheKey(colName));
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn(`[LocalCache] Erro ao ler cache de ${colName}:`, e);
+  }
+  return [];
+}
+
+export function setLocalCache<T>(colName: string, data: T[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(getLocalCacheKey(colName), JSON.stringify(data));
+  } catch (e) {
+    console.warn(`[LocalCache] Erro ao salvar cache de ${colName}:`, e);
+  }
+}
+
+// Active subscribers map for instant local offline updates
+const activeSubscribers: Record<string, Set<(data: any[]) => void>> = {};
+
+function notifySubscribers(collectionName: string, items: any[]) {
+  if (activeSubscribers[collectionName]) {
+    activeSubscribers[collectionName].forEach(callback => {
+      try {
+        callback(items);
+      } catch (err) {
+        console.error(`[LocalCache] Erro ao notificar subscriber de ${collectionName}:`, err);
+      }
+    });
+  }
+}
+
+// Generic helper to subscribe to a Firestore collection with real-time updates & local fallback
 export function subscribeToCollection<T extends { id?: string }>(
   collectionName: string,
   onUpdate: (data: T[]) => void,
   initialSeedIfEmpty?: T[]
 ) {
+  if (!activeSubscribers[collectionName]) {
+    activeSubscribers[collectionName] = new Set();
+  }
+  activeSubscribers[collectionName].add(onUpdate as any);
+
+  // 1. Immediate local cache / initial seed load
+  let localData = getLocalCache<T>(collectionName);
+  if ((!localData || localData.length === 0) && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
+    localData = initialSeedIfEmpty;
+    setLocalCache(collectionName, localData);
+  }
+  if (localData && localData.length > 0) {
+    onUpdate(localData);
+  }
+
+  // 2. Firestore Listener
   const colRef = collection(db, collectionName);
 
-  return onSnapshot(colRef, async (snapshot: QuerySnapshot<DocumentData>) => {
+  const unsubscribe = onSnapshot(colRef, async (snapshot: QuerySnapshot<DocumentData>) => {
     if (snapshot.empty) {
-      // If offline or snapshot came from local cache, do NOT attempt re-seeding
+      const currentCache = getLocalCache<T>(collectionName);
       const isOfflineOrCache = (typeof navigator !== 'undefined' && !navigator.onLine) || snapshot.metadata.fromCache;
-      if (isOfflineOrCache) {
-        onUpdate([]);
+      
+      if (currentCache && currentCache.length > 0) {
+        onUpdate(currentCache);
+        return;
+      }
+
+      if (isOfflineOrCache && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
+        setLocalCache(collectionName, initialSeedIfEmpty);
+        onUpdate(initialSeedIfEmpty);
         return;
       }
 
       const isAlreadyInitialized = await checkOrMarkDbInitialized(false);
 
       if (!isAlreadyInitialized && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
-        console.log(`Coleção ${collectionName} vazia no primeiro carregamento do sistema. Populando dados iniciais no Firestore...`);
+        console.log(`Coleção ${collectionName} vazia no primeiro carregamento. Populando dados iniciais...`);
         try {
           const batch = writeBatch(db);
           for (const item of initialSeedIfEmpty) {
@@ -133,7 +194,6 @@ export function subscribeToCollection<T extends { id?: string }>(
             const { id, ...itemWithoutId } = item as any;
             batch.set(newDocRef, { ...itemWithoutId, createdAt: new Date().toISOString() });
           }
-          // Mark system initialized in Firestore & LocalStorage
           const metaRef = doc(db, "system_metadata", "database_init");
           batch.set(metaRef, { initialized: true, initializedAt: new Date().toISOString() }, { merge: true });
 
@@ -143,14 +203,17 @@ export function subscribeToCollection<T extends { id?: string }>(
         } catch (err) {
           console.error(`Erro ao semear dados na coleção ${collectionName}:`, err);
         }
+        setLocalCache(collectionName, initialSeedIfEmpty);
+        onUpdate(initialSeedIfEmpty);
         return;
       }
 
-      onUpdate([]);
+      if (!currentCache || currentCache.length === 0) {
+        onUpdate([]);
+      }
       return;
     }
 
-    // Mark DB as initialized since at least one collection has data
     checkOrMarkDbInitialized(true);
 
     const rawItems: T[] = [];
@@ -161,7 +224,6 @@ export function subscribeToCollection<T extends { id?: string }>(
       } as unknown as T);
     });
 
-    // Deduplicate items by 'nome' / name fields to purge any existing duplicate documents in Firestore
     const nameBasedCollections = [
       'empresas', 'unidades', 'fazendas', 'pivos', 'glebas', 
       'culturas', 'anos', 'colaboradores', 'motoristas', 'onibus'
@@ -191,10 +253,22 @@ export function subscribeToCollection<T extends { id?: string }>(
       }
     }
 
+    setLocalCache(collectionName, cleanItems);
     onUpdate(cleanItems);
   }, (error) => {
     console.error(`Erro no listener da coleção ${collectionName}:`, error);
+    const fallbackCache = getLocalCache<T>(collectionName);
+    if (fallbackCache && fallbackCache.length > 0) {
+      onUpdate(fallbackCache);
+    }
   });
+
+  return () => {
+    if (activeSubscribers[collectionName]) {
+      activeSubscribers[collectionName].delete(onUpdate as any);
+    }
+    unsubscribe();
+  };
 }
 
 // Helper to strip undefined values recursively so Firestore never throws unsupported field errors
@@ -218,33 +292,65 @@ export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): any
   return clean;
 }
 
-// Save or Update item in Firestore
+// Save or Update item in Firestore & Local Storage
 export async function saveDocument<T extends Record<string, any>>(
   collectionName: string,
   data: T,
   docId?: string
 ) {
-  const colRef = collection(db, collectionName);
-  const rawDataToSave = { ...data, updatedAt: new Date().toISOString() };
+  const targetId = docId || data.id || `loc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const rawDataToSave = { ...data, id: targetId, updatedAt: new Date().toISOString() };
   const dataToSave = sanitizeForFirestore(rawDataToSave);
-  
-  if (docId || data.id) {
-    const targetId = docId || data.id!;
-    const { id, ...cleanData } = dataToSave as any;
-    const docRef = doc(db, collectionName, targetId);
-    await setDoc(docRef, cleanData, { merge: true });
-    return targetId;
+
+  // 1. Immediate local cache update for offline instant response
+  const currentItems = getLocalCache<T>(collectionName);
+  const existingIdx = currentItems.findIndex(i => (i as any).id === targetId);
+  let updatedItems: T[] = [];
+  if (existingIdx >= 0) {
+    updatedItems = [...currentItems];
+    updatedItems[existingIdx] = dataToSave as unknown as T;
   } else {
-    const docRef = await addDoc(colRef, dataToSave);
-    return docRef.id;
+    updatedItems = [dataToSave as unknown as T, ...currentItems];
   }
+  setLocalCache(collectionName, updatedItems);
+  notifySubscribers(collectionName, updatedItems);
+
+  // 2. Background Firestore persistence
+  try {
+    const colRef = collection(db, collectionName);
+    const { id, ...cleanData } = dataToSave as any;
+    
+    if (docId || data.id) {
+      const docRef = doc(db, collectionName, targetId);
+      await setDoc(docRef, cleanData, { merge: true });
+    } else {
+      const docRef = doc(db, collectionName, targetId);
+      await setDoc(docRef, cleanData, { merge: true });
+    }
+  } catch (err) {
+    console.warn(`[Firebase] Gravação salva localmente no modo offline para ${collectionName}:`, err);
+  }
+
+  return targetId;
 }
 
-// Delete item from Firestore
+// Delete item from Firestore & Local Storage
 export async function removeDocument(collectionName: string, docId: string) {
   if (!docId) return;
-  const docRef = doc(db, collectionName, docId);
-  await deleteDoc(docRef);
+
+  // 1. Immediate local cache update
+  const currentItems = getLocalCache<any>(collectionName);
+  const updatedItems = currentItems.filter(i => i.id !== docId);
+  setLocalCache(collectionName, updatedItems);
+  notifySubscribers(collectionName, updatedItems);
+
+  // 2. Background Firestore removal
+  try {
+    const docRef = doc(db, collectionName, docId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.warn(`[Firebase] Exclusão realizada localmente no modo offline para ${collectionName}:`, err);
+  }
 }
 
 // Save entire array (Sync array to Firestore collection)

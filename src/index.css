@@ -1481,13 +1481,30 @@ table.grid-editing td[contenteditable="true"] {
   }
 
   .settings-table-container {
-    overflow-x: auto !important;
+    overflow-x: auto;
     width: 100%;
-    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* RESPONSIVIDADE DE TABELA VS CARDS (CELULAR E TABLET vs COMPUTADOR) */
+.desktop-only-table {
+  display: block;
+}
+
+.mobile-tablet-cards-container {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .desktop-only-table {
+    display: none !important;
   }
 
-  .settings-table-container table {
-    min-width: 680px;
+  .mobile-tablet-cards-container {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
   }
 }
 
@@ -1495,16 +1512,6 @@ table.grid-editing td[contenteditable="true"] {
 @media (min-width: 769px) and (max-width: 1024px) {
   .settings-modal-content {
     padding: 16px !important;
-  }
-
-  .settings-table-container {
-    overflow-x: auto !important;
-    width: 100%;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .settings-table-container table {
-    min-width: 720px;
   }
 }
 

@@ -436,6 +436,35 @@ export default function App() {
     return DEFAULT_USER_ACCOUNTS[0]; // Administrador Geral por padrão
   });
 
+  // Helper para verificar se o usuário logado possui permissão para uma função/página
+  const hasPermission = (permissionKey: string): boolean => {
+    if (!currentUser) return false;
+    if (!currentUser.permissoes || currentUser.permissoes.length === 0) return false;
+    if (currentUser.permissoes.includes(permissionKey)) return true;
+
+    // Se for o grupo 'cadastro_geral', libera se tiver permissão em qualquer subcategoria
+    if (permissionKey === 'cadastro_geral') {
+      const subKeys = ['empresas', 'anos', 'fazendas', 'pivos', 'glebas', 'variedades', 'culturas', 'colaboradores', 'onibus', 'motoristas'];
+      return subKeys.some(k => currentUser.permissoes.includes(k));
+    }
+    return false;
+  };
+
+  // Proteção automática: redireciona para a primeira página permitida se a página ativa for restrita
+  useEffect(() => {
+    if (currentUser && !hasPermission(activePage)) {
+      const allPages: PageKey[] = [
+        'plantio', 'colheita', 'amarracoes', 'empresas', 'anos', 'fazendas',
+        'pivos', 'glebas', 'variedades', 'culturas', 'colaboradores', 'onibus',
+        'motoristas', 'lixeira'
+      ];
+      const firstAllowed = allPages.find(p => hasPermission(p));
+      if (firstAllowed) {
+        setActivePage(firstAllowed);
+      }
+    }
+  }, [currentUser, activePage]);
+
   // Estado do Formulário de Login
   const [loginUserId, setLoginUserId] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -1723,12 +1752,17 @@ export default function App() {
   const closeSidebar = () => setIsSidebarOpen(false);
 
   const switchPage = (page: PageKey) => {
+    if (!hasPermission(page)) {
+      showToast(`Acesso restrito: você não possui permissão para visualizar "${titleMap[page] || page}".`, 'warning');
+      return;
+    }
     if (isGridEditing) setIsGridEditing(false);
     setPopoverState(null);
     if (page === 'cadastro_geral') {
-      const target = cadastroSubPage || 'empresas';
-      setActivePage(target);
-      if (target !== 'lixeira') setLixeiraCategory(target as MainCategoryKey);
+      const subKeys: MainCategoryKey[] = ['empresas', 'anos', 'fazendas', 'pivos', 'glebas', 'variedades', 'culturas', 'colaboradores', 'onibus', 'motoristas'];
+      const allowedSub = subKeys.find(k => hasPermission(k)) || 'empresas';
+      setActivePage(allowedSub);
+      setLixeiraCategory(allowedSub);
     } else {
       if (page !== 'lixeira' && page !== 'amarracoes') {
         setLixeiraCategory(page as MainCategoryKey);
@@ -3015,25 +3049,27 @@ export default function App() {
           <button className="btn-toggle-menu" onClick={toggleSidebar} aria-label="Abrir Menu">
             <i className="fa-solid fa-bars"></i>
           </button>
-          <button
-            className="btn-6-dots"
-            onClick={() => setIsAmarracoesWindowOpen(true)}
-            title="Abrir Janela de Marcações e Amarrações (6 pontinhos)"
-            style={{
-              backgroundColor: isAmarracoesWindowOpen ? '#0078d4' : 'transparent',
-              color: isAmarracoesWindowOpen ? '#ffffff' : '#323130',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '6px 8px',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <i className="fa-solid fa-grip-vertical" style={{ fontSize: '16px' }}></i>
-          </button>
+          {hasPermission('amarracoes') && (
+            <button
+              className="btn-6-dots"
+              onClick={() => setIsAmarracoesWindowOpen(true)}
+              title="Abrir Janela de Marcações e Amarrações (6 pontinhos)"
+              style={{
+                backgroundColor: isAmarracoesWindowOpen ? '#0078d4' : 'transparent',
+                color: isAmarracoesWindowOpen ? '#ffffff' : '#323130',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '6px 8px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <i className="fa-solid fa-grip-vertical" style={{ fontSize: '16px' }}></i>
+            </button>
+          )}
         </div>
 
         <div className="search-box-container">
@@ -3070,12 +3106,14 @@ export default function App() {
             <i className="fa-solid fa-download"></i>
           </button>
           <i className="fa-regular fa-bell" title="Notificações" style={{ cursor: 'pointer' }}></i>
-          <i
-            className="fa-solid fa-gear"
-            title="Configurações do Sistema"
-            onClick={() => setShowSettingsModal(true)}
-            style={{ cursor: 'pointer', fontSize: '16px', padding: '6px', borderRadius: '4px', transition: 'background-color 0.15s' }}
-          ></i>
+          {hasPermission('configuracoes') && (
+            <i
+              className="fa-solid fa-gear"
+              title="Configurações do Sistema"
+              onClick={() => setShowSettingsModal(true)}
+              style={{ cursor: 'pointer', fontSize: '16px', padding: '6px', borderRadius: '4px', transition: 'background-color 0.15s' }}
+            ></i>
+          )}
 
           {/* ÍCONE DA INICIAL DO USUÁRIO LOGADO */}
           <button
@@ -3129,116 +3167,127 @@ export default function App() {
         {/* MENU LATERAL */}
         <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`} id="sidebar">
           <div className="sidebar-title">Navegação</div>
-          <div
-            className="sidebar-item"
-            onClick={() => { closeSidebar(); setIsAmarracoesWindowOpen(true); }}
-            style={{
-              fontWeight: 400,
-              backgroundColor: 'transparent',
-              color: '#323130',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              marginBottom: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            <i className="fa-solid fa-grip-vertical" style={{ color: '#0078d4' }}></i>
-            <span>Marcações e Amarrações</span>
-          </div>
-          <div className={`sidebar-item ${activePage === 'plantio' ? 'active' : ''}`} onClick={() => switchPage('plantio')}>BdPlantio</div>
-          <div className={`sidebar-item ${activePage === 'colheita' ? 'active' : ''}`} onClick={() => switchPage('colheita')}>BdColheita</div>
+          {hasPermission('amarracoes') && (
+            <div
+              className="sidebar-item"
+              onClick={() => { closeSidebar(); setIsAmarracoesWindowOpen(true); }}
+              style={{
+                fontWeight: 400,
+                backgroundColor: 'transparent',
+                color: '#323130',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-grip-vertical" style={{ color: '#0078d4' }}></i>
+              <span>Marcações e Amarrações</span>
+            </div>
+          )}
+          {hasPermission('plantio') && (
+            <div className={`sidebar-item ${activePage === 'plantio' ? 'active' : ''}`} onClick={() => switchPage('plantio')}>BdPlantio</div>
+          )}
+          {hasPermission('colheita') && (
+            <div className={`sidebar-item ${activePage === 'colheita' ? 'active' : ''}`} onClick={() => switchPage('colheita')}>BdColheita</div>
+          )}
           
           {/* GRUPO CADASTRO GERAL */}
-          <div style={{ margin: '4px 0' }}>
+          {hasPermission('cadastro_geral') && (
+            <div style={{ margin: '4px 0' }}>
+              <div
+                className={`sidebar-item ${isCadastroPage(activePage) ? 'active' : ''}`}
+                onClick={() => {
+                  setIsCadastroGroupOpen(!isCadastroGroupOpen);
+                  if (!isCadastroPage(activePage)) {
+                    const firstAllowed = cadastroSubCategories.find(sub => hasPermission(sub.key))?.key || 'empresas';
+                    switchPage(firstAllowed);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontWeight: isCadastroPage(activePage) ? 600 : 500,
+                  color: isCadastroPage(activePage) ? '#0078d4' : '#323130'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-folder-tree" style={{ color: '#0078d4' }}></i>
+                  <span>Cadastro_Geral</span>
+                </span>
+                <i className={`fa-solid fa-chevron-${isCadastroGroupOpen ? 'down' : 'right'}`} style={{ fontSize: '10px', color: '#605e5c' }}></i>
+              </div>
+
+              {isCadastroGroupOpen && (
+                <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                  {cadastroSubCategories.filter(sub => hasPermission(sub.key)).map(sub => (
+                    <div
+                      key={sub.key}
+                      className={`sidebar-item ${activePage === sub.key ? 'active' : ''}`}
+                      onClick={() => {
+                        setCadastroSubPage(sub.key);
+                        switchPage(sub.key);
+                      }}
+                      style={{
+                        fontSize: '12px',
+                        padding: '5px 8px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <i className={`fa-solid ${sub.icon}`} style={{ fontSize: '11px', width: '14px', textAlign: 'center', color: activePage === sub.key ? '#0078d4' : '#605e5c' }}></i>
+                      <span>Cadastro_{sub.label.replace(/\s+/g, '')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {hasPermission('documentos') && <div className="sidebar-item">Documentos</div>}
+          {hasPermission('ciclos_cultivo') && <div className="sidebar-item">Ciclos_Cultivo</div>}
+          {hasPermission('frentes_trabalho') && <div className="sidebar-item">TbFrentesTrabalho_APS...</div>}
+          {hasPermission('apontamentos_apsa') && <div className="sidebar-item">TbApontamentos_APSa...</div>}
+          {hasPermission('apontamentos_safris') && <div className="sidebar-item">TbApontamentosSafris...</div>}
+          {hasPermission('lixeira') && (
             <div
-              className={`sidebar-item ${isCadastroPage(activePage) ? 'active' : ''}`}
-              onClick={() => {
-                setIsCadastroGroupOpen(!isCadastroGroupOpen);
-                if (!isCadastroPage(activePage)) {
-                  switchPage(cadastroSubPage || 'empresas');
-                }
-              }}
+              className={`sidebar-item ${activePage === 'lixeira' ? 'active' : ''}`}
+              onClick={() => switchPage('lixeira')}
               style={{
+                marginTop: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                fontWeight: isCadastroPage(activePage) ? 600 : 500,
-                color: isCadastroPage(activePage) ? '#0078d4' : '#323130'
+                fontWeight: activePage === 'lixeira' ? 600 : 400
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-folder-tree" style={{ color: '#0078d4' }}></i>
-                <span>Cadastro_Geral</span>
+                <i className="fa-solid fa-trash-can"></i> Lixeira
               </span>
-              <i className={`fa-solid fa-chevron-${isCadastroGroupOpen ? 'down' : 'right'}`} style={{ fontSize: '10px', color: '#605e5c' }}></i>
+              {(() => {
+                const unidadeTrashCount = trashData.filter(t => isItemInSelectedUnidade(t.itemData)).length;
+                if (unidadeTrashCount === 0) return null;
+                return (
+                  <span style={{
+                    backgroundColor: '#d13438',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: '10px'
+                  }}>
+                    {unidadeTrashCount}
+                  </span>
+                );
+              })()}
             </div>
-
-            {isCadastroGroupOpen && (
-              <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
-                {cadastroSubCategories.map(sub => (
-                  <div
-                    key={sub.key}
-                    className={`sidebar-item ${activePage === sub.key ? 'active' : ''}`}
-                    onClick={() => {
-                      setCadastroSubPage(sub.key);
-                      switchPage(sub.key);
-                    }}
-                    style={{
-                      fontSize: '12px',
-                      padding: '5px 8px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <i className={`fa-solid ${sub.icon}`} style={{ fontSize: '11px', width: '14px', textAlign: 'center', color: activePage === sub.key ? '#0078d4' : '#605e5c' }}></i>
-                    <span>Cadastro_{sub.label.replace(/\s+/g, '')}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="sidebar-item">Documentos</div>
-          <div className="sidebar-item">Ciclos_Cultivo</div>
-          <div className="sidebar-item">TbFrentesTrabalho_APS...</div>
-          <div className="sidebar-item">TbApontamentos_APSa...</div>
-          <div className="sidebar-item">TbApontamentosSafris...</div>
-          <div
-            className={`sidebar-item ${activePage === 'lixeira' ? 'active' : ''}`}
-            onClick={() => switchPage('lixeira')}
-            style={{
-              marginTop: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontWeight: activePage === 'lixeira' ? 600 : 400
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-trash-can"></i> Lixeira
-            </span>
-            {(() => {
-              const unidadeTrashCount = trashData.filter(t => isItemInSelectedUnidade(t.itemData)).length;
-              if (unidadeTrashCount === 0) return null;
-              return (
-                <span style={{
-                  backgroundColor: '#d13438',
-                  color: '#ffffff',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  padding: '2px 7px',
-                  borderRadius: '10px'
-                }}>
-                  {unidadeTrashCount}
-                </span>
-              );
-            })()}
-          </div>
+          )}
         </div>
 
         {/* ÁREA PRINCIPAL */}
@@ -3274,7 +3323,7 @@ export default function App() {
             borderBottom: '1px solid #e1dfdd',
             scrollbarWidth: 'thin'
           }}>
-            {mainCategories.map(cat => {
+            {mainCategories.filter(cat => hasPermission(cat.key)).map(cat => {
               const isActive = cat.key === 'cadastro_geral' ? isCadastroPage(activePage) : activePage === cat.key;
               return (
                 <button
@@ -3299,7 +3348,7 @@ export default function App() {
                 </button>
               );
             })}
-            {(() => {
+            {hasPermission('lixeira') && (() => {
               const unidadeTrashCount = trashData.filter(t => isItemInSelectedUnidade(t.itemData)).length;
               return (
                 <button
@@ -3343,7 +3392,7 @@ export default function App() {
                 <i className="fa-solid fa-folder-tree" style={{ color: '#0078d4' }}></i>
                 Cadastro Geral:
               </span>
-              {cadastroSubCategories.map(sub => {
+              {cadastroSubCategories.filter(sub => hasPermission(sub.key)).map(sub => {
                 const isSubActive = activePage === sub.key;
                 return (
                   <button
@@ -4557,197 +4606,455 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tabela de Usuários */}
-            <div className="settings-table-container" style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e1dfdd',
-              borderRadius: '8px',
-              overflowX: 'auto',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f3f2f1', borderBottom: '1px solid #e1dfdd', color: '#323130' }}>
-                    <th style={{ padding: '10px 14px', fontWeight: 700, width: '130px' }}>ID DO USUÁRIO</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 700, minWidth: '180px' }}>NOME DO USUÁRIO</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 700, width: '160px' }}>SENHA</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 700 }}>PERMISSÕES POR CATEGORIA</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 700, width: '120px', textAlign: 'center' }}>AÇÕES</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const filteredUsers = userAccounts.filter(u =>
-                      u.id.toLowerCase().includes(searchUserQuery.toLowerCase()) ||
-                      u.nome.toLowerCase().includes(searchUserQuery.toLowerCase())
-                    );
+            {/* Tabela de Usuários / Cards para Celular e Tablet */}
+            {(() => {
+              const filteredUsers = userAccounts.filter(u =>
+                u.id.toLowerCase().includes(searchUserQuery.toLowerCase()) ||
+                u.nome.toLowerCase().includes(searchUserQuery.toLowerCase())
+              );
 
-                    if (filteredUsers.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#605e5c' }}>
-                            <i className="fa-solid fa-user-slash" style={{ fontSize: '24px', color: '#a19f9d', marginBottom: '8px', display: 'block' }}></i>
-                            Nenhum usuário encontrado com os critérios digitados.
-                          </td>
+              return (
+                <>
+                  {/* Visão de Tabela para Computador / Desktop */}
+                  <div className="desktop-only-table settings-table-container" style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e1dfdd',
+                    borderRadius: '8px',
+                    overflowX: 'auto',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                  }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f3f2f1', borderBottom: '1px solid #e1dfdd', color: '#323130' }}>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, width: '130px' }}>ID DO USUÁRIO</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, minWidth: '180px' }}>NOME DO USUÁRIO</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, width: '160px' }}>SENHA</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700 }}>PERMISSÕES POR CATEGORIA</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, width: '120px', textAlign: 'center' }}>AÇÕES</th>
                         </tr>
-                      );
-                    }
+                      </thead>
+                      <tbody>
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#605e5c' }}>
+                              <i className="fa-solid fa-user-slash" style={{ fontSize: '24px', color: '#a19f9d', marginBottom: '8px', display: 'block' }}></i>
+                              Nenhum usuário encontrado com os critérios digitados.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUsers.map((user, idx) => {
+                            const isShowPass = !!showPasswordMap[user.id];
+                            const isAllPerms = user.permissoes.length === ALL_PERMISSION_CATEGORIES.length;
 
-                    return filteredUsers.map((user, idx) => {
-                      const isShowPass = !!showPasswordMap[user.id];
-                      const isAllPerms = user.permissoes.length === ALL_PERMISSION_CATEGORIES.length;
-
-                      return (
-                        <tr
-                          key={user.id}
-                          style={{
-                            borderBottom: '1px solid #edebe9',
-                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#faf9f8'
-                          }}
-                        >
-                          <td style={{ padding: '10px 14px' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              backgroundColor: '#eff6fc',
-                              color: '#0078d4',
-                              border: '1px solid #c7e0f4',
-                              fontWeight: 700,
-                              fontSize: '11px'
-                            }}>
-                              <i className="fa-solid fa-id-badge"></i>
-                              {user.id}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#323130' }}>
-                            {user.nome}
-                          </td>
-                          <td style={{ padding: '10px 14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontFamily: isShowPass ? 'inherit' : 'monospace', fontSize: '13px', fontWeight: 600, letterSpacing: isShowPass ? 'normal' : '2px' }}>
-                                {isShowPass ? user.senha : '••••••••'}
-                              </span>
-                              <button
-                                onClick={() => setShowPasswordMap(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
-                                title={isShowPass ? "Ocultar Senha" : "Exibir Senha"}
-                                style={{ background: 'none', border: 'none', color: '#605e5c', cursor: 'pointer', fontSize: '12px', padding: '2px' }}
+                            return (
+                              <tr
+                                key={user.id}
+                                style={{
+                                  borderBottom: '1px solid #edebe9',
+                                  backgroundColor: idx % 2 === 0 ? '#ffffff' : '#faf9f8'
+                                }}
                               >
-                                <i className={`fa-solid ${isShowPass ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                              </button>
-                            </div>
-                          </td>
-                          <td style={{ padding: '10px 14px' }}>
-                            {isAllPerms ? (
-                              <span style={{
-                                backgroundColor: '#dff6dd',
-                                color: '#107c41',
-                                border: '1px solid #92c353',
-                                padding: '3px 10px',
-                                borderRadius: '12px',
-                                fontWeight: 600,
-                                fontSize: '11px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                <i className="fa-solid fa-check-double"></i> Acesso Total (Todas as 12 Categorias)
-                              </span>
-                            ) : user.permissoes.length === 0 ? (
-                              <span style={{
-                                backgroundColor: '#fde7e9',
-                                color: '#a80000',
-                                border: '1px solid #f3b2b3',
-                                padding: '3px 10px',
-                                borderRadius: '12px',
-                                fontWeight: 600,
-                                fontSize: '11px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                <i className="fa-solid fa-ban"></i> Nenhuma permissão selecionada
-                              </span>
-                            ) : (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                {user.permissoes.map(permKey => {
-                                  const catObj = ALL_PERMISSION_CATEGORIES.find(c => c.key === permKey);
-                                  return (
-                                    <span
-                                      key={permKey}
+                                <td style={{ padding: '10px 14px' }}>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#eff6fc',
+                                    color: '#0078d4',
+                                    border: '1px solid #c7e0f4',
+                                    fontWeight: 700,
+                                    fontSize: '11px'
+                                  }}>
+                                    <i className="fa-solid fa-id-badge"></i>
+                                    {user.id}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '10px 14px', fontWeight: 600, color: '#323130' }}>
+                                  {user.nome}
+                                </td>
+                                <td style={{ padding: '10px 14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontFamily: isShowPass ? 'inherit' : 'monospace', fontSize: '13px', fontWeight: 600, letterSpacing: isShowPass ? 'normal' : '2px' }}>
+                                      {isShowPass ? user.senha : '••••••••'}
+                                    </span>
+                                    <button
+                                      onClick={() => setShowPasswordMap(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                                      title={isShowPass ? "Ocultar Senha" : "Exibir Senha"}
+                                      style={{ background: 'none', border: 'none', color: '#605e5c', cursor: 'pointer', fontSize: '12px', padding: '2px' }}
+                                    >
+                                      <i className={`fa-solid ${isShowPass ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                    </button>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '10px 14px' }}>
+                                  {isAllPerms ? (
+                                    <span style={{
+                                      backgroundColor: '#dff6dd',
+                                      color: '#107c41',
+                                      border: '1px solid #92c353',
+                                      padding: '3px 10px',
+                                      borderRadius: '12px',
+                                      fontWeight: 600,
+                                      fontSize: '11px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <i className="fa-solid fa-check-double"></i> Acesso Total (Todas as 12 Categorias)
+                                    </span>
+                                  ) : user.permissoes.length === 0 ? (
+                                    <span style={{
+                                      backgroundColor: '#fde7e9',
+                                      color: '#a80000',
+                                      border: '1px solid #f3b2b3',
+                                      padding: '3px 10px',
+                                      borderRadius: '12px',
+                                      fontWeight: 600,
+                                      fontSize: '11px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <i className="fa-solid fa-ban"></i> Nenhuma permissão selecionada
+                                    </span>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                      {user.permissoes.map(permKey => {
+                                        const catObj = ALL_PERMISSION_CATEGORIES.find(c => c.key === permKey);
+                                        return (
+                                          <span
+                                            key={permKey}
+                                            style={{
+                                              backgroundColor: '#f3f2f1',
+                                              color: '#323130',
+                                              border: '1px solid #d2d0ce',
+                                              padding: '2px 8px',
+                                              borderRadius: '4px',
+                                              fontSize: '11px',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px'
+                                            }}
+                                          >
+                                            <i className={`fa-solid ${catObj?.icon || 'fa-folder'}`} style={{ color: '#0078d4', fontSize: '10px' }}></i>
+                                            {catObj ? catObj.label : permKey}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                    <button
+                                      onClick={() => handleOpenUserModal(user)}
+                                      title="Editar Usuário"
                                       style={{
-                                        backgroundColor: '#f3f2f1',
-                                        color: '#323130',
-                                        border: '1px solid #d2d0ce',
-                                        padding: '2px 8px',
+                                        backgroundColor: '#eff6fc',
+                                        color: '#0078d4',
+                                        border: '1px solid #c7e0f4',
                                         borderRadius: '4px',
+                                        padding: '4px 8px',
                                         fontSize: '11px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         gap: '4px'
                                       }}
                                     >
-                                      <i className={`fa-solid ${catObj?.icon || 'fa-folder'}`} style={{ color: '#0078d4', fontSize: '10px' }}></i>
-                                      {catObj ? catObj.label : permKey}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                              <button
-                                onClick={() => handleOpenUserModal(user)}
-                                title="Editar Usuário"
-                                style={{
+                                      <i className="fa-solid fa-pen-to-square"></i>
+                                      <span>Editar</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleDeleteUser(user)}
+                                      title="Excluir Usuário"
+                                      style={{
+                                        backgroundColor: '#fde7e9',
+                                        color: '#a80000',
+                                        border: '1px solid #f3b2b3',
+                                        borderRadius: '4px',
+                                        padding: '4px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <i className="fa-solid fa-trash"></i>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Visão de Cards para Celulares e Tablets (< 1024px) */}
+                  <div className="mobile-tablet-cards-container">
+                    {filteredUsers.length === 0 ? (
+                      <div style={{
+                        padding: '24px',
+                        textAlign: 'center',
+                        color: '#605e5c',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '8px',
+                        border: '1px solid #e1dfdd'
+                      }}>
+                        <i className="fa-solid fa-user-slash" style={{ fontSize: '24px', color: '#a19f9d', marginBottom: '8px', display: 'block' }}></i>
+                        Nenhum usuário encontrado com os critérios digitados.
+                      </div>
+                    ) : (
+                      filteredUsers.map((user) => {
+                        const isShowPass = !!showPasswordMap[user.id];
+                        const isAllPerms = user.permissoes.length === ALL_PERMISSION_CATEGORIES.length;
+
+                        return (
+                          <div
+                            key={user.id}
+                            style={{
+                              backgroundColor: '#ffffff',
+                              border: '1px solid #e1dfdd',
+                              borderRadius: '10px',
+                              padding: '14px 16px',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                              width: '100%',
+                              boxSizing: 'border-box'
+                            }}
+                          >
+                            {/* Header do Card: Avatar, ID + Nome, e Ações */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              paddingBottom: '12px',
+                              borderBottom: '1px solid #edebe9'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                                {/* Avatar do Usuário */}
+                                <div style={{
+                                  width: '38px',
+                                  height: '38px',
+                                  borderRadius: '50%',
                                   backgroundColor: '#eff6fc',
                                   color: '#0078d4',
                                   border: '1px solid #c7e0f4',
-                                  borderRadius: '4px',
-                                  padding: '4px 8px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 700,
+                                  fontSize: '14px',
+                                  flexShrink: 0
+                                }}>
+                                  <i className="fa-solid fa-user"></i>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: '2px' }}>
+                                  <div style={{
+                                    fontSize: '14px',
+                                    fontWeight: 700,
+                                    color: '#323130',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {user.nome}
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#f3f2f1',
+                                      color: '#0078d4',
+                                      border: '1px solid #d2d0ce',
+                                      fontWeight: 700,
+                                      fontSize: '11px'
+                                    }}>
+                                      <i className="fa-solid fa-id-badge" style={{ fontSize: '10px' }}></i>
+                                      {user.id}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Ações: Editar e Excluir */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                <button
+                                  onClick={() => handleOpenUserModal(user)}
+                                  title="Editar Usuário"
+                                  style={{
+                                    backgroundColor: '#eff6fc',
+                                    color: '#0078d4',
+                                    border: '1px solid #c7e0f4',
+                                    borderRadius: '6px',
+                                    padding: '6px 10px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-pen-to-square"></i>
+                                  <span>Editar</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteUser(user)}
+                                  title="Excluir Usuário"
+                                  style={{
+                                    backgroundColor: '#fde7e9',
+                                    color: '#a80000',
+                                    border: '1px solid #f3b2b3',
+                                    borderRadius: '6px',
+                                    padding: '6px 10px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-trash"></i>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Informação de Senha */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              backgroundColor: '#faf9f8',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #f3f2f1'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#605e5c' }}>
+                                <i className="fa-solid fa-key" style={{ color: '#0078d4' }}></i>
+                                <span style={{ fontWeight: 600 }}>Senha:</span>
+                                <span style={{
+                                  fontFamily: isShowPass ? 'inherit' : 'monospace',
+                                  fontSize: '13px',
+                                  fontWeight: 700,
+                                  color: '#323130',
+                                  letterSpacing: isShowPass ? 'normal' : '2px'
+                                }}>
+                                  {isShowPass ? user.senha : '••••••••'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setShowPasswordMap(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#0078d4',
                                   cursor: 'pointer',
-                                  display: 'inline-flex',
+                                  fontSize: '12px',
+                                  padding: '2px 6px',
+                                  fontWeight: 600,
+                                  display: 'flex',
                                   alignItems: 'center',
                                   gap: '4px'
                                 }}
                               >
-                                <i className="fa-solid fa-pen-to-square"></i>
-                                <span>Editar</span>
+                                <i className={`fa-solid ${isShowPass ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                <span>{isShowPass ? 'Ocultar' : 'Exibir'}</span>
                               </button>
+                            </div>
 
-                              <button
-                                onClick={() => handleDeleteUser(user)}
-                                title="Excluir Usuário"
-                                style={{
+                            {/* Permissões Liberadas */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#605e5c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <i className="fa-solid fa-shield-halved" style={{ color: '#0078d4' }}></i>
+                                Permissões de Acesso ({user.permissoes.length}):
+                              </div>
+
+                              {isAllPerms ? (
+                                <span style={{
+                                  backgroundColor: '#dff6dd',
+                                  color: '#107c41',
+                                  border: '1px solid #92c353',
+                                  padding: '6px 12px',
+                                  borderRadius: '20px',
+                                  fontWeight: 600,
+                                  fontSize: '12px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  width: 'fit-content'
+                                }}>
+                                  <i className="fa-solid fa-check-double"></i> Acesso Total (Todas as 12 Categorias)
+                                </span>
+                              ) : user.permissoes.length === 0 ? (
+                                <span style={{
                                   backgroundColor: '#fde7e9',
                                   color: '#a80000',
                                   border: '1px solid #f3b2b3',
-                                  borderRadius: '4px',
-                                  padding: '4px 8px',
-                                  fontSize: '11px',
+                                  padding: '6px 12px',
+                                  borderRadius: '20px',
                                   fontWeight: 600,
-                                  cursor: 'pointer',
+                                  fontSize: '12px',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <i className="fa-solid fa-trash"></i>
-                              </button>
+                                  gap: '6px',
+                                  width: 'fit-content'
+                                }}>
+                                  <i className="fa-solid fa-ban"></i> Nenhuma permissão selecionada
+                                </span>
+                              ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                  {user.permissoes.map(permKey => {
+                                    const catObj = ALL_PERMISSION_CATEGORIES.find(c => c.key === permKey);
+                                    return (
+                                      <span
+                                        key={permKey}
+                                        style={{
+                                          backgroundColor: '#f3f2f1',
+                                          color: '#323130',
+                                          border: '1px solid #d2d0ce',
+                                          padding: '4px 8px',
+                                          borderRadius: '4px',
+                                          fontSize: '11px',
+                                          fontWeight: 500,
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px'
+                                        }}
+                                      >
+                                        <i className={`fa-solid ${catObj?.icon || 'fa-folder'}`} style={{ color: '#0078d4', fontSize: '10px' }}></i>
+                                        {catObj ? catObj.label : permKey}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
