@@ -2819,18 +2819,19 @@ export default function App() {
         backgroundColor: '#002050',
         backgroundImage: 'radial-gradient(circle at 50% 30%, #003366 0%, #001529 100%)',
         fontFamily: 'Segoe UI, system-ui, -apple-system, sans-serif',
-        padding: '20px',
+        padding: '16px',
         boxSizing: 'border-box'
       }}>
         <div style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '420px',
           backgroundColor: '#ffffff',
           borderRadius: '12px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
           overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          margin: 'auto'
         }}>
           {/* Header da Tela de Login */}
           <div style={{
@@ -3000,53 +3001,6 @@ export default function App() {
               <span>Entrar no Sistema</span>
             </button>
           </form>
-
-          {/* ATALHOS RÁPIDOS DE DEMONSTRAÇÃO */}
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            borderTop: '1px solid #edebe9',
-            padding: '16px 24px',
-            fontSize: '12px'
-          }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#605e5c', display: 'block', marginBottom: '8px' }}>
-              <i className="fa-solid fa-bolt" style={{ color: '#794b00', marginRight: '4px' }}></i>
-              Clique para preencher rápido (Atalhos de Usuários):
-            </span>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {userAccounts.slice(0, 3).map(acc => (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => handleQuickLogin(acc)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    backgroundColor: loginUserId === acc.id ? '#eff6fc' : '#ffffff',
-                    border: loginUserId === acc.id ? '1px solid #0078d4' : '1px solid #e1dfdd',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 700, color: '#0078d4', fontSize: '11px', backgroundColor: '#eff6fc', padding: '2px 6px', borderRadius: '4px' }}>
-                      {acc.id}
-                    </span>
-                    <span style={{ fontWeight: 600, color: '#323130', fontSize: '12px' }}>
-                      {acc.nome}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#605e5c', fontFamily: 'monospace' }}>
-                    Senha: <strong>{acc.senha}</strong>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );

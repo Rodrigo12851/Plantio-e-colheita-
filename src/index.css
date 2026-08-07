@@ -787,6 +787,70 @@ table.grid-editing td[contenteditable="true"] {
   }
 }
 
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  .search-box-container {
+    margin: 0 4px;
+  }
+
+  .list-header {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .list-header-left {
+    justify-content: center;
+  }
+
+  .command-bar {
+    justify-content: center;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .sub-bar {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .sub-controls {
+    justify-content: center;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    margin: auto;
+  }
+
+  .toast-container {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+  }
+
+  .toast-message {
+    max-width: 100%;
+  }
+}
+
 /* TOAST NOTIFICATION BANNER */
 .toast-container {
   position: fixed;
