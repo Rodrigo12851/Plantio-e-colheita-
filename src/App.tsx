@@ -415,15 +415,7 @@ export default function App() {
   const [newUnidadeInput, setNewUnidadeInput] = useState<string>('');
 
   // Gestão de Usuários e Permissões
-  const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
-    try {
-      const saved = localStorage.getItem('CRISTALINA_USER_ACCOUNTS');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return DEFAULT_USER_ACCOUNTS;
-  });
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
 
   // Estado do Usuário Logado
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -481,14 +473,6 @@ export default function App() {
   const [userNameInput, setUserNameInput] = useState('');
   const [userPasswordInput, setUserPasswordInput] = useState('');
   const [userPermissionsInput, setUserPermissionsInput] = useState<string[]>([]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('CRISTALINA_USER_ACCOUNTS', JSON.stringify(userAccounts));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [userAccounts]);
 
   useEffect(() => {
     try {
@@ -569,7 +553,7 @@ export default function App() {
     setShowUserModal(true);
   };
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     if (!userIdInput.trim()) {
       showToast('O ID do Usuário é obrigatório.', 'warning');
       return;
@@ -598,20 +582,19 @@ export default function App() {
       createdAt: editingUser?.createdAt || new Date().toLocaleDateString('pt-BR')
     };
 
+    await saveDocument(COLLECTIONS.usuarios, newUser, newUser.id);
     if (editingUser) {
-      setUserAccounts(prev => prev.map(u => u.id === editingUser.id ? newUser : u));
       showToast(`Usuário "${newUser.nome}" atualizado com sucesso!`, 'success');
     } else {
-      setUserAccounts(prev => [...prev, newUser]);
       showToast(`Usuário "${newUser.nome}" cadastrado com sucesso!`, 'success');
     }
 
     setShowUserModal(false);
   };
 
-  const handleDeleteUser = (user: UserAccount) => {
+  const handleDeleteUser = async (user: UserAccount) => {
     if (window.confirm(`Tem certeza que deseja excluir o usuário "${user.nome}" (${user.id})?`)) {
-      setUserAccounts(prev => prev.filter(u => u.id !== user.id));
+      await removeDocument(COLLECTIONS.usuarios, user.id);
       showToast(`Usuário "${user.nome}" foi excluído com sucesso.`, 'info');
     }
   };
@@ -873,6 +856,15 @@ export default function App() {
       setUnidadesList(docs.map(d => d.nome));
     }, DEFAULT_UNIDADES);
     const unsubTrash = subscribeToCollection<TrashItem>(COLLECTIONS.lixeira, setTrashData, []);
+    const unsubUsuarios = subscribeToCollection<UserAccount>(COLLECTIONS.usuarios, (docs) => {
+      setUserAccounts(docs);
+      if (currentUser) {
+        const matchingCurrent = docs.find(u => u.id === currentUser.id);
+        if (matchingCurrent) {
+          setCurrentUser(matchingCurrent);
+        }
+      }
+    }, DEFAULT_USER_ACCOUNTS);
 
     return () => {
       unsubColheita();
@@ -890,6 +882,7 @@ export default function App() {
       unsubAmarracoes();
       unsubUnidades();
       unsubTrash();
+      unsubUsuarios();
     };
   }, []);
 
