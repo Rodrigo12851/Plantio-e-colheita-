@@ -234,25 +234,18 @@ const ALL_PERMISSION_CATEGORIES: PermissionCategory[] = [
 
 const DEFAULT_USER_ACCOUNTS: UserAccount[] = [
   {
-    id: 'USR-001',
-    nome: 'Administrador Geral',
-    senha: 'admin',
+    id: 'rodrigo.souza',
+    nome: 'Rodrigo Souza',
+    senha: 'Mudar@123',
     permissoes: ALL_PERMISSION_CATEGORIES.map(c => c.key),
     createdAt: '01/01/2026'
   },
   {
-    id: 'USR-002',
-    nome: 'Operador de Campo',
-    senha: 'campo',
-    permissoes: ['amarracoes', 'plantio', 'colheita', 'variedades', 'culturas', 'frentes_trabalho', 'apontamentos_apsa', 'apontamentos_safris'],
+    id: 'Mudar.123',
+    nome: 'Mudar 123 (Acesso Restrito)',
+    senha: 'Mudar@123',
+    permissoes: ['plantio', 'colheita'],
     createdAt: '15/03/2026'
-  },
-  {
-    id: 'USR-003',
-    nome: 'Gestor de Frota',
-    senha: 'frota',
-    permissoes: ['onibus', 'motoristas', 'colaboradores', 'empresas'],
-    createdAt: '20/04/2026'
   }
 ];
 
@@ -433,7 +426,31 @@ export default function App() {
   const [userIdInput, setUserIdInput] = useState('');
   const [userNameInput, setUserNameInput] = useState('');
   const [userPasswordInput, setUserPasswordInput] = useState('');
-  const [userPermissionsInput, setUserPermissionsInput] = useState<MainCategoryKey[]>([]);
+  const [userPermissionsInput, setUserPermissionsInput] = useState<string[]>([]);
+
+  // Estado de Autenticação e Login
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('CRISTALINA_IS_LOGGED_IN') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const [loginUsernameInput, setLoginUsernameInput] = useState<string>('rodrigo.souza');
+  const [loginPasswordInput, setLoginPasswordInput] = useState<string>('Mudar@123');
+  const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
+  const [loginErrorMsg, setLoginErrorMsg] = useState<string>('');
+
+  // Estado do Usuário Ativo Conectado
+  const [currentUserId, setCurrentUserId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('CRISTALINA_CURRENT_USER_ID') || 'rodrigo.souza';
+    } catch (e) {
+      return 'rodrigo.souza';
+    }
+  });
+  const [showUserSwitchMenu, setShowUserSwitchMenu] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -442,6 +459,89 @@ export default function App() {
       console.error(e);
     }
   }, [userAccounts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('CRISTALINA_CURRENT_USER_ID', currentUserId);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('CRISTALINA_IS_LOGGED_IN', String(isLoggedIn));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (isLoggedIn && activeUser && activeUser.permissoes && activeUser.permissoes.length > 0) {
+      if (!activeUser.permissoes.includes(activePage)) {
+        const firstPermitted = activeUser.permissoes[0] as PageKey;
+        if (firstPermitted) {
+          setActivePage(firstPermitted);
+        }
+      }
+    }
+  }, [currentUserId, isLoggedIn]);
+
+  const activeUser = userAccounts.find(u => u.id === currentUserId) || userAccounts[0] || {
+    id: 'rodrigo.souza',
+    nome: 'Rodrigo Souza',
+    senha: 'Mudar@123',
+    permissoes: ALL_PERMISSION_CATEGORIES.map(c => c.key)
+  };
+
+  const userInitial = (activeUser.nome || 'R').trim().charAt(0).toUpperCase();
+
+  const hasPermission = (catKey: string): boolean => {
+    if (!activeUser) return true;
+    if (!activeUser.permissoes || activeUser.permissoes.length === 0) return false;
+    return activeUser.permissoes.includes(catKey);
+  };
+
+  const handlePerformLogin = (uInput?: string, pInput?: string) => {
+    const finalU = (uInput !== undefined ? uInput : loginUsernameInput).trim();
+    const finalP = (pInput !== undefined ? pInput : loginPasswordInput).trim();
+
+    if (!finalU) {
+      setLoginErrorMsg('Por favor, informe o usuário de acesso.');
+      return;
+    }
+    if (!finalP) {
+      setLoginErrorMsg('Por favor, informe a senha de acesso.');
+      return;
+    }
+
+    const foundUser = userAccounts.find(u =>
+      u.id.trim().toLowerCase() === finalU.toLowerCase() ||
+      u.nome.trim().toLowerCase() === finalU.toLowerCase()
+    );
+
+    if (!foundUser) {
+      setLoginErrorMsg(`Usuário "${finalU}" não encontrado no sistema.`);
+      return;
+    }
+
+    if (foundUser.senha !== finalP) {
+      setLoginErrorMsg('Senha incorreta. Verifique os dados e tente novamente.');
+      return;
+    }
+
+    // Sucesso no login
+    setCurrentUserId(foundUser.id);
+    setIsLoggedIn(true);
+    setLoginErrorMsg('');
+    showToast(`Bem-vindo, ${foundUser.nome}! Login realizado com sucesso.`, 'success');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setShowUserSwitchMenu(false);
+    showToast('Sua sessão foi encerrada com sucesso.', 'info');
+  };
 
   const handleOpenUserModal = (user?: UserAccount) => {
     if (user) {
@@ -505,6 +605,9 @@ export default function App() {
   const handleDeleteUser = (user: UserAccount) => {
     if (window.confirm(`Tem certeza que deseja excluir o usuário "${user.nome}" (${user.id})?`)) {
       setUserAccounts(prev => prev.filter(u => u.id !== user.id));
+      if (currentUserId === user.id) {
+        setCurrentUserId('USR-001');
+      }
       showToast(`Usuário "${user.nome}" foi excluído com sucesso.`, 'info');
     }
   };
@@ -517,7 +620,7 @@ export default function App() {
     }
   };
 
-  const toggleCategoryPermission = (catKey: MainCategoryKey) => {
+  const toggleCategoryPermission = (catKey: string) => {
     setUserPermissionsInput(prev =>
       prev.includes(catKey)
         ? prev.filter(k => k !== catKey)
@@ -1647,10 +1750,21 @@ export default function App() {
   const switchPage = (page: PageKey) => {
     if (isGridEditing) setIsGridEditing(false);
     setPopoverState(null);
+
+    let targetPage = page;
     if (page === 'cadastro_geral') {
-      const target = cadastroSubPage || 'empresas';
-      setActivePage(target);
-      if (target !== 'lixeira') setLixeiraCategory(target as MainCategoryKey);
+      targetPage = (cadastroSubPage || 'empresas') as PageKey;
+    }
+
+    if (!hasPermission(targetPage)) {
+      showToast(`Acesso Restrito: O usuário "${activeUser.nome}" não possui permissão para acessar "${targetPage}".`, 'warning');
+      closeSidebar();
+      return;
+    }
+
+    if (page === 'cadastro_geral') {
+      setActivePage(targetPage);
+      if (targetPage !== 'lixeira') setLixeiraCategory(targetPage as MainCategoryKey);
     } else {
       if (page !== 'lixeira' && page !== 'amarracoes') {
         setLixeiraCategory(page as MainCategoryKey);
@@ -2729,6 +2843,326 @@ export default function App() {
     return !!(columnFilters[activePage] && columnFilters[activePage][colIndex]);
   };
 
+  if (!isLoggedIn) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0b3c5d 0%, #0078d4 50%, #004578 100%)',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        padding: '20px',
+        boxSizing: 'border-box'
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: '450px',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Header do Card de Login */}
+          <div style={{
+            backgroundColor: '#0078d4',
+            backgroundImage: 'linear-gradient(135deg, #0078d4 0%, #107c41 100%)',
+            padding: '28px 24px',
+            color: '#ffffff',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px auto',
+              border: '2px solid rgba(255, 255, 255, 0.4)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}>
+              <i className="fa-solid fa-wheat-awn" style={{ fontSize: '32px', color: '#ffffff' }}></i>
+            </div>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, letterSpacing: '-0.5px' }}>
+              CRISTALINA AGRO
+            </h1>
+            <p style={{ margin: '6px 0 0 0', fontSize: '13px', opacity: 0.95, fontWeight: 500 }}>
+              Sistema de Gestão Agrícola e Controle
+            </p>
+          </div>
+
+          {/* Form de Login */}
+          <div style={{ padding: '28px 24px 20px 24px' }}>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#323130', fontWeight: 700, textAlign: 'center' }}>
+              Acesse sua conta para continuar
+            </h2>
+
+            {loginErrorMsg && (
+              <div style={{
+                backgroundColor: '#fde7e9',
+                border: '1px solid #f8a5ac',
+                color: '#a80000',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+                <span>{loginErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={(e) => { e.preventDefault(); handlePerformLogin(); }}>
+              {/* Campo Usuário */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#605e5c', marginBottom: '6px' }}>
+                  Usuário ou ID de Acesso
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <i className="fa-solid fa-user" style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#0078d4',
+                    fontSize: '14px'
+                  }}></i>
+                  <input
+                    type="text"
+                    value={loginUsernameInput}
+                    onChange={(e) => { setLoginUsernameInput(e.target.value); setLoginErrorMsg(''); }}
+                    placeholder="Ex: rodrigo.souza ou Mudar.123"
+                    style={{
+                      width: '100%',
+                      padding: '11px 12px 11px 36px',
+                      borderRadius: '8px',
+                      border: '1px solid #8a8886',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                      outline: 'none'
+                    }}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Campo Senha */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#605e5c', marginBottom: '6px' }}>
+                  Senha de Acesso
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <i className="fa-solid fa-lock" style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#0078d4',
+                    fontSize: '14px'
+                  }}></i>
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    value={loginPasswordInput}
+                    onChange={(e) => { setLoginPasswordInput(e.target.value); setLoginErrorMsg(''); }}
+                    placeholder="Sua senha"
+                    style={{
+                      width: '100%',
+                      padding: '11px 40px 11px 36px',
+                      borderRadius: '8px',
+                      border: '1px solid #8a8886',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#605e5c',
+                      padding: '4px'
+                    }}
+                    title={showLoginPassword ? 'Ocultar Senha' : 'Mostrar Senha'}
+                  >
+                    <i className={`fa-solid fa-eye${showLoginPassword ? '-slash' : ''}`}></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* Botão Entrar */}
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#0078d4',
+                  color: '#ffffff',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 120, 212, 0.3)'
+                }}
+              >
+                <i className="fa-solid fa-right-to-bracket"></i>
+                <span>ENTRAR NO SISTEMA</span>
+              </button>
+            </form>
+
+            {/* ATALHOS DE CONTAS SOLICITADAS */}
+            <div style={{
+              marginTop: '24px',
+              paddingTop: '16px',
+              borderTop: '1px solid #edebe9'
+            }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#323130', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i className="fa-solid fa-users" style={{ color: '#107c41' }}></i>
+                <span>Contas de Acesso Cadastradas:</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* rodrigo.souza */}
+                <div
+                  onClick={() => handlePerformLogin('rodrigo.souza', 'Mudar@123')}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #c7e0f4',
+                    backgroundColor: '#eff6fc',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  title="Clique para entrar diretamente com esta conta"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#0078d4',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      R
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#0078d4' }}>
+                        rodrigo.souza
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#605e5c' }}>
+                        Senha: <code style={{ backgroundColor: '#ffffff', padding: '1px 4px', borderRadius: '3px' }}>Mudar@123</code>
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    backgroundColor: '#107c41',
+                    color: '#ffffff',
+                    padding: '3px 8px',
+                    borderRadius: '12px'
+                  }}>
+                    Acesso Total (Tudo)
+                  </span>
+                </div>
+
+                {/* Mudar.123 */}
+                <div
+                  onClick={() => handlePerformLogin('Mudar.123', 'Mudar@123')}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #edebe9',
+                    backgroundColor: '#f8f9fa',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  title="Clique para entrar diretamente com esta conta"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#d13438',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      M
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#323130' }}>
+                        Mudar.123
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#605e5c' }}>
+                        Senha: <code style={{ backgroundColor: '#ffffff', padding: '1px 4px', borderRadius: '3px' }}>Mudar@123</code>
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    backgroundColor: '#ffb900',
+                    color: '#323130',
+                    padding: '3px 8px',
+                    borderRadius: '12px'
+                  }}>
+                    Pouco Acesso
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer do Card */}
+          <div style={{
+            padding: '12px 24px',
+            backgroundColor: '#faf9f8',
+            borderTop: '1px solid #edebe9',
+            textAlign: 'center',
+            fontSize: '11px',
+            color: '#8a8886'
+          }}>
+            Cristalina Controle Agrícola © 2026 • Autenticação Segura
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#ffffff', color: '#323130', fontSize: '13px' }}>
       
@@ -2799,13 +3233,214 @@ export default function App() {
             onClick={() => setShowSettingsModal(true)}
             style={{ cursor: 'pointer', fontSize: '16px', padding: '6px', borderRadius: '4px', transition: 'background-color 0.15s' }}
           ></i>
-          <div
-            className="user-avatar"
-            title="Configurações do Perfil"
-            onClick={() => setShowSettingsModal(true)}
-            style={{ cursor: 'pointer' }}
-          >
-            R
+          <div style={{ position: 'relative' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                transition: 'background-color 0.15s ease',
+                backgroundColor: showUserSwitchMenu ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'
+              }}
+              onClick={() => setShowUserSwitchMenu(!showUserSwitchMenu)}
+              title={`Usuário Conectado: ${activeUser.nome} (${activeUser.id}) - Clique para alternar`}
+            >
+              <div
+                className="user-avatar"
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  userSelect: 'none',
+                  backgroundColor: '#ffffff',
+                  color: '#0078d4',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                }}
+              >
+                {userInitial}
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: '-1px',
+                    right: '-1px',
+                    width: '10px',
+                    height: '10px',
+                    backgroundColor: '#107c41',
+                    border: '2px solid #0078d4',
+                    borderRadius: '50%'
+                  }}
+                  title="Conectado em tempo real"
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2', textAlign: 'left' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                  {activeUser.nome}
+                  <i className="fa-solid fa-chevron-down" style={{ fontSize: '9px', opacity: 0.8 }}></i>
+                </span>
+                <span style={{ fontSize: '10px', color: '#e1dfdd', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#107c41', display: 'inline-block' }}></span>
+                  Online ({activeUser.id})
+                </span>
+              </div>
+            </div>
+
+            {/* MENU DROPDOWN DE SELEÇÃO DE USUÁRIO CONECTADO */}
+            {showUserSwitchMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: '290px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  boxShadow: '0 6px 24px rgba(0,0,0,0.22)',
+                  border: '1px solid #e1dfdd',
+                  zIndex: 999999,
+                  padding: '12px',
+                  color: '#323130'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #edebe9', paddingBottom: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0078d4', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-signal" style={{ color: '#107c41' }}></i>
+                    Conectado em Tempo Real
+                  </span>
+                  <button
+                    onClick={() => setShowUserSwitchMenu(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#605e5c', fontSize: '12px' }}
+                  >
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: '12px', backgroundColor: '#eff6fc', borderRadius: '6px', padding: '10px', border: '1px solid #c7e0f4' }}>
+                  <div style={{ fontSize: '11px', color: '#605e5c', marginBottom: '2px' }}>Usuário Ativo Atual:</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0078d4', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-user-check" style={{ color: '#107c41' }}></i>
+                    {activeUser.nome} ({activeUser.id})
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#605e5c', marginTop: '4px' }}>
+                    Permissões ativas: <strong>{activeUser.permissoes.length}</strong> de {ALL_PERMISSION_CATEGORIES.length} categorias
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#605e5c', marginBottom: '6px' }}>
+                  Alternar Usuário Conectado:
+                </div>
+
+                <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
+                  {userAccounts.map(user => {
+                    const isSelected = user.id === activeUser.id;
+                    return (
+                      <div
+                        key={user.id}
+                        onClick={() => {
+                          setCurrentUserId(user.id);
+                          setShowUserSwitchMenu(false);
+                          showToast(`Usuário ativo alterado para "${user.nome}" (${user.id})`, 'info');
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 10px',
+                          borderRadius: '4px',
+                          backgroundColor: isSelected ? '#eff6fc' : '#f8f9fa',
+                          border: isSelected ? '1px solid #0078d4' : '1px solid #e1dfdd',
+                          cursor: 'pointer',
+                          transition: 'all 0.12s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            backgroundColor: isSelected ? '#0078d4' : '#605e5c',
+                            color: '#ffffff',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {(user.nome || 'U').trim().charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#0078d4' : '#323130' }}>
+                              {user.nome}
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#605e5c' }}>
+                              ID: {user.id}
+                            </div>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <i className="fa-solid fa-circle-check" style={{ color: '#107c41', fontSize: '14px' }}></i>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => {
+                      setShowUserSwitchMenu(false);
+                      setShowSettingsModal(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      borderRadius: '4px',
+                      border: 'none',
+                      backgroundColor: '#0078d4',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <i className="fa-solid fa-users-gear"></i>
+                    <span>Gerenciar Usuários e Permissões</span>
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      borderRadius: '4px',
+                      border: '1px solid #f8a5ac',
+                      backgroundColor: '#fde7e9',
+                      color: '#a80000',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <i className="fa-solid fa-right-from-bracket"></i>
+                    <span>Sair do Sistema (Logout)</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
