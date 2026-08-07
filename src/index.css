@@ -1227,15 +1227,17 @@ table.grid-editing td[contenteditable="true"] {
 @media (max-width: 768px) {
   /* BARRA SUPERIOR E NAVEGAÇÃO */
   .topbar {
-    padding: 6px 10px;
-    height: auto;
+    padding: 0 6px;
+    height: 48px;
     min-height: 48px;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   .topbar-left {
-    gap: 8px;
+    gap: 4px;
+    flex-shrink: 0;
   }
 
   .topbar-left span {
@@ -1243,22 +1245,26 @@ table.grid-editing td[contenteditable="true"] {
   }
 
   .search-box-container {
-    order: 3;
-    width: 100%;
+    order: initial;
+    flex: 1;
+    min-width: 70px;
     max-width: 100%;
-    margin: 4px 0 2px 0;
+    margin: 0 4px;
   }
 
   .search-box {
-    height: 36px;
+    height: 32px;
+    padding: 4px 8px;
   }
 
   .search-box input {
-    font-size: 14px;
+    font-size: 12px;
+    margin-left: 4px;
   }
 
   .topbar-right {
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
   }
 
   /* DESLOCAMENTO E MENU LATERAL DRAWER */

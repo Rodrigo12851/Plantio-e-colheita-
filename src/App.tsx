@@ -3077,61 +3077,33 @@ export default function App() {
             style={{ cursor: 'pointer', fontSize: '16px', padding: '6px', borderRadius: '4px', transition: 'background-color 0.15s' }}
           ></i>
 
-          {/* BADGE DE USUÁRIO LOGADO COM BOTÃO SAIR */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '3px 10px',
-            borderRadius: '20px',
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            border: '1px solid rgba(255,255,255,0.25)',
-            color: '#ffffff'
-          }}>
-            <div style={{
-              width: '26px',
-              height: '26px',
+          {/* ÍCONE DA INICIAL DO USUÁRIO LOGADO */}
+          <button
+            onClick={handleLogout}
+            title={`Conectado como: ${currentUser.nome} (${currentUser.id} - ${selectedUnidade}). Clique para sair.`}
+            style={{
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
               backgroundColor: '#0078d4',
               color: '#ffffff',
               fontWeight: 700,
-              fontSize: '12px',
+              fontSize: '14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '1px solid rgba(255,255,255,0.4)'
-            }}>
-              {currentUser.nome ? currentUser.nome.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1', textAlign: 'left' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700 }}>{currentUser.nome}</span>
-              <span style={{ fontSize: '10px', opacity: 0.85 }}>{currentUser.id} • {selectedUnidade}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              title="Sair do Sistema (Logout)"
-              style={{
-                background: 'rgba(255,255,255,0.2)',
-                border: 'none',
-                color: '#ffffff',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                marginLeft: '4px',
-                fontSize: '11px',
-                fontWeight: 600,
-                borderRadius: '12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'background-color 0.15s ease'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(220, 53, 69, 0.8)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)')}
-            >
-              <i className="fa-solid fa-right-from-bracket"></i>
-              <span>Sair</span>
-            </button>
-          </div>
+              border: '2px solid rgba(255, 255, 255, 0.7)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+              cursor: 'pointer',
+              padding: 0,
+              flexShrink: 0,
+              transition: 'transform 0.15s ease, background-color 0.15s ease'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            {currentUser.nome ? currentUser.nome.charAt(0).toUpperCase() : 'U'}
+          </button>
         </div>
       </div>
 
