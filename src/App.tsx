@@ -4402,6 +4402,7 @@ export default function App() {
         >
           {/* Topo com Botão Voltar e Botão Permissões no mesmo padrão Azul (#0078d4) e mesmo tamanho */}
           <div
+            className="settings-modal-header"
             style={{
               padding: '10px 16px',
               borderBottom: '1px solid #e1dfdd',
@@ -4471,9 +4472,9 @@ export default function App() {
           </div>
 
           {/* Conteúdo Principal da Tela de Permissões */}
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <div className="settings-modal-content" style={{ flex: 1, padding: '24px', overflowY: 'auto', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
             {/* Banner Informativo */}
-            <div style={{
+            <div className="settings-banner" style={{
               backgroundColor: '#ffffff',
               border: '1px solid #e1dfdd',
               borderRadius: '8px',
@@ -4522,7 +4523,7 @@ export default function App() {
             </div>
 
             {/* Barra de Busca e Filtros */}
-            <div style={{
+            <div className="settings-filter-bar" style={{
               backgroundColor: '#ffffff',
               border: '1px solid #e1dfdd',
               borderRadius: '8px',
@@ -4557,11 +4558,11 @@ export default function App() {
             </div>
 
             {/* Tabela de Usuários */}
-            <div style={{
+            <div className="settings-table-container" style={{
               backgroundColor: '#ffffff',
               border: '1px solid #e1dfdd',
               borderRadius: '8px',
-              overflow: 'hidden',
+              overflowX: 'auto',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
