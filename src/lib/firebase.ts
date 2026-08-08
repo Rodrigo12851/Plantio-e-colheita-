@@ -155,7 +155,7 @@ export function subscribeToCollection<T extends { id?: string }>(
   }
   activeSubscribers[collectionName].add(onUpdate as any);
 
-  // 1. Immediate local cache / initial seed load
+  // 1. Immediate local cache / initial seed load for instant offline UI
   let localData = getLocalCache<T>(collectionName);
   if ((!localData || localData.length === 0) && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
     localData = initialSeedIfEmpty;
@@ -170,52 +170,58 @@ export function subscribeToCollection<T extends { id?: string }>(
 
   const unsubscribe = onSnapshot(colRef, async (snapshot: QuerySnapshot<DocumentData>) => {
     if (snapshot.empty) {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      // Check if this specific collection has already been seeded in Firestore
+      const metaColRef = doc(db, "system_metadata", `seed_${collectionName}`);
+      let isColSeeded = false;
+      if (!isOffline) {
+        try {
+          const metaSnap = await getDoc(metaColRef);
+          if (metaSnap.exists()) {
+            isColSeeded = true;
+          }
+        } catch (e) {
+          console.warn(`[Firebase] Aviso ao ler metadados da coleção ${collectionName}:`, e);
+        }
+      }
+
+      // If the collection is empty AND hasn't been seeded yet AND we have initial seed data:
+      if (!isOffline && !isColSeeded && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
+        console.log(`[Firebase] Coleção "${collectionName}" vazia no Firestore. Semeando dados iniciais...`);
+        try {
+          const batch = writeBatch(db);
+          for (const item of initialSeedIfEmpty) {
+            const itemId = (item as any).id || doc(colRef).id;
+            const docRef = doc(db, collectionName, itemId);
+            const cleanItem = sanitizeForFirestore({ ...item, id: itemId });
+            batch.set(docRef, { ...cleanItem, createdAt: new Date().toISOString() }, { merge: true });
+          }
+          batch.set(metaColRef, { seeded: true, seededAt: new Date().toISOString() }, { merge: true });
+          await batch.commit();
+          console.log(`[Firebase] Coleção "${collectionName}" semeada com sucesso no Firestore com ${initialSeedIfEmpty.length} item(ns).`);
+          return;
+        } catch (err) {
+          console.error(`[Firebase] Erro ao semear coleção "${collectionName}" no Firestore:`, err);
+        }
+      }
+
+      // If offline and we have local cache, keep showing local cache
       const currentCache = getLocalCache<T>(collectionName);
-      const isOfflineOrCache = (typeof navigator !== 'undefined' && !navigator.onLine) || snapshot.metadata.fromCache;
-      
-      if (currentCache && currentCache.length > 0) {
+      if (isOffline && currentCache && currentCache.length > 0) {
         onUpdate(currentCache);
         return;
       }
 
-      if (isOfflineOrCache && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
-        setLocalCache(collectionName, initialSeedIfEmpty);
-        onUpdate(initialSeedIfEmpty);
-        return;
-      }
-
-      const isAlreadyInitialized = await checkOrMarkDbInitialized(false);
-
-      if (!isAlreadyInitialized && initialSeedIfEmpty && initialSeedIfEmpty.length > 0) {
-        console.log(`Coleção ${collectionName} vazia no primeiro carregamento. Populando dados iniciais...`);
-        try {
-          const batch = writeBatch(db);
-          for (const item of initialSeedIfEmpty) {
-            const newDocRef = doc(colRef);
-            const { id, ...itemWithoutId } = item as any;
-            batch.set(newDocRef, { ...itemWithoutId, createdAt: new Date().toISOString() });
-          }
-          const metaRef = doc(db, "system_metadata", "database_init");
-          batch.set(metaRef, { initialized: true, initializedAt: new Date().toISOString() }, { merge: true });
-
-          await batch.commit();
-          isDbInitializedMemory = true;
-          if (typeof window !== 'undefined') localStorage.setItem(LOCAL_INIT_KEY, 'true');
-        } catch (err) {
-          console.error(`Erro ao semear dados na coleção ${collectionName}:`, err);
-        }
-        setLocalCache(collectionName, initialSeedIfEmpty);
-        onUpdate(initialSeedIfEmpty);
-        return;
-      }
-
-      if (!currentCache || currentCache.length === 0) {
-        onUpdate([]);
-      }
+      // If already seeded or offline with no cache, notify empty
+      setLocalCache(collectionName, []);
+      onUpdate([]);
       return;
     }
 
-    checkOrMarkDbInitialized(true);
+    // Mark collection as seeded since snapshot contains documents
+    const metaColRef = doc(db, "system_metadata", `seed_${collectionName}`);
+    setDoc(metaColRef, { seeded: true, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
 
     const rawItems: T[] = [];
     snapshot.forEach((docSnap) => {
@@ -318,16 +324,9 @@ export async function saveDocument<T extends Record<string, any>>(
 
   // 2. Background Firestore persistence
   try {
-    const colRef = collection(db, collectionName);
-    const { id, ...cleanData } = dataToSave as any;
-    
-    if (docId || data.id) {
-      const docRef = doc(db, collectionName, targetId);
-      await setDoc(docRef, cleanData, { merge: true });
-    } else {
-      const docRef = doc(db, collectionName, targetId);
-      await setDoc(docRef, cleanData, { merge: true });
-    }
+    const docRef = doc(db, collectionName, targetId);
+    await setDoc(docRef, dataToSave, { merge: true });
+    console.log(`[Firebase] Documento ${targetId} salvo com sucesso na coleção ${collectionName}.`);
   } catch (err) {
     console.warn(`[Firebase] Gravação salva localmente no modo offline para ${collectionName}:`, err);
   }
