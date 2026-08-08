@@ -239,20 +239,6 @@ const DEFAULT_USER_ACCOUNTS: UserAccount[] = [
     senha: 'admin',
     permissoes: ALL_PERMISSION_CATEGORIES.map(c => c.key),
     createdAt: '01/01/2026'
-  },
-  {
-    id: 'USR-002',
-    nome: 'Operador de Campo',
-    senha: 'campo',
-    permissoes: ['amarracoes', 'plantio', 'colheita', 'variedades', 'culturas', 'frentes_trabalho', 'apontamentos_apsa', 'apontamentos_safris'],
-    createdAt: '15/03/2026'
-  },
-  {
-    id: 'USR-003',
-    nome: 'Gestor de Frota',
-    senha: 'frota',
-    permissoes: ['onibus', 'motoristas', 'colaboradores', 'empresas'],
-    createdAt: '20/04/2026'
   }
 ];
 
