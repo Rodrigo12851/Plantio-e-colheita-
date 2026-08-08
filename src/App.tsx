@@ -5432,7 +5432,6 @@ export default function App() {
                   overflowY: 'auto'
                 }}>
                   <label
-                    onClick={() => setUserEmpresasInput(['TODAS'])}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -5449,7 +5448,13 @@ export default function App() {
                     <input
                       type="checkbox"
                       checked={userEmpresasInput.includes('TODAS')}
-                      onChange={() => {}}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setUserEmpresasInput(['TODAS']);
+                        } else {
+                          setUserEmpresasInput([]);
+                        }
+                      }}
                       style={{ accentColor: '#107c41', cursor: 'pointer' }}
                     />
                     <i className="fa-solid fa-earth-americas" style={{ fontSize: '12px', color: userEmpresasInput.includes('TODAS') ? '#107c41' : '#605e5c' }}></i>
@@ -5463,7 +5468,6 @@ export default function App() {
                     return (
                       <label
                         key={unitName}
-                        onClick={() => toggleEmpresaPermission(unitName)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -5479,7 +5483,7 @@ export default function App() {
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => {}}
+                          onChange={() => toggleEmpresaPermission(unitName)}
                           style={{ accentColor: '#0078d4', cursor: 'pointer' }}
                         />
                         <i className="fa-solid fa-building" style={{ fontSize: '11px', color: isChecked ? '#0078d4' : '#605e5c' }}></i>
