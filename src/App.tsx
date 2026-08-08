@@ -403,16 +403,8 @@ export default function App() {
   // Gestão de Usuários e Permissões
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
 
-  // Estado do Usuário Logado
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    try {
-      const saved = localStorage.getItem('CRISTALINA_CURRENT_USER');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return DEFAULT_USER_ACCOUNTS[0]; // Administrador Geral por padrão
-  });
+  // Estado do Usuário Logado (Sempre inicia desconectado ao abrir o app para exigir a senha)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
 
   // Helper para verificar se o usuário logado possui permissão para uma função/página
   const hasPermission = (permissionKey: string): boolean => {
@@ -443,8 +435,14 @@ export default function App() {
     }
   }, [currentUser, activePage]);
 
-  // Estado do Formulário de Login
-  const [loginUserId, setLoginUserId] = useState('');
+  // Estado do Formulário de Login (Maneja sugestão de Usuário e força Senha vazia)
+  const [loginUserId, setLoginUserId] = useState<string>(() => {
+    try {
+      const lastUser = localStorage.getItem('CRISTALINA_LAST_USER_ID');
+      if (lastUser) return lastUser;
+    } catch (e) {}
+    return 'USR-001';
+  });
   const [loginPassword, setLoginPassword] = useState('');
   const [loginUnidade, setLoginUnidade] = useState('Cristalina');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -463,9 +461,7 @@ export default function App() {
   useEffect(() => {
     try {
       if (currentUser) {
-        localStorage.setItem('CRISTALINA_CURRENT_USER', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('CRISTALINA_CURRENT_USER');
+        localStorage.setItem('CRISTALINA_LAST_USER_ID', currentUser.id || currentUser.nome);
       }
     } catch (e) {
       console.error(e);
@@ -503,7 +499,9 @@ export default function App() {
     // Sucesso no Login
     setCurrentUser(foundUser);
     if (loginUnidade) setSelectedUnidade(loginUnidade);
-    setLoginUserId('');
+    try {
+      localStorage.setItem('CRISTALINA_LAST_USER_ID', foundUser.id || foundUser.nome);
+    } catch (e) {}
     setLoginPassword('');
     setLoginErrorMsg('');
     showToast(`Login realizado com sucesso! Bem-vindo(a), ${foundUser.nome}.`, 'success');
@@ -511,12 +509,13 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setLoginPassword('');
     showToast('Você saiu do sistema.', 'info');
   };
 
   const handleQuickLogin = (user: UserAccount) => {
     setLoginUserId(user.id);
-    setLoginPassword(user.senha);
+    setLoginPassword('');
     setLoginErrorMsg('');
   };
 
@@ -2907,7 +2906,7 @@ export default function App() {
                 value={loginUserId}
                 onChange={e => setLoginUserId(e.target.value)}
                 placeholder="Ex: USR-001 ou Administrador Geral"
-                autoFocus
+                autoFocus={!loginUserId}
                 style={{
                   width: '100%',
                   padding: '12px 14px',
@@ -2918,12 +2917,44 @@ export default function App() {
                   boxSizing: 'border-box'
                 }}
               />
+              {/* Sugestões de Usuários do Banco de Dados */}
+              {(userAccounts.length > 0 ? userAccounts : DEFAULT_USER_ACCOUNTS).length > 0 && (
+                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: '#605e5c', fontWeight: 600 }}>Sugestões de Usuário:</span>
+                  {(userAccounts.length > 0 ? userAccounts : DEFAULT_USER_ACCOUNTS).map(u => {
+                    const isSelected = loginUserId.toLowerCase() === u.id.toLowerCase() || loginUserId.toLowerCase() === u.nome.toLowerCase();
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => {
+                          setLoginUserId(u.id);
+                          setLoginErrorMsg('');
+                        }}
+                        style={{
+                          backgroundColor: isSelected ? '#eff6fc' : '#f3f2f1',
+                          color: isSelected ? '#0078d4' : '#323130',
+                          border: isSelected ? '1px solid #0078d4' : '1px solid #d2d0ce',
+                          borderRadius: '12px',
+                          padding: '3px 10px',
+                          fontSize: '11px',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {u.nome} ({u.id})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#323130', display: 'block', marginBottom: '6px' }}>
                 <i className="fa-solid fa-lock" style={{ color: '#0078d4', marginRight: '6px' }}></i>
-                Senha de Acesso
+                Senha de Acesso <span style={{ color: '#a80000' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
                 <input
@@ -2931,6 +2962,7 @@ export default function App() {
                   value={loginPassword}
                   onChange={e => setLoginPassword(e.target.value)}
                   placeholder="Digite sua senha..."
+                  autoFocus={!!loginUserId}
                   style={{
                     width: '100%',
                     padding: '12px 42px 12px 14px',
