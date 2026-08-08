@@ -192,6 +192,7 @@ export interface UserAccount {
   nome: string; // Nome do Usuário
   senha: string; // Senha do Usuário
   permissoes: string[]; // Lista de chaves de permissões
+  empresasPermitidas?: string[]; // Lista de empresas/unidades permitidas (ex: ['Cristalina', 'São Gabriel'] ou ['TODAS'])
   createdAt?: string;
 }
 
@@ -238,6 +239,7 @@ const DEFAULT_USER_ACCOUNTS: UserAccount[] = [
     nome: 'Administrador Geral',
     senha: 'admin',
     permissoes: ALL_PERMISSION_CATEGORIES.map(c => c.key),
+    empresasPermitidas: ['TODAS'],
     createdAt: '01/01/2026'
   }
 ];
@@ -406,6 +408,16 @@ export default function App() {
   // Estado do Usuário Logado (Sempre inicia desconectado ao abrir o app para exigir a senha)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
 
+  // Helper para obter as empresas/unidades permitidas para um determinado usuário
+  const getAllowedUnidadesForUser = (user: UserAccount | null): string[] => {
+    if (!user) return unidadesList;
+    if (!user.empresasPermitidas || user.empresasPermitidas.length === 0 || user.empresasPermitidas.includes('TODAS')) {
+      return unidadesList;
+    }
+    const filtered = unidadesList.filter(u => user.empresasPermitidas?.includes(u));
+    return filtered.length > 0 ? filtered : unidadesList;
+  };
+
   // Helper para verificar se o usuário logado possui permissão para uma função/página
   const hasPermission = (permissionKey: string): boolean => {
     if (!currentUser) return false;
@@ -457,6 +469,7 @@ export default function App() {
   const [userNameInput, setUserNameInput] = useState('');
   const [userPasswordInput, setUserPasswordInput] = useState('');
   const [userPermissionsInput, setUserPermissionsInput] = useState<string[]>([]);
+  const [userEmpresasInput, setUserEmpresasInput] = useState<string[]>(['TODAS']);
 
   useEffect(() => {
     try {
@@ -467,6 +480,22 @@ export default function App() {
       console.error(e);
     }
   }, [currentUser]);
+
+  // Ao alterar o ID do Usuário na tela de login, sincroniza a unidade para uma permitida
+  useEffect(() => {
+    if (loginUserId.trim()) {
+      const searchKey = loginUserId.trim().toLowerCase();
+      const foundUser = userAccounts.find(
+        u => u.id.toLowerCase() === searchKey || u.nome.toLowerCase() === searchKey
+      );
+      if (foundUser) {
+        const allowed = getAllowedUnidadesForUser(foundUser);
+        if (allowed.length > 0 && !allowed.includes(loginUnidade)) {
+          setLoginUnidade(allowed[0]);
+        }
+      }
+    }
+  }, [loginUserId, userAccounts]);
 
   const handleLoginSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -496,6 +525,13 @@ export default function App() {
       return;
     }
 
+    // Verificar se o usuário tem permissão para a unidade selecionada
+    const allowedUnits = getAllowedUnidadesForUser(foundUser);
+    if (!allowedUnits.includes(loginUnidade)) {
+      setLoginErrorMsg(`O usuário "${foundUser.nome}" não possui permissão para acessar a empresa "${loginUnidade}".`);
+      return;
+    }
+
     // Sucesso no Login
     setCurrentUser(foundUser);
     if (loginUnidade) setSelectedUnidade(loginUnidade);
@@ -517,6 +553,10 @@ export default function App() {
     setLoginUserId(user.id);
     setLoginPassword('');
     setLoginErrorMsg('');
+    const allowed = getAllowedUnidadesForUser(user);
+    if (allowed.length > 0 && !allowed.includes(loginUnidade)) {
+      setLoginUnidade(allowed[0]);
+    }
   };
 
   const handleOpenUserModal = (user?: UserAccount) => {
@@ -526,6 +566,7 @@ export default function App() {
       setUserNameInput(user.nome);
       setUserPasswordInput(user.senha);
       setUserPermissionsInput(user.permissoes || []);
+      setUserEmpresasInput(user.empresasPermitidas && user.empresasPermitidas.length > 0 ? user.empresasPermitidas : ['TODAS']);
     } else {
       setEditingUser(null);
       const nextNum = userAccounts.length + 1;
@@ -534,6 +575,7 @@ export default function App() {
       setUserNameInput('');
       setUserPasswordInput('');
       setUserPermissionsInput(ALL_PERMISSION_CATEGORIES.map(c => c.key));
+      setUserEmpresasInput(['TODAS']);
     }
     setShowUserModal(true);
   };
@@ -564,6 +606,7 @@ export default function App() {
       nome: userNameInput.trim(),
       senha: userPasswordInput.trim(),
       permissoes: userPermissionsInput,
+      empresasPermitidas: userEmpresasInput.length === 0 ? ['TODAS'] : userEmpresasInput,
       createdAt: editingUser?.createdAt || new Date().toLocaleDateString('pt-BR')
     };
 
@@ -598,6 +641,32 @@ export default function App() {
         ? prev.filter(k => k !== catKey)
         : [...prev, catKey]
     );
+  };
+
+  const toggleAllEmpresas = (checkAll: boolean) => {
+    if (checkAll) {
+      setUserEmpresasInput(['TODAS']);
+    } else {
+      setUserEmpresasInput([]);
+    }
+  };
+
+  const toggleEmpresaPermission = (empresaName: string) => {
+    setUserEmpresasInput(prev => {
+      let current = prev.includes('TODAS') ? [...unidadesList] : [...prev];
+      current = current.filter(e => e !== 'TODAS');
+
+      if (current.includes(empresaName)) {
+        current = current.filter(e => e !== empresaName);
+      } else {
+        current.push(empresaName);
+      }
+
+      if (unidadesList.length > 0 && unidadesList.every(u => current.includes(u))) {
+        return ['TODAS'];
+      }
+      return current;
+    });
   };
 
   useEffect(() => {
@@ -663,12 +732,24 @@ export default function App() {
     return unitName.substring(0, 2).toUpperCase();
   };
 
+  // Garantir que selectedUnidade seja sempre uma empresa permitida para o usuário logado
+  useEffect(() => {
+    if (currentUser) {
+      const allowed = getAllowedUnidadesForUser(currentUser);
+      if (allowed.length > 0 && !allowed.includes(selectedUnidade)) {
+        setSelectedUnidade(allowed[0]);
+      }
+    }
+  }, [currentUser, unidadesList]);
+
   const isItemInSelectedUnidade = (item: { unidade?: string }) => {
     if (!item) return false;
-    if (!item.unidade) {
-      return selectedUnidade === 'Cristalina';
+    const itemUnit = item.unidade || 'Cristalina';
+    if (currentUser) {
+      const allowed = getAllowedUnidadesForUser(currentUser);
+      if (!allowed.includes(itemUnit)) return false;
     }
-    return item.unidade === selectedUnidade;
+    return itemUnit === selectedUnidade;
   };
 
   const handleAddUnidade = async () => {
@@ -3000,24 +3081,49 @@ export default function App() {
                 <i className="fa-solid fa-location-dot" style={{ color: '#0078d4', marginRight: '6px' }}></i>
                 Unidade de Produção
               </label>
-              <select
-                value={loginUnidade}
-                onChange={e => setLoginUnidade(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #8a8886',
-                  fontSize: '15px',
-                  backgroundColor: '#ffffff',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              >
-                {unidadesList.map((u, i) => (
-                  <option key={i} value={u}>{u}</option>
-                ))}
-              </select>
+              {(() => {
+                const searchKey = loginUserId.trim().toLowerCase();
+                const matchedUser = userAccounts.find(
+                  u => u.id.toLowerCase() === searchKey || u.nome.toLowerCase() === searchKey
+                );
+                const allowedUnits = getAllowedUnidadesForUser(matchedUser || null);
+
+                return (
+                  <>
+                    <select
+                      value={loginUnidade}
+                      onChange={e => setLoginUnidade(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '6px',
+                        border: '1px solid #8a8886',
+                        fontSize: '15px',
+                        backgroundColor: '#ffffff',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      {allowedUnits.map((u, i) => (
+                        <option key={i} value={u}>{u}</option>
+                      ))}
+                    </select>
+
+                    {matchedUser && (
+                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#605e5c', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f3f2f1', padding: '6px 10px', borderRadius: '4px', border: '1px solid #e1dfdd' }}>
+                        <i className="fa-solid fa-building" style={{ color: '#0078d4' }}></i>
+                        <span>
+                          <strong>Empresas Permitidas:</strong> {
+                            (!matchedUser.empresasPermitidas || matchedUser.empresasPermitidas.length === 0 || matchedUser.empresasPermitidas.includes('TODAS'))
+                              ? 'Todas as Empresas (Sem Restrição)'
+                              : matchedUser.empresasPermitidas.join(', ')
+                          }
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <button
@@ -4317,7 +4423,7 @@ export default function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto', marginBottom: '20px', paddingRight: '4px' }}>
-              {unidadesList.map((unit) => {
+              {getAllowedUnidadesForUser(currentUser).map((unit) => {
                 const isSelected = unit === selectedUnidade;
                 return (
                   <div
@@ -4638,8 +4744,9 @@ export default function App() {
                       <thead>
                         <tr style={{ backgroundColor: '#f3f2f1', borderBottom: '1px solid #e1dfdd', color: '#323130' }}>
                           <th style={{ padding: '10px 14px', fontWeight: 700, width: '130px' }}>ID DO USUÁRIO</th>
-                          <th style={{ padding: '10px 14px', fontWeight: 700, minWidth: '180px' }}>NOME DO USUÁRIO</th>
-                          <th style={{ padding: '10px 14px', fontWeight: 700, width: '160px' }}>SENHA</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, minWidth: '160px' }}>NOME DO USUÁRIO</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, width: '140px' }}>SENHA</th>
+                          <th style={{ padding: '10px 14px', fontWeight: 700, minWidth: '180px' }}>EMPRESAS PERMITIDAS</th>
                           <th style={{ padding: '10px 14px', fontWeight: 700 }}>PERMISSÕES POR CATEGORIA</th>
                           <th style={{ padding: '10px 14px', fontWeight: 700, width: '120px', textAlign: 'center' }}>AÇÕES</th>
                         </tr>
@@ -4647,7 +4754,7 @@ export default function App() {
                       <tbody>
                         {filteredUsers.length === 0 ? (
                           <tr>
-                            <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#605e5c' }}>
+                            <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: '#605e5c' }}>
                               <i className="fa-solid fa-user-slash" style={{ fontSize: '24px', color: '#a19f9d', marginBottom: '8px', display: 'block' }}></i>
                               Nenhum usuário encontrado com os critérios digitados.
                             </td>
@@ -4656,6 +4763,7 @@ export default function App() {
                           filteredUsers.map((user, idx) => {
                             const isShowPass = !!showPasswordMap[user.id];
                             const isAllPerms = user.permissoes.length === ALL_PERMISSION_CATEGORIES.length;
+                            const isAllEmpresas = !user.empresasPermitidas || user.empresasPermitidas.length === 0 || user.empresasPermitidas.includes('TODAS');
 
                             return (
                               <tr
@@ -4698,6 +4806,46 @@ export default function App() {
                                       <i className={`fa-solid ${isShowPass ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                                     </button>
                                   </div>
+                                </td>
+                                <td style={{ padding: '10px 14px' }}>
+                                  {isAllEmpresas ? (
+                                    <span style={{
+                                      backgroundColor: '#dff6dd',
+                                      color: '#107c41',
+                                      border: '1px solid #92c353',
+                                      padding: '3px 10px',
+                                      borderRadius: '12px',
+                                      fontWeight: 600,
+                                      fontSize: '11px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <i className="fa-solid fa-earth-americas"></i> Todas as Empresas
+                                    </span>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                      {user.empresasPermitidas?.map(emp => (
+                                        <span
+                                          key={emp}
+                                          style={{
+                                            backgroundColor: '#eff6fc',
+                                            color: '#0078d4',
+                                            border: '1px solid #c7e0f4',
+                                            padding: '2px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                          }}
+                                        >
+                                          <i className="fa-solid fa-building"></i> {emp}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </td>
                                 <td style={{ padding: '10px 14px' }}>
                                   {isAllPerms ? (
@@ -4948,6 +5096,53 @@ export default function App() {
                               </div>
                             </div>
 
+                            {/* Empresas Permitidas */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#605e5c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <i className="fa-solid fa-building" style={{ color: '#0078d4' }}></i>
+                                Empresas Permitidas:
+                              </div>
+                              {(!user.empresasPermitidas || user.empresasPermitidas.length === 0 || user.empresasPermitidas.includes('TODAS')) ? (
+                                <span style={{
+                                  backgroundColor: '#dff6dd',
+                                  color: '#107c41',
+                                  border: '1px solid #92c353',
+                                  padding: '4px 10px',
+                                  borderRadius: '12px',
+                                  fontWeight: 600,
+                                  fontSize: '11px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  width: 'fit-content'
+                                }}>
+                                  <i className="fa-solid fa-earth-americas"></i> Todas as Empresas (Sem Restrição)
+                                </span>
+                              ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                  {user.empresasPermitidas.map(emp => (
+                                    <span
+                                      key={emp}
+                                      style={{
+                                        backgroundColor: '#eff6fc',
+                                        color: '#0078d4',
+                                        border: '1px solid #c7e0f4',
+                                        padding: '3px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <i className="fa-solid fa-building"></i> {emp}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
                             {/* Informação de Senha */}
                             <div style={{
                               display: 'flex',
@@ -5180,6 +5375,121 @@ export default function App() {
                     fontSize: '12px'
                   }}
                 />
+              </div>
+
+              {/* SELEÇÃO DE EMPRESAS / UNIDADES PERMITIDAS */}
+              <div style={{ borderTop: '1px solid #e1dfdd', paddingTop: '16px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: '#323130', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="fa-solid fa-building" style={{ color: '#0078d4' }}></i>
+                    Empresas / Unidades Permitidas (Restrição por Empresa):
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleAllEmpresas(true)}
+                      style={{
+                        backgroundColor: '#eff6fc',
+                        color: '#0078d4',
+                        border: '1px solid #c7e0f4',
+                        borderRadius: '4px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Todas as Empresas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleAllEmpresas(false)}
+                      style={{
+                        backgroundColor: '#f3f2f1',
+                        color: '#605e5c',
+                        border: '1px solid #d2d0ce',
+                        borderRadius: '4px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Nenhuma
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                  gap: '8px',
+                  backgroundColor: '#f8f9fa',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e1dfdd',
+                  maxHeight: '160px',
+                  overflowY: 'auto'
+                }}>
+                  <label
+                    onClick={() => setUserEmpresasInput(['TODAS'])}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 10px',
+                      borderRadius: '4px',
+                      backgroundColor: userEmpresasInput.includes('TODAS') ? '#dff6dd' : '#ffffff',
+                      border: userEmpresasInput.includes('TODAS') ? '1px solid #107c41' : '1px solid #e1dfdd',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      gridColumn: '1 / -1'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={userEmpresasInput.includes('TODAS')}
+                      onChange={() => {}}
+                      style={{ accentColor: '#107c41', cursor: 'pointer' }}
+                    />
+                    <i className="fa-solid fa-earth-americas" style={{ fontSize: '12px', color: userEmpresasInput.includes('TODAS') ? '#107c41' : '#605e5c' }}></i>
+                    <span style={{ fontSize: '12px', fontWeight: userEmpresasInput.includes('TODAS') ? 700 : 400, color: userEmpresasInput.includes('TODAS') ? '#107c41' : '#323130' }}>
+                      Acesso a TODAS as Empresas (Sem Restrição)
+                    </span>
+                  </label>
+
+                  {unidadesList.map(unitName => {
+                    const isChecked = userEmpresasInput.includes('TODAS') || userEmpresasInput.includes(unitName);
+                    return (
+                      <label
+                        key={unitName}
+                        onClick={() => toggleEmpresaPermission(unitName)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 10px',
+                          borderRadius: '4px',
+                          backgroundColor: isChecked ? '#eff6fc' : '#ffffff',
+                          border: isChecked ? '1px solid #0078d4' : '1px solid #e1dfdd',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          style={{ accentColor: '#0078d4', cursor: 'pointer' }}
+                        />
+                        <i className="fa-solid fa-building" style={{ fontSize: '11px', color: isChecked ? '#0078d4' : '#605e5c' }}></i>
+                        <span style={{ fontSize: '12px', fontWeight: isChecked ? 600 : 400, color: isChecked ? '#0078d4' : '#323130' }}>
+                          {unitName}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* SELEÇÃO DE PERMISSÕES POR CATEGORIA */}

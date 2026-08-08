@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getFirestore,
   enableIndexedDbPersistence,
+  enableMultiTabIndexedDbPersistence,
   collection,
   onSnapshot,
   addDoc,
@@ -35,13 +36,16 @@ export const db = (customDatabaseId && customDatabaseId !== "(default)")
   ? getFirestore(app, customDatabaseId)
   : getFirestore(app);
 
-// Enable Firestore offline cache in browser IndexedDB
+// Enable Firestore offline cache in browser IndexedDB with multi-tab support
 if (typeof window !== "undefined") {
-  enableIndexedDbPersistence(db).catch((err) => {
+  enableMultiTabIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
-      console.warn('[Firebase] Persistência mantida na aba ativa primária.');
+      // Fallback to single tab persistence if multi-tab isn't available or fails
+      enableIndexedDbPersistence(db).catch(() => {});
     } else if (err.code === 'unimplemented') {
       console.warn('[Firebase] Navegador atual não suporta IndexedDB.');
+    } else {
+      console.warn('[Firebase] Persistência offline ajustada:', err?.message || err);
     }
   });
 }
