@@ -38,6 +38,14 @@ export interface ParsedImportItem extends PMSItem {
   hasChanges?: boolean;
 }
 
+// Utility to ensure values are never 'undefined', 'null', or undefined - returns empty string ''
+export const cleanValue = (val: any): string => {
+  if (val === undefined || val === null) return '';
+  const s = String(val).trim();
+  if (s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+  return s;
+};
+
 export const DEFAULT_PMS_DATA: PMSItem[] = [
   { cultura: 'Crambe', variedade: 'Abyssinica', tipo: 'Cereais', cicloDias: '120', unidadeVenda: '', mediaUtilizacaoSemente: '', produtividade: '32', unidadeVenda2: 'sacas p/há', pms: '', unidade: 'Cristalina' },
   { cultura: 'Feijão Carioca', variedade: 'Carioca Dama', tipo: 'Cereais', cicloDias: '90', unidadeVenda: 'Sacas', mediaUtilizacaoSemente: '', produtividade: '50', unidadeVenda2: 'sacas p/há', pms: 'PMS Dama: 250 Grmas', unidade: 'Cristalina' },
@@ -131,17 +139,24 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
   const filteredItems = useMemo(() => {
     return unidadeItems.filter(item => {
       const q = searchQuery.toLowerCase().trim();
+      const cCultura = cleanValue(item.cultura);
+      const cVariedade = cleanValue(item.variedade);
+      const cPMS = cleanValue(item.pms);
+      const cTipo = cleanValue(item.tipo);
+      const cCiclo = cleanValue(item.cicloDias);
+      const cProd = cleanValue(item.produtividade);
+
       const matchesSearch =
         !q ||
-        item.cultura?.toLowerCase().includes(q) ||
-        item.variedade?.toLowerCase().includes(q) ||
-        item.pms?.toLowerCase().includes(q) ||
-        item.tipo?.toLowerCase().includes(q) ||
-        String(item.cicloDias || '').toLowerCase().includes(q) ||
-        String(item.produtividade || '').toLowerCase().includes(q);
+        cCultura.toLowerCase().includes(q) ||
+        cVariedade.toLowerCase().includes(q) ||
+        cPMS.toLowerCase().includes(q) ||
+        cTipo.toLowerCase().includes(q) ||
+        cCiclo.toLowerCase().includes(q) ||
+        cProd.toLowerCase().includes(q);
 
-      const matchesCultura = filterCultura === 'TODAS' || item.cultura === filterCultura;
-      const matchesTipo = filterTipo === 'TODOS' || item.tipo === filterTipo;
+      const matchesCultura = filterCultura === 'TODAS' || cCultura === filterCultura;
+      const matchesTipo = filterTipo === 'TODOS' || cTipo === filterTipo;
 
       return matchesSearch && matchesCultura && matchesTipo;
     });
@@ -151,8 +166,8 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
   const uniqueCulturas = useMemo(() => {
     const list = Array.from(
       new Set([
-        ...unidadeItems.map(i => i.cultura),
-        ...culturas.map(c => c.nome)
+        ...unidadeItems.map(i => cleanValue(i.cultura)),
+        ...culturas.map(c => cleanValue(c.nome))
       ].filter(Boolean))
     ).sort();
     return list;
@@ -161,8 +176,8 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
   const uniqueTipos = useMemo(() => {
     const list = Array.from(
       new Set([
-        ...unidadeItems.map(i => i.tipo),
-        ...culturas.map(c => c.tipo)
+        ...unidadeItems.map(i => cleanValue(i.tipo)),
+        ...culturas.map(c => cleanValue(c.tipo))
       ].filter(Boolean))
     ).sort();
     return list.length > 0 ? list : ['Cereais', 'Hortifruti'];
@@ -171,39 +186,42 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
   // Link Cultura with Tipo and Variedades
   const availableVariedadesForCultura = useMemo(() => {
     if (!formCultura) {
-      return Array.from(new Set([...variedades.map(v => v.nome), ...unidadeItems.map(i => i.variedade)].filter(Boolean))).sort();
+      return Array.from(new Set([...variedades.map(v => cleanValue(v.nome)), ...unidadeItems.map(i => cleanValue(i.variedade))].filter(Boolean))).sort();
     }
-    const fromVariedades = variedades.filter(v => v.cultura?.toLowerCase() === formCultura.toLowerCase()).map(v => v.nome);
-    const fromPMS = unidadeItems.filter(i => i.cultura?.toLowerCase() === formCultura.toLowerCase()).map(i => i.variedade);
+    const targetCultura = formCultura.trim().toLowerCase();
+    const fromVariedades = variedades.filter(v => cleanValue(v.cultura).toLowerCase() === targetCultura).map(v => cleanValue(v.nome));
+    const fromPMS = unidadeItems.filter(i => cleanValue(i.cultura).toLowerCase() === targetCultura).map(i => cleanValue(i.variedade));
     return Array.from(new Set([...fromVariedades, ...fromPMS].filter(Boolean))).sort();
   }, [formCultura, variedades, unidadeItems]);
 
   const handleCulturaChange = (culturaName: string) => {
-    setFormCultura(culturaName);
+    const cleanCultura = cleanValue(culturaName);
+    setFormCultura(cleanCultura);
     
     // Auto-detect Tipo based on registered Culturas or existing PMS items
-    const matchedCultura = culturas.find(c => c.nome.toLowerCase() === culturaName.toLowerCase());
-    if (matchedCultura?.tipo) {
-      setFormTipo(matchedCultura.tipo);
+    const matchedCultura = culturas.find(c => cleanValue(c.nome).toLowerCase() === cleanCultura.toLowerCase());
+    if (matchedCultura?.tipo && cleanValue(matchedCultura.tipo)) {
+      setFormTipo(cleanValue(matchedCultura.tipo));
     } else {
-      const matchedPms = items.find(i => i.cultura.toLowerCase() === culturaName.toLowerCase());
-      if (matchedPms?.tipo) {
-        setFormTipo(matchedPms.tipo);
+      const matchedPms = items.find(i => cleanValue(i.cultura).toLowerCase() === cleanCultura.toLowerCase());
+      if (matchedPms?.tipo && cleanValue(matchedPms.tipo)) {
+        setFormTipo(cleanValue(matchedPms.tipo));
       }
     }
   };
 
   const handleVariedadeChange = (variedadeName: string) => {
-    setFormVariedade(variedadeName);
+    const cleanVar = cleanValue(variedadeName);
+    setFormVariedade(cleanVar);
 
     // If Cultura is not set, try to auto-fill Cultura and Tipo from Variedades database
     if (!formCultura) {
-      const matchedVariedade = variedades.find(v => v.nome.toLowerCase() === variedadeName.toLowerCase());
-      if (matchedVariedade?.cultura) {
+      const matchedVariedade = variedades.find(v => cleanValue(v.nome).toLowerCase() === cleanVar.toLowerCase());
+      if (matchedVariedade?.cultura && cleanValue(matchedVariedade.cultura)) {
         handleCulturaChange(matchedVariedade.cultura);
       } else {
-        const matchedPms = items.find(i => i.variedade.toLowerCase() === variedadeName.toLowerCase());
-        if (matchedPms?.cultura) {
+        const matchedPms = items.find(i => cleanValue(i.variedade).toLowerCase() === cleanVar.toLowerCase());
+        if (matchedPms?.cultura && cleanValue(matchedPms.cultura)) {
           handleCulturaChange(matchedPms.cultura);
         }
       }
@@ -226,39 +244,42 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
   const handleOpenEditModal = (item: PMSItem) => {
     setEditingItem(item);
-    setFormCultura(item.cultura || '');
-    setFormVariedade(item.variedade || '');
-    setFormTipo(item.tipo || 'Cereais');
-    setFormCicloDias(String(item.cicloDias ?? ''));
-    setFormUnidadeVenda(item.unidadeVenda || 'Sacas');
-    setFormMediaUtilizacaoSemente(String(item.mediaUtilizacaoSemente ?? ''));
-    setFormProdutividade(String(item.produtividade ?? ''));
-    setFormUnidadeVenda2(item.unidadeVenda2 || 'sacas p/há');
-    setFormPMS(item.pms || '');
+    setFormCultura(cleanValue(item.cultura));
+    setFormVariedade(cleanValue(item.variedade));
+    setFormTipo(cleanValue(item.tipo) || 'Cereais');
+    setFormCicloDias(cleanValue(item.cicloDias));
+    setFormUnidadeVenda(cleanValue(item.unidadeVenda) || 'Sacas');
+    setFormMediaUtilizacaoSemente(cleanValue(item.mediaUtilizacaoSemente));
+    setFormProdutividade(cleanValue(item.produtividade));
+    setFormUnidadeVenda2(cleanValue(item.unidadeVenda2) || 'sacas p/há');
+    setFormPMS(cleanValue(item.pms));
     setIsModalOpen(true);
   };
 
   const handleSaveModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formCultura.trim()) {
+    const cCultura = cleanValue(formCultura);
+    const cVariedade = cleanValue(formVariedade);
+
+    if (!cCultura) {
       showToast('Por favor, informe a Cultura.', 'warning');
       return;
     }
-    if (!formVariedade.trim()) {
+    if (!cVariedade) {
       showToast('Por favor, informe a Variedade.', 'warning');
       return;
     }
 
     const payload: PMSItem = {
-      cultura: formCultura.trim(),
-      variedade: formVariedade.trim(),
-      tipo: formTipo.trim() || 'Cereais',
-      cicloDias: formCicloDias.trim(),
-      unidadeVenda: formUnidadeVenda.trim(),
-      mediaUtilizacaoSemente: formMediaUtilizacaoSemente.trim(),
-      produtividade: formProdutividade.trim(),
-      unidadeVenda2: formUnidadeVenda2.trim(),
-      pms: formPMS.trim(),
+      cultura: cCultura,
+      variedade: cVariedade,
+      tipo: cleanValue(formTipo) || 'Cereais',
+      cicloDias: cleanValue(formCicloDias),
+      unidadeVenda: cleanValue(formUnidadeVenda),
+      mediaUtilizacaoSemente: cleanValue(formMediaUtilizacaoSemente),
+      produtividade: cleanValue(formProdutividade),
+      unidadeVenda2: cleanValue(formUnidadeVenda2),
+      pms: cleanValue(formPMS),
       unidade: selectedUnidade
     };
 
@@ -266,8 +287,8 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     if (!editingItem?.id) {
       const existing = items.find(
         i =>
-          i.cultura.trim().toLowerCase() === payload.cultura.toLowerCase() &&
-          i.variedade.trim().toLowerCase() === payload.variedade.toLowerCase() &&
+          cleanValue(i.cultura).toLowerCase() === payload.cultura.toLowerCase() &&
+          cleanValue(i.variedade).toLowerCase() === payload.variedade.toLowerCase() &&
           (!i.unidade || i.unidade === selectedUnidade || selectedUnidade === 'TODAS')
       );
       if (existing?.id) {
@@ -286,13 +307,13 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
   };
 
   const handleDelete = async (item: PMSItem) => {
-    if (window.confirm(`Deseja realmente excluir o registro da variedade "${item.variedade}" (${item.cultura})?`)) {
+    if (window.confirm(`Deseja realmente excluir o registro da variedade "${cleanValue(item.variedade)}" (${cleanValue(item.cultura)})?`)) {
       await onDeleteItem(item.id);
       showToast('Item excluído com sucesso!', 'info');
     }
   };
 
-  // Process Excel / CSV File with Smart Deduplication / Upsert
+  // Process Excel / CSV File with Smart Deduplication / Upsert and Clean Values
   const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -308,7 +329,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
           return;
         }
 
-        const headerRow = (jsonData[0] as string[]).map(h => String(h || '').trim().toLowerCase());
+        const headerRow = (jsonData[0] as any[]).map(h => cleanValue(h).toLowerCase());
         
         // Find column indices
         const findIndex = (keywords: string[]) => {
@@ -334,11 +355,12 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
         const idxPMS = findIndex(['pms']);
 
         // Build a map of existing items in the database for instant matching
-        // Key: cultura.trim().toLowerCase() + '___' + variedade.trim().toLowerCase()
         const existingMap = new Map<string, PMSItem>();
         items.forEach(it => {
-          if (it.cultura && it.variedade) {
-            const key = `${it.cultura.trim().toLowerCase()}___${it.variedade.trim().toLowerCase()}`;
+          const cult = cleanValue(it.cultura);
+          const varName = cleanValue(it.variedade);
+          if (cult && varName) {
+            const key = `${cult.toLowerCase()}___${varName.toLowerCase()}`;
             existingMap.set(key, it);
           }
         });
@@ -350,15 +372,15 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
           const row = jsonData[r] as any[];
           if (!row || row.length === 0) continue;
 
-          const colCultura = String(idxCultura !== -1 ? row[idxCultura] : row[0] || '').trim();
-          const colVariedade = String(idxVariedade !== -1 ? row[idxVariedade] : row[1] || '').trim();
-          const colTipo = String(idxTipo !== -1 ? row[idxTipo] : row[2] || '').trim();
-          const colCiclo = String(idxCiclo !== -1 ? row[idxCiclo] : row[3] ?? '').trim();
-          const colUnidVenda = String(idxUnidVenda !== -1 ? row[idxUnidVenda] : row[4] ?? '').trim();
-          const colMedia = String(idxMedia !== -1 ? row[idxMedia] : row[5] ?? '').trim();
-          const colProd = String(idxProd !== -1 ? row[idxProd] : row[6] ?? '').trim();
-          const colUnidVenda2 = String(idxUnidVenda2 !== -1 ? row[idxUnidVenda2] : (row[7] || 'sacas p/há')).trim();
-          const colPMS = String(idxPMS !== -1 ? row[idxPMS] : row[8] ?? '').trim();
+          const colCultura = cleanValue(idxCultura !== -1 ? row[idxCultura] : row[0]);
+          const colVariedade = cleanValue(idxVariedade !== -1 ? row[idxVariedade] : row[1]);
+          const colTipo = cleanValue(idxTipo !== -1 ? row[idxTipo] : row[2]);
+          const colCiclo = cleanValue(idxCiclo !== -1 ? row[idxCiclo] : row[3]);
+          const colUnidVenda = cleanValue(idxUnidVenda !== -1 ? row[idxUnidVenda] : row[4]);
+          const colMedia = cleanValue(idxMedia !== -1 ? row[idxMedia] : row[5]);
+          const colProd = cleanValue(idxProd !== -1 ? row[idxProd] : row[6]);
+          const colUnidVenda2 = cleanValue(idxUnidVenda2 !== -1 ? row[idxUnidVenda2] : (row[7] || 'sacas p/há'));
+          const colPMS = cleanValue(idxPMS !== -1 ? row[idxPMS] : row[8]);
 
           if (!colCultura && !colVariedade) continue;
 
@@ -368,11 +390,11 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
           // Infer tipo if empty
           let resolvedTipo = colTipo;
           if (!resolvedTipo) {
-            if (existingItem?.tipo) {
-              resolvedTipo = existingItem.tipo;
+            if (existingItem?.tipo && cleanValue(existingItem.tipo)) {
+              resolvedTipo = cleanValue(existingItem.tipo);
             } else {
-              const matchedCultura = culturas.find(c => c.nome.toLowerCase() === colCultura.toLowerCase());
-              resolvedTipo = matchedCultura?.tipo || 'Cereais';
+              const matchedCultura = culturas.find(c => cleanValue(c.nome).toLowerCase() === colCultura.toLowerCase());
+              resolvedTipo = cleanValue(matchedCultura?.tipo) || 'Cereais';
             }
           }
 
@@ -381,21 +403,21 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
             cultura: colCultura,
             variedade: colVariedade,
             tipo: resolvedTipo || 'Cereais',
-            cicloDias: colCiclo || existingItem?.cicloDias || '',
-            unidadeVenda: colUnidVenda || existingItem?.unidadeVenda || 'Sacas',
-            mediaUtilizacaoSemente: colMedia || existingItem?.mediaUtilizacaoSemente || '',
-            produtividade: colProd || existingItem?.produtividade || '',
-            unidadeVenda2: colUnidVenda2 || existingItem?.unidadeVenda2 || 'sacas p/há',
-            pms: colPMS || existingItem?.pms || '',
+            cicloDias: colCiclo || cleanValue(existingItem?.cicloDias),
+            unidadeVenda: colUnidVenda || cleanValue(existingItem?.unidadeVenda) || 'Sacas',
+            mediaUtilizacaoSemente: colMedia || cleanValue(existingItem?.mediaUtilizacaoSemente),
+            produtividade: colProd || cleanValue(existingItem?.produtividade),
+            unidadeVenda2: colUnidVenda2 || cleanValue(existingItem?.unidadeVenda2) || 'sacas p/há',
+            pms: colPMS || cleanValue(existingItem?.pms),
             unidade: selectedUnidade,
             isUpdate: !!existingItem,
             existingId: existingItem?.id,
-            previousPms: existingItem?.pms || '',
+            previousPms: cleanValue(existingItem?.pms),
             hasChanges: existingItem ? (
-              existingItem.pms !== colPMS ||
-              String(existingItem.cicloDias) !== colCiclo ||
-              String(existingItem.produtividade) !== colProd ||
-              existingItem.tipo !== resolvedTipo
+              cleanValue(existingItem.pms) !== colPMS ||
+              cleanValue(existingItem.cicloDias) !== colCiclo ||
+              cleanValue(existingItem.produtividade) !== colProd ||
+              cleanValue(existingItem.tipo) !== resolvedTipo
             ) : true
           };
 
@@ -426,7 +448,22 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     if (importedPreview.length === 0) return;
     setIsImporting(true);
     try {
-      await onImportBatch(importedPreview);
+      // Ensure all fields in batch are clean without any undefined string
+      const sanitizedBatch = importedPreview.map(item => ({
+        ...item,
+        cultura: cleanValue(item.cultura),
+        variedade: cleanValue(item.variedade),
+        tipo: cleanValue(item.tipo) || 'Cereais',
+        cicloDias: cleanValue(item.cicloDias),
+        unidadeVenda: cleanValue(item.unidadeVenda),
+        mediaUtilizacaoSemente: cleanValue(item.mediaUtilizacaoSemente),
+        produtividade: cleanValue(item.produtividade),
+        unidadeVenda2: cleanValue(item.unidadeVenda2),
+        pms: cleanValue(item.pms),
+        unidade: selectedUnidade
+      }));
+
+      await onImportBatch(sanitizedBatch);
       setIsImportModalOpen(false);
       const updatesCount = importedPreview.filter(i => i.isUpdate).length;
       const newCount = importedPreview.filter(i => !i.isUpdate).length;
@@ -442,22 +479,22 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
   const handleExportExcel = () => {
     const dataToExport = filteredItems.map(item => ({
-      'Cultura': item.cultura,
-      'Variedade': item.variedade,
-      'Tipo': item.tipo,
-      'Ciclo em Dias': item.cicloDias,
-      'Unidade de venda': item.unidadeVenda,
-      'Média Utilização Semente': item.mediaUtilizacaoSemente,
-      'Produtividade': item.produtividade,
-      'Unidade de Venda': item.unidadeVenda2,
-      'PMS': item.pms
+      'Cultura': cleanValue(item.cultura),
+      'Variedade': cleanValue(item.variedade),
+      'Tipo': cleanValue(item.tipo),
+      'Ciclo em Dias': cleanValue(item.cicloDias),
+      'Unidade de venda': cleanValue(item.unidadeVenda),
+      'Média Utilização Semente': cleanValue(item.mediaUtilizacaoSemente),
+      'Produtividade': cleanValue(item.produtividade),
+      'Unidade de Venda': cleanValue(item.unidadeVenda2),
+      'PMS': cleanValue(item.pms)
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'PMS');
     XLSX.writeFile(workbook, `PMS_${selectedUnidade}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    showToast('Planilha Excel exportada com sucesso! Você pode editá-la e re-importar sem duplicar dados.', 'success');
+    showToast('Planilha Excel exportada com sucesso! Sem campos undefined.', 'success');
   };
 
   const handlePrint = () => {
@@ -729,7 +766,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
         </div>
       </div>
 
-      {/* Table Container - Compact Grid View (Reduced Height & Squares) */}
+      {/* Table Container - Compact Grid View (Blank when empty, zero undefined) */}
       <div style={{ overflowX: 'auto', maxHeight: '620px' }}>
         <table style={{
           width: '100%',
@@ -795,10 +832,19 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
               filteredItems.map((row, idx) => {
                 const isEven = idx % 2 === 0;
                 const bgColor = isEven ? '#d9e1f2' : '#ffffff';
+                const cCultura = cleanValue(row.cultura);
+                const cVariedade = cleanValue(row.variedade);
+                const cTipo = cleanValue(row.tipo);
+                const cCiclo = cleanValue(row.cicloDias);
+                const cUnidVenda = cleanValue(row.unidadeVenda);
+                const cMedia = cleanValue(row.mediaUtilizacaoSemente);
+                const cProd = cleanValue(row.produtividade);
+                const cUnidVenda2 = cleanValue(row.unidadeVenda2);
+                const cPMS = cleanValue(row.pms);
 
                 return (
                   <tr
-                    key={row.id || `${row.cultura}-${row.variedade}-${idx}`}
+                    key={row.id || `${cCultura}-${cVariedade}-${idx}`}
                     style={{
                       backgroundColor: bgColor,
                       borderBottom: '1px solid #c8d1e2',
@@ -810,40 +856,42 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = bgColor; }}
                   >
                     <td style={{ padding: '4px 8px', fontWeight: 600, borderRight: '1px solid #d0d7de', whiteSpace: 'nowrap' }}>
-                      {row.cultura}
+                      {cCultura}
                     </td>
                     <td style={{ padding: '4px 8px', fontWeight: 600, borderRight: '1px solid #d0d7de', whiteSpace: 'nowrap', color: '#1e3a8a' }}>
-                      {row.variedade}
+                      {cVariedade}
                     </td>
                     <td style={{ padding: '4px 8px', borderRight: '1px solid #d0d7de', whiteSpace: 'nowrap' }}>
-                      <span style={{
-                        fontSize: '10px',
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        backgroundColor: row.tipo === 'Hortifruti' ? '#fef3c7' : '#e0f2fe',
-                        color: row.tipo === 'Hortifruti' ? '#92400e' : '#0369a1',
-                        fontWeight: 600
-                      }}>
-                        {row.tipo || 'Cereais'}
-                      </span>
+                      {cTipo ? (
+                        <span style={{
+                          fontSize: '10px',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          backgroundColor: cTipo === 'Hortifruti' ? '#fef3c7' : '#e0f2fe',
+                          color: cTipo === 'Hortifruti' ? '#92400e' : '#0369a1',
+                          fontWeight: 600
+                        }}>
+                          {cTipo}
+                        </span>
+                      ) : null}
                     </td>
                     <td style={{ padding: '4px 8px', textAlign: 'center', borderRight: '1px solid #d0d7de', fontVariantNumeric: 'tabular-nums' }}>
-                      {row.cicloDias || '-'}
+                      {cCiclo}
                     </td>
                     <td style={{ padding: '4px 8px', textAlign: 'center', borderRight: '1px solid #d0d7de' }}>
-                      {row.unidadeVenda || '-'}
+                      {cUnidVenda}
                     </td>
                     <td style={{ padding: '4px 8px', textAlign: 'center', borderRight: '1px solid #d0d7de', fontVariantNumeric: 'tabular-nums' }}>
-                      {row.mediaUtilizacaoSemente || '-'}
+                      {cMedia}
                     </td>
                     <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 700, borderRight: '1px solid #d0d7de', fontVariantNumeric: 'tabular-nums' }}>
-                      {row.produtividade || '-'}
+                      {cProd}
                     </td>
                     <td style={{ padding: '4px 8px', textAlign: 'center', borderRight: '1px solid #d0d7de' }}>
-                      {row.unidadeVenda2 || '-'}
+                      {cUnidVenda2}
                     </td>
-                    <td style={{ padding: '4px 8px', fontWeight: 600, color: row.pms ? '#0b5394' : '#94a3b8', borderRight: '1px solid #d0d7de', whiteSpace: 'nowrap' }}>
-                      {row.pms || '-'}
+                    <td style={{ padding: '4px 8px', fontWeight: 600, color: cPMS ? '#0b5394' : '#64748b', borderRight: '1px solid #d0d7de', whiteSpace: 'nowrap' }}>
+                      {cPMS}
                     </td>
                     <td style={{ padding: '2px 4px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
@@ -1037,7 +1085,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     placeholder="Ex: 120, 90, 80"
                     value={formCicloDias}
-                    onChange={(e) => setFormCicloDias(e.target.value)}
+                    onChange={(e) => setFormCicloDias(cleanValue(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1057,7 +1105,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     placeholder="Ex: Sacas, Kg"
                     value={formUnidadeVenda}
-                    onChange={(e) => setFormUnidadeVenda(e.target.value)}
+                    onChange={(e) => setFormUnidadeVenda(cleanValue(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1077,7 +1125,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     placeholder="Ex: 50"
                     value={formMediaUtilizacaoSemente}
-                    onChange={(e) => setFormMediaUtilizacaoSemente(e.target.value)}
+                    onChange={(e) => setFormMediaUtilizacaoSemente(cleanValue(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1097,7 +1145,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     placeholder="Ex: 70, 50, 60"
                     value={formProdutividade}
-                    onChange={(e) => setFormProdutividade(e.target.value)}
+                    onChange={(e) => setFormProdutividade(cleanValue(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1117,7 +1165,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     placeholder="Ex: sacas p/há"
                     value={formUnidadeVenda2}
-                    onChange={(e) => setFormUnidadeVenda2(e.target.value)}
+                    onChange={(e) => setFormUnidadeVenda2(cleanValue(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1137,7 +1185,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     placeholder="Ex: CZ37B51: 171 Gramas, PMS Dama: 250 Grmas"
                     value={formPMS}
-                    onChange={(e) => setFormPMS(e.target.value)}
+                    onChange={(e) => setFormPMS(cleanValue(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1320,55 +1368,64 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {importedPreview.map((row, i) => (
-                    <tr
-                      key={i}
-                      style={{
-                        borderBottom: '1px solid #e2e8f0',
-                        backgroundColor: row.isUpdate ? '#f0f9ff' : (i % 2 === 0 ? '#f8fafc' : '#ffffff')
-                      }}
-                    >
-                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                        {row.isUpdate ? (
-                          <span style={{
-                            backgroundColor: '#dbeafe',
-                            color: '#1e40af',
-                            padding: '2px 6px',
-                            borderRadius: '10px',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px'
-                          }}>
-                            <i className="fa-solid fa-rotate"></i> Atualizar
-                          </span>
-                        ) : (
-                          <span style={{
-                            backgroundColor: '#dcfce7',
-                            color: '#166534',
-                            padding: '2px 6px',
-                            borderRadius: '10px',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px'
-                          }}>
-                            <i className="fa-solid fa-plus"></i> Novo
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '5px 8px', fontWeight: 600 }}>{row.cultura}</td>
-                      <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1e3a8a' }}>{row.variedade}</td>
-                      <td style={{ padding: '5px 8px' }}>{row.tipo}</td>
-                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>{row.cicloDias || '-'}</td>
-                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>{row.produtividade || '-'}</td>
-                      <td style={{ padding: '5px 8px', color: '#0b5394', fontWeight: 600 }}>
-                        {row.pms || '-'}
-                      </td>
-                    </tr>
-                  ))}
+                  {importedPreview.map((row, i) => {
+                    const cCultura = cleanValue(row.cultura);
+                    const cVar = cleanValue(row.variedade);
+                    const cTipo = cleanValue(row.tipo);
+                    const cCiclo = cleanValue(row.cicloDias);
+                    const cProd = cleanValue(row.produtividade);
+                    const cPMS = cleanValue(row.pms);
+
+                    return (
+                      <tr
+                        key={i}
+                        style={{
+                          borderBottom: '1px solid #e2e8f0',
+                          backgroundColor: row.isUpdate ? '#f0f9ff' : (i % 2 === 0 ? '#f8fafc' : '#ffffff')
+                        }}
+                      >
+                        <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                          {row.isUpdate ? (
+                            <span style={{
+                              backgroundColor: '#dbeafe',
+                              color: '#1e40af',
+                              padding: '2px 6px',
+                              borderRadius: '10px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}>
+                              <i className="fa-solid fa-rotate"></i> Atualizar
+                            </span>
+                          ) : (
+                            <span style={{
+                              backgroundColor: '#dcfce7',
+                              color: '#166534',
+                              padding: '2px 6px',
+                              borderRadius: '10px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}>
+                              <i className="fa-solid fa-plus"></i> Novo
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '5px 8px', fontWeight: 600 }}>{cCultura}</td>
+                        <td style={{ padding: '5px 8px', fontWeight: 600, color: '#1e3a8a' }}>{cVar}</td>
+                        <td style={{ padding: '5px 8px' }}>{cTipo}</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'center' }}>{cCiclo}</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'center' }}>{cProd}</td>
+                        <td style={{ padding: '5px 8px', color: '#0b5394', fontWeight: 600 }}>
+                          {cPMS}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

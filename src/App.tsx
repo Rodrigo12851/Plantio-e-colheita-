@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
-import { PMSSection, PMSItem, DEFAULT_PMS_DATA } from './components/PMSSection';
+import { PMSSection, PMSItem, DEFAULT_PMS_DATA, cleanValue } from './components/PMSSection';
 import {
   subscribeToCollection,
   saveDocument,
@@ -1810,7 +1810,19 @@ export default function App() {
 
   // PMS Handlers
   const handleSavePmsItem = async (item: PMSItem, id?: string) => {
-    await saveDocument(COLLECTIONS.pms, item, id);
+    const cleanItem: PMSItem = {
+      ...item,
+      cultura: cleanValue(item.cultura),
+      variedade: cleanValue(item.variedade),
+      tipo: cleanValue(item.tipo) || 'Cereais',
+      cicloDias: cleanValue(item.cicloDias),
+      unidadeVenda: cleanValue(item.unidadeVenda),
+      mediaUtilizacaoSemente: cleanValue(item.mediaUtilizacaoSemente),
+      produtividade: cleanValue(item.produtividade),
+      unidadeVenda2: cleanValue(item.unidadeVenda2),
+      pms: cleanValue(item.pms)
+    };
+    await saveDocument(COLLECTIONS.pms, cleanItem, id);
   };
 
   const handleDeletePmsItem = async (id?: string) => {
@@ -1821,7 +1833,19 @@ export default function App() {
 
   const handleImportPmsBatch = async (newItems: PMSItem[]) => {
     for (const item of newItems) {
-      await saveDocument(COLLECTIONS.pms, item, item.id);
+      const cleanItem: PMSItem = {
+        ...item,
+        cultura: cleanValue(item.cultura),
+        variedade: cleanValue(item.variedade),
+        tipo: cleanValue(item.tipo) || 'Cereais',
+        cicloDias: cleanValue(item.cicloDias),
+        unidadeVenda: cleanValue(item.unidadeVenda),
+        mediaUtilizacaoSemente: cleanValue(item.mediaUtilizacaoSemente),
+        produtividade: cleanValue(item.produtividade),
+        unidadeVenda2: cleanValue(item.unidadeVenda2),
+        pms: cleanValue(item.pms)
+      };
+      await saveDocument(COLLECTIONS.pms, cleanItem, item.id);
     }
   };
 
