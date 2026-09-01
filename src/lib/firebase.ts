@@ -242,7 +242,54 @@ export function subscribeToCollection<T extends { id?: string }>(
     ];
 
     let cleanItems = rawItems;
-    if (nameBasedCollections.includes(collectionName)) {
+    if (collectionName === 'pms') {
+      const seenPms = new Map<string, any>();
+      for (const item of rawItems) {
+        const cult = ((item as any).cultura || '').toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const varName = ((item as any).variedade || '').toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const unid = ((item as any).unidade || '').toString().trim().toLowerCase();
+        const pmsKey = `${cult}___${varName}___${unid}`;
+        
+        if (!cult && !varName) continue;
+
+        if (seenPms.has(pmsKey)) {
+          const existing = seenPms.get(pmsKey);
+          // Keep the one with more information (e.g. non-empty pms, ciclo, etc.)
+          const hasMoreInfo = ((item as any).pms && !(existing as any).pms) || 
+                              ((item as any).produtividade && !(existing as any).produtividade);
+          const docToDelete = hasMoreInfo ? existing.id : (item as any).id;
+          if (docToDelete) {
+            deleteDoc(doc(db, collectionName, docToDelete)).catch(err => {
+              console.warn(`[Firebase Cleanup PMS] Erro ao deletar documento duplicado ${docToDelete}:`, err);
+            });
+          }
+          if (hasMoreInfo) {
+            seenPms.set(pmsKey, item);
+          }
+        } else {
+          seenPms.set(pmsKey, item);
+        }
+      }
+      cleanItems = Array.from(seenPms.values());
+    } else if (collectionName === 'variedades') {
+      const seenVars = new Map<string, any>();
+      for (const item of rawItems) {
+        const cult = ((item as any).cultura || '').toString().trim().toLowerCase();
+        const nome = ((item as any).nome || '').toString().trim().toLowerCase();
+        const varKey = `${cult}___${nome}`;
+        if (!nome) continue;
+        if (seenVars.has(varKey)) {
+          if ((item as any).id) {
+            deleteDoc(doc(db, collectionName, (item as any).id)).catch(err => {
+              console.warn(`[Firebase Cleanup Variedades] Erro ao deletar duplicado:`, err);
+            });
+          }
+        } else {
+          seenVars.set(varKey, item);
+        }
+      }
+      cleanItems = Array.from(seenVars.values());
+    } else if (nameBasedCollections.includes(collectionName)) {
       const seenNames = new Set<string>();
       cleanItems = [];
       for (const item of rawItems) {

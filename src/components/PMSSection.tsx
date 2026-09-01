@@ -31,11 +31,17 @@ export interface VariedadeItemProp {
   unidade?: string;
 }
 
+export interface ImportPmsDiff {
+  field: string;
+  label: string;
+  oldVal: string;
+  newVal: string;
+}
+
 export interface ParsedImportItem extends PMSItem {
-  isUpdate?: boolean;
+  importStatus: 'identical' | 'update' | 'new';
   existingId?: string;
-  previousPms?: string;
-  hasChanges?: boolean;
+  diffs: ImportPmsDiff[];
 }
 
 // Utility to ensure values are never 'undefined', 'null', or undefined - returns empty string ''
@@ -44,6 +50,25 @@ export const cleanValue = (val: any): string => {
   const s = String(val).trim();
   if (s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
   return s;
+};
+
+// Text normalizer for reliable accent-insensitive & whitespace-insensitive comparisons
+export const normalizePmsText = (str: any): string => {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, ' ');
+};
+
+// Deterministic unique ID generator for PMS items to prevent Firestore duplication
+export const getPmsDocId = (cultura: string, variedade: string, unidade?: string): string => {
+  const normC = normalizePmsText(cultura).replace(/[^a-z0-9]/g, '_');
+  const normV = normalizePmsText(variedade).replace(/[^a-z0-9]/g, '_');
+  const normU = (unidade && unidade !== 'TODAS') ? `_${normalizePmsText(unidade).replace(/[^a-z0-9]/g, '_')}` : '';
+  return `pms_${normC}_${normV}${normU}`;
 };
 
 export const DEFAULT_PMS_DATA: PMSItem[] = [
@@ -128,13 +153,39 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
   // Import Modal & File Input
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importedPreview, setImportedPreview] = useState<ParsedImportItem[]>([]);
+  const [previewFilterTab, setPreviewFilterTab] = useState<'ALL' | 'CHANGES' | 'IDENTICAL'>('ALL');
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-deduplicate in-memory items by Cultura + Variedade to guarantee zero visual duplicates
+  const deduplicatedItems = useMemo(() => {
+    const map = new Map<string, PMSItem>();
+    items.forEach(it => {
+      const cult = normalizePmsText(it.cultura);
+      const varName = normalizePmsText(it.variedade);
+      const unid = (it.unidade || '').trim().toLowerCase();
+      const key = `${cult}___${varName}___${unid}`;
+      if (!cult && !varName) return;
+
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        // Keep the one with more information (non-empty PMS, etc.)
+        const hasMore = (cleanValue(it.pms) && !cleanValue(existing.pms)) ||
+                        (cleanValue(it.produtividade) && !cleanValue(existing.produtividade));
+        if (hasMore) {
+          map.set(key, it);
+        }
+      } else {
+        map.set(key, it);
+      }
+    });
+    return Array.from(map.values());
+  }, [items]);
+
   // Filter items by selected unidade and filters
   const unidadeItems = useMemo(() => {
-    return items.filter(item => !item.unidade || item.unidade === selectedUnidade || selectedUnidade === 'TODAS');
-  }, [items, selectedUnidade]);
+    return deduplicatedItems.filter(item => !item.unidade || item.unidade === selectedUnidade || selectedUnidade === 'TODAS');
+  }, [deduplicatedItems, selectedUnidade]);
 
   const filteredItems = useMemo(() => {
     return unidadeItems.filter(item => {
@@ -188,9 +239,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     if (!formCultura) {
       return Array.from(new Set([...variedades.map(v => cleanValue(v.nome)), ...unidadeItems.map(i => cleanValue(i.variedade))].filter(Boolean))).sort();
     }
-    const targetCultura = formCultura.trim().toLowerCase();
-    const fromVariedades = variedades.filter(v => cleanValue(v.cultura).toLowerCase() === targetCultura).map(v => cleanValue(v.nome));
-    const fromPMS = unidadeItems.filter(i => cleanValue(i.cultura).toLowerCase() === targetCultura).map(i => cleanValue(i.variedade));
+    const targetCultura = normalizePmsText(formCultura);
+    const fromVariedades = variedades.filter(v => normalizePmsText(v.cultura) === targetCultura).map(v => cleanValue(v.nome));
+    const fromPMS = unidadeItems.filter(i => normalizePmsText(i.cultura) === targetCultura).map(i => cleanValue(i.variedade));
     return Array.from(new Set([...fromVariedades, ...fromPMS].filter(Boolean))).sort();
   }, [formCultura, variedades, unidadeItems]);
 
@@ -199,11 +250,11 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     setFormCultura(cleanCultura);
     
     // Auto-detect Tipo based on registered Culturas or existing PMS items
-    const matchedCultura = culturas.find(c => cleanValue(c.nome).toLowerCase() === cleanCultura.toLowerCase());
+    const matchedCultura = culturas.find(c => normalizePmsText(c.nome) === normalizePmsText(cleanCultura));
     if (matchedCultura?.tipo && cleanValue(matchedCultura.tipo)) {
       setFormTipo(cleanValue(matchedCultura.tipo));
     } else {
-      const matchedPms = items.find(i => cleanValue(i.cultura).toLowerCase() === cleanCultura.toLowerCase());
+      const matchedPms = deduplicatedItems.find(i => normalizePmsText(i.cultura) === normalizePmsText(cleanCultura));
       if (matchedPms?.tipo && cleanValue(matchedPms.tipo)) {
         setFormTipo(cleanValue(matchedPms.tipo));
       }
@@ -216,11 +267,11 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
     // If Cultura is not set, try to auto-fill Cultura and Tipo from Variedades database
     if (!formCultura) {
-      const matchedVariedade = variedades.find(v => cleanValue(v.nome).toLowerCase() === cleanVar.toLowerCase());
+      const matchedVariedade = variedades.find(v => normalizePmsText(v.nome) === normalizePmsText(cleanVar));
       if (matchedVariedade?.cultura && cleanValue(matchedVariedade.cultura)) {
         handleCulturaChange(matchedVariedade.cultura);
       } else {
-        const matchedPms = items.find(i => cleanValue(i.variedade).toLowerCase() === cleanVar.toLowerCase());
+        const matchedPms = deduplicatedItems.find(i => normalizePmsText(i.variedade) === normalizePmsText(cleanVar));
         if (matchedPms?.cultura && cleanValue(matchedPms.cultura)) {
           handleCulturaChange(matchedPms.cultura);
         }
@@ -270,7 +321,10 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
       return;
     }
 
+    const docId = editingItem?.id || getPmsDocId(cCultura, cVariedade, selectedUnidade);
+
     const payload: PMSItem = {
+      id: docId,
       cultura: cCultura,
       variedade: cVariedade,
       tipo: cleanValue(formTipo) || 'Cereais',
@@ -283,12 +337,12 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
       unidade: selectedUnidade
     };
 
-    // If creating a new item, check if there's already an item with the same cultura + variedade to avoid accidental duplication
+    // If creating a new item, check if an item with same Cultura+Variedade exists
     if (!editingItem?.id) {
-      const existing = items.find(
+      const existing = deduplicatedItems.find(
         i =>
-          cleanValue(i.cultura).toLowerCase() === payload.cultura.toLowerCase() &&
-          cleanValue(i.variedade).toLowerCase() === payload.variedade.toLowerCase() &&
+          normalizePmsText(i.cultura) === normalizePmsText(payload.cultura) &&
+          normalizePmsText(i.variedade) === normalizePmsText(payload.variedade) &&
           (!i.unidade || i.unidade === selectedUnidade || selectedUnidade === 'TODAS')
       );
       if (existing?.id) {
@@ -301,9 +355,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
       }
     }
 
-    await onSaveItem(payload, editingItem?.id);
+    await onSaveItem(payload, docId);
     setIsModalOpen(false);
-    showToast(editingItem ? 'Item PMS atualizado com sucesso!' : 'Item PMS adicionado com sucesso!', 'success');
+    showToast(editingItem ? 'Item PMS atualizado com sucesso!' : 'Item PMS cadastrado com sucesso!', 'success');
   };
 
   const handleDelete = async (item: PMSItem) => {
@@ -313,7 +367,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     }
   };
 
-  // Process Excel / CSV File with Smart Deduplication / Upsert and Clean Values
+  // Process Excel / CSV File with Thorough Line-by-Line Verification, Complete Field Checking & Anti-Duplication
   const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -356,16 +410,16 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
         // Build a map of existing items in the database for instant matching
         const existingMap = new Map<string, PMSItem>();
-        items.forEach(it => {
-          const cult = cleanValue(it.cultura);
-          const varName = cleanValue(it.variedade);
+        deduplicatedItems.forEach(it => {
+          const cult = normalizePmsText(it.cultura);
+          const varName = normalizePmsText(it.variedade);
           if (cult && varName) {
-            const key = `${cult.toLowerCase()}___${varName.toLowerCase()}`;
+            const key = `${cult}___${varName}`;
             existingMap.set(key, it);
           }
         });
 
-        // Deduplicate rows inside the imported spreadsheet itself as well
+        // Deduplicate rows inside the imported spreadsheet itself
         const parsedMap = new Map<string, ParsedImportItem>();
 
         for (let r = 1; r < jsonData.length; r++) {
@@ -384,7 +438,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
           if (!colCultura && !colVariedade) continue;
 
-          const normKey = `${colCultura.toLowerCase()}___${colVariedade.toLowerCase()}`;
+          const normKey = `${normalizePmsText(colCultura)}___${normalizePmsText(colVariedade)}`;
           const existingItem = existingMap.get(normKey);
 
           // Infer tipo if empty
@@ -393,13 +447,79 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
             if (existingItem?.tipo && cleanValue(existingItem.tipo)) {
               resolvedTipo = cleanValue(existingItem.tipo);
             } else {
-              const matchedCultura = culturas.find(c => cleanValue(c.nome).toLowerCase() === colCultura.toLowerCase());
+              const matchedCultura = culturas.find(c => normalizePmsText(c.nome) === normalizePmsText(colCultura));
               resolvedTipo = cleanValue(matchedCultura?.tipo) || 'Cereais';
             }
           }
 
+          // Generate or retrieve deterministic document ID
+          const targetDocId = existingItem?.id || getPmsDocId(colCultura, colVariedade, selectedUnidade);
+
+          // LINE-BY-LINE AND FIELD-BY-FIELD COMPARISON
+          const diffs: ImportPmsDiff[] = [];
+
+          if (existingItem) {
+            // Check Tipo
+            const oldTipo = cleanValue(existingItem.tipo) || 'Cereais';
+            const newTipo = resolvedTipo || 'Cereais';
+            if (normalizePmsText(oldTipo) !== normalizePmsText(newTipo)) {
+              diffs.push({ field: 'tipo', label: 'Tipo', oldVal: oldTipo, newVal: newTipo });
+            }
+
+            // Check Ciclo em Dias
+            const oldCiclo = cleanValue(existingItem.cicloDias);
+            const newCiclo = colCiclo;
+            if (oldCiclo !== newCiclo && newCiclo !== '') {
+              diffs.push({ field: 'cicloDias', label: 'Ciclo em Dias', oldVal: oldCiclo || '(vazio)', newVal: newCiclo });
+            }
+
+            // Check Unidade de Venda
+            const oldUnidVenda = cleanValue(existingItem.unidadeVenda);
+            const newUnidVenda = colUnidVenda;
+            if (normalizePmsText(oldUnidVenda) !== normalizePmsText(newUnidVenda) && newUnidVenda !== '') {
+              diffs.push({ field: 'unidadeVenda', label: 'Unidade de Venda', oldVal: oldUnidVenda || '(vazio)', newVal: newUnidVenda });
+            }
+
+            // Check Média Utilização Semente
+            const oldMedia = cleanValue(existingItem.mediaUtilizacaoSemente);
+            const newMedia = colMedia;
+            if (oldMedia !== newMedia && newMedia !== '') {
+              diffs.push({ field: 'mediaUtilizacaoSemente', label: 'Média Utiliz. Semente', oldVal: oldMedia || '(vazio)', newVal: newMedia });
+            }
+
+            // Check Produtividade
+            const oldProd = cleanValue(existingItem.produtividade);
+            const newProd = colProd;
+            if (oldProd !== newProd && newProd !== '') {
+              diffs.push({ field: 'produtividade', label: 'Produtividade', oldVal: oldProd || '(vazio)', newVal: newProd });
+            }
+
+            // Check Unidade de Venda 2
+            const oldUnidVenda2 = cleanValue(existingItem.unidadeVenda2);
+            const newUnidVenda2 = colUnidVenda2;
+            if (normalizePmsText(oldUnidVenda2) !== normalizePmsText(newUnidVenda2) && newUnidVenda2 !== '') {
+              diffs.push({ field: 'unidadeVenda2', label: 'Unidade Venda (2)', oldVal: oldUnidVenda2 || '(vazio)', newVal: newUnidVenda2 });
+            }
+
+            // Check PMS
+            const oldPms = cleanValue(existingItem.pms);
+            const newPms = colPMS;
+            if (normalizePmsText(oldPms) !== normalizePmsText(newPms) && newPms !== '') {
+              diffs.push({ field: 'pms', label: 'PMS', oldVal: oldPms || '(vazio)', newVal: newPms });
+            }
+          }
+
+          let importStatus: 'identical' | 'update' | 'new' = 'new';
+          if (existingItem) {
+            if (diffs.length > 0) {
+              importStatus = 'update';
+            } else {
+              importStatus = 'identical';
+            }
+          }
+
           const parsedItem: ParsedImportItem = {
-            id: existingItem?.id, // If existing, retain the ID for update!
+            id: targetDocId,
             cultura: colCultura,
             variedade: colVariedade,
             tipo: resolvedTipo || 'Cereais',
@@ -410,15 +530,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
             unidadeVenda2: colUnidVenda2 || cleanValue(existingItem?.unidadeVenda2) || 'sacas p/há',
             pms: colPMS || cleanValue(existingItem?.pms),
             unidade: selectedUnidade,
-            isUpdate: !!existingItem,
+            importStatus,
             existingId: existingItem?.id,
-            previousPms: cleanValue(existingItem?.pms),
-            hasChanges: existingItem ? (
-              cleanValue(existingItem.pms) !== colPMS ||
-              cleanValue(existingItem.cicloDias) !== colCiclo ||
-              cleanValue(existingItem.produtividade) !== colProd ||
-              cleanValue(existingItem.tipo) !== resolvedTipo
-            ) : true
+            diffs
           };
 
           parsedMap.set(normKey, parsedItem);
@@ -432,10 +546,18 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
         }
 
         setImportedPreview(parsedItems);
+        setPreviewFilterTab('ALL');
         setIsImportModalOpen(true);
-        const updatesCount = parsedItems.filter(i => i.isUpdate).length;
-        const newCount = parsedItems.filter(i => !i.isUpdate).length;
-        showToast(`Planilha analisada: ${newCount} novos registros e ${updatesCount} atualizações (sem duplicados).`, 'info');
+
+        const newCount = parsedItems.filter(i => i.importStatus === 'new').length;
+        const updateCount = parsedItems.filter(i => i.importStatus === 'update').length;
+        const identicalCount = parsedItems.filter(i => i.importStatus === 'identical').length;
+
+        if (newCount === 0 && updateCount === 0) {
+          showToast(`Verificação concluída: todos os ${identicalCount} registros da planilha já estão idênticos no sistema. Nenhum dado será duplicado.`, 'info');
+        } else {
+          showToast(`Linha por linha analisada: ${newCount} novos, ${updateCount} a atualizar, ${identicalCount} idênticos mantidos.`, 'info');
+        }
       } catch (err) {
         console.error(err);
         showToast('Erro ao ler a planilha. Verifique se o arquivo é um .xlsx, .xls ou .csv válido.', 'warning');
@@ -444,13 +566,21 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     reader.readAsArrayBuffer(file);
   };
 
+  // Only saves items that have changed or are new - completely skips already identical items!
   const handleConfirmImport = async () => {
-    if (importedPreview.length === 0) return;
+    // Filter strictly items that require saving (new items and updated items)
+    const itemsToSave = importedPreview.filter(i => i.importStatus === 'new' || i.importStatus === 'update');
+
+    if (itemsToSave.length === 0) {
+      showToast('Todos os registros já estão idênticos no sistema. Nenhuma gravação necessária.', 'info');
+      setIsImportModalOpen(false);
+      return;
+    }
+
     setIsImporting(true);
     try {
-      // Ensure all fields in batch are clean without any undefined string
-      const sanitizedBatch = importedPreview.map(item => ({
-        ...item,
+      const sanitizedBatch: PMSItem[] = itemsToSave.map(item => ({
+        id: item.id || getPmsDocId(item.cultura, item.variedade, selectedUnidade),
         cultura: cleanValue(item.cultura),
         variedade: cleanValue(item.variedade),
         tipo: cleanValue(item.tipo) || 'Cereais',
@@ -465,10 +595,13 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
       await onImportBatch(sanitizedBatch);
       setIsImportModalOpen(false);
-      const updatesCount = importedPreview.filter(i => i.isUpdate).length;
-      const newCount = importedPreview.filter(i => !i.isUpdate).length;
+
+      const newCount = itemsToSave.filter(i => i.importStatus === 'new').length;
+      const updateCount = itemsToSave.filter(i => i.importStatus === 'update').length;
+      const identicalSkipped = importedPreview.length - itemsToSave.length;
+
       setImportedPreview([]);
-      showToast(`Sucesso! ${newCount} novos itens inseridos e ${updatesCount} itens existentes atualizados.`, 'success');
+      showToast(`Importação segura: ${newCount} novos salvos, ${updateCount} atualizados. ${identicalSkipped} idênticos foram mantidos sem re-gravação duplicada.`, 'success');
     } catch (err) {
       console.error(err);
       showToast('Erro ao salvar os registros importados.', 'warning');
@@ -494,15 +627,26 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'PMS');
     XLSX.writeFile(workbook, `PMS_${selectedUnidade}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    showToast('Planilha Excel exportada com sucesso! Sem campos undefined.', 'success');
+    showToast('Planilha Excel exportada com sucesso! Linhas formatadas e sem campos vazios duplicados.', 'success');
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const newCountInPreview = importedPreview.filter(i => !i.isUpdate).length;
-  const updateCountInPreview = importedPreview.filter(i => i.isUpdate).length;
+  const newCountInPreview = importedPreview.filter(i => i.importStatus === 'new').length;
+  const updateCountInPreview = importedPreview.filter(i => i.importStatus === 'update').length;
+  const identicalCountInPreview = importedPreview.filter(i => i.importStatus === 'identical').length;
+
+  const visiblePreviewItems = useMemo(() => {
+    if (previewFilterTab === 'CHANGES') {
+      return importedPreview.filter(i => i.importStatus === 'new' || i.importStatus === 'update');
+    }
+    if (previewFilterTab === 'IDENTICAL') {
+      return importedPreview.filter(i => i.importStatus === 'identical');
+    }
+    return importedPreview;
+  }, [importedPreview, previewFilterTab]);
 
   return (
     <div style={{ backgroundColor: '#ffffff', borderRadius: '4px', border: '1px solid #d0d7de', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -556,11 +700,11 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 fontWeight: 600,
                 border: '1px solid #bbf7d0'
               }}>
-                <i className="fa-solid fa-link" style={{ marginRight: '3px' }}></i> Variedades Vinculadas a Culturas
+                <i className="fa-solid fa-shield-check" style={{ marginRight: '3px' }}></i> Proteção Anti-Duplicação Ativa
               </span>
             </div>
             <p style={{ margin: '1px 0 0 0', fontSize: '11px', color: '#64748b' }}>
-              Parâmetros técnicos: Cultura, Variedade, Tipo, Ciclo, Produtividade e PMS • Importação inteligente sem duplicação
+              Verificação linha por linha de Cultura, Variedade, Ciclo e PMS • Registros idênticos são mantidos sem duplicar
             </p>
           </div>
         </div>
@@ -602,7 +746,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            title="Importar planilha do Excel (.xlsx, .xls ou .csv) com proteção anti-duplicação"
+            title="Importar planilha do Excel com verificação linha por linha sem duplicar"
             style={{
               backgroundColor: '#107c41',
               color: '#ffffff',
@@ -623,7 +767,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
 
           <button
             onClick={handleExportExcel}
-            title="Exportar para Excel (para preencher PMS ou novos dados e re-importar)"
+            title="Exportar para Excel (para consultar ou preencher dados e re-importar com segurança)"
             style={{
               backgroundColor: '#ffffff',
               color: '#374151',
@@ -766,7 +910,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
         </div>
       </div>
 
-      {/* Table Container - Compact Grid View (Blank when empty, zero undefined) */}
+      {/* Table Container - Compact Grid View */}
       <div style={{ overflowX: 'auto', maxHeight: '620px' }}>
         <table style={{
           width: '100%',
@@ -1027,7 +1171,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   </datalist>
                 </div>
 
-                {/* Variedade Input with Datalist linked to Cultura */}
+                {/* Variedade Input with Datalist of Available Variedades for Cultura */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
                     Variedade *
@@ -1036,7 +1180,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     type="text"
                     required
                     list="list-variedades-linked"
-                    placeholder="Ex: BRS 1502, CZ37B51, Neo 750"
+                    placeholder="Ex: CZ37B51, ADR300"
                     value={formVariedade}
                     onChange={(e) => handleVariedadeChange(e.target.value)}
                     style={{
@@ -1054,10 +1198,10 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   </datalist>
                 </div>
 
-                {/* Tipo */}
+                {/* Tipo Dropdown */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
-                    Tipo
+                    Tipo *
                   </label>
                   <select
                     value={formTipo}
@@ -1071,8 +1215,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                       backgroundColor: '#ffffff'
                     }}
                   >
-                    <option value="Cereais">Cereais</option>
-                    <option value="Hortifruti">Hortifruti</option>
+                    {uniqueTipos.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1083,9 +1228,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: 120, 90, 80"
+                    placeholder="Ex: 120"
                     value={formCicloDias}
-                    onChange={(e) => setFormCicloDias(cleanValue(e.target.value))}
+                    onChange={(e) => setFormCicloDias(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1099,13 +1244,13 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 {/* Unidade de Venda */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
-                    Unidade de Venda
+                    Unidade de Venda (1)
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Sacas, Kg"
+                    placeholder="Ex: Sacas, Kg, Ton"
                     value={formUnidadeVenda}
-                    onChange={(e) => setFormUnidadeVenda(cleanValue(e.target.value))}
+                    onChange={(e) => setFormUnidadeVenda(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1123,9 +1268,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: 50"
+                    placeholder="Ex: 45 ou 2.5"
                     value={formMediaUtilizacaoSemente}
-                    onChange={(e) => setFormMediaUtilizacaoSemente(cleanValue(e.target.value))}
+                    onChange={(e) => setFormMediaUtilizacaoSemente(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1143,9 +1288,9 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: 70, 50, 60"
+                    placeholder="Ex: 70"
                     value={formProdutividade}
-                    onChange={(e) => setFormProdutividade(cleanValue(e.target.value))}
+                    onChange={(e) => setFormProdutividade(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1159,33 +1304,13 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 {/* Unidade de Venda 2 */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
-                    Unidade de Venda (Prod.)
+                    Unidade de Venda (2)
                   </label>
                   <input
                     type="text"
                     placeholder="Ex: sacas p/há"
                     value={formUnidadeVenda2}
-                    onChange={(e) => setFormUnidadeVenda2(cleanValue(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      fontSize: '12px',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '3px'
-                    }}
-                  />
-                </div>
-
-                {/* PMS */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
-                    PMS (Peso de Mil Sementes / Especificação)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: CZ37B51: 171 Gramas, PMS Dama: 250 Grmas"
-                    value={formPMS}
-                    onChange={(e) => setFormPMS(cleanValue(e.target.value))}
+                    onChange={(e) => setFormUnidadeVenda2(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -1197,6 +1322,27 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 </div>
               </div>
 
+              {/* PMS Description Input */}
+              <div style={{ marginTop: '10px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#334155', marginBottom: '3px' }}>
+                  PMS (Peso de Mil Sementes)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: CZ37B51: 171 Gramas ou 175g"
+                  value={formPMS}
+                  onChange={(e) => setFormPMS(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    fontSize: '12px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '3px'
+                  }}
+                />
+              </div>
+
+              {/* Action Buttons */}
               <div style={{
                 marginTop: '16px',
                 paddingTop: '12px',
@@ -1242,7 +1388,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
         </div>
       )}
 
-      {/* Modal Preview of Excel Import with Deduplication Report */}
+      {/* Modal Preview of Excel Import with Line-by-Line Checking & Anti-Duplication Report */}
       {isImportModalOpen && (
         <div style={{
           position: 'fixed',
@@ -1261,7 +1407,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
             backgroundColor: '#ffffff',
             borderRadius: '6px',
             width: '100%',
-            maxWidth: '880px',
+            maxWidth: '920px',
             maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
@@ -1281,10 +1427,10 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 <i className="fa-solid fa-file-excel" style={{ color: '#107c41', fontSize: '18px' }}></i>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                    Revisão de Importação Excel — Proteção Anti-Duplicação
+                    Revisão de Importação Linha por Linha — Proteção Anti-Duplicação
                   </h3>
                   <span style={{ fontSize: '11px', color: '#64748b' }}>
-                    Os registros existentes serão atualizados em vez de duplicados.
+                    O sistema verificou todos os campos. Registros já cadastrados e inalterados não serão duplicados.
                   </span>
                 </div>
               </div>
@@ -1303,18 +1449,18 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
               borderBottom: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
+              gap: '10px',
               flexWrap: 'wrap'
             }}>
               <div style={{
                 backgroundColor: '#ffffff',
                 border: '1px solid #cbd5e1',
                 borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '12px',
+                padding: '6px 10px',
+                fontSize: '11px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '5px'
               }}>
                 <span style={{ color: '#64748b' }}>Total na Planilha:</span>
                 <strong style={{ color: '#1e293b' }}>{importedPreview.length}</strong>
@@ -1324,15 +1470,15 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 backgroundColor: '#ecfdf5',
                 border: '1px solid #a7f3d0',
                 borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '12px',
+                padding: '6px 10px',
+                fontSize: '11px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
                 color: '#065f46'
               }}>
                 <i className="fa-solid fa-plus-circle"></i>
-                <span>Novos registros a cadastrar:</span>
+                <span>Novos a cadastrar:</span>
                 <strong>{newCountInPreview}</strong>
               </div>
 
@@ -1340,17 +1486,88 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                 backgroundColor: '#eff6ff',
                 border: '1px solid #bfdbfe',
                 borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '12px',
+                padding: '6px 10px',
+                fontSize: '11px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
                 color: '#1e40af'
               }}>
                 <i className="fa-solid fa-rotate"></i>
-                <span>Existentes a atualizar (sem duplicação):</span>
+                <span>Existentes a atualizar:</span>
                 <strong>{updateCountInPreview}</strong>
               </div>
+
+              <div style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '4px',
+                padding: '6px 10px',
+                fontSize: '11px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: '#475569'
+              }}>
+                <i className="fa-solid fa-check-double" style={{ color: '#64748b' }}></i>
+                <span>Idênticos mantidos (não salvos novamente):</span>
+                <strong>{identicalCountInPreview}</strong>
+              </div>
+            </div>
+
+            {/* Sub-filter tabs */}
+            <div style={{
+              padding: '6px 18px',
+              backgroundColor: '#ffffff',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              gap: '6px'
+            }}>
+              <button
+                onClick={() => setPreviewFilterTab('ALL')}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  borderRadius: '3px',
+                  border: previewFilterTab === 'ALL' ? '1px solid #0078d4' : '1px solid #cbd5e1',
+                  backgroundColor: previewFilterTab === 'ALL' ? '#eff6ff' : '#ffffff',
+                  color: previewFilterTab === 'ALL' ? '#1d4ed8' : '#475569',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Todos ({importedPreview.length})
+              </button>
+              <button
+                onClick={() => setPreviewFilterTab('CHANGES')}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  borderRadius: '3px',
+                  border: previewFilterTab === 'CHANGES' ? '1px solid #16a34a' : '1px solid #cbd5e1',
+                  backgroundColor: previewFilterTab === 'CHANGES' ? '#f0fdf4' : '#ffffff',
+                  color: previewFilterTab === 'CHANGES' ? '#15803d' : '#475569',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Apenas Modificados e Novos ({newCountInPreview + updateCountInPreview})
+              </button>
+              <button
+                onClick={() => setPreviewFilterTab('IDENTICAL')}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  borderRadius: '3px',
+                  border: previewFilterTab === 'IDENTICAL' ? '1px solid #64748b' : '1px solid #cbd5e1',
+                  backgroundColor: previewFilterTab === 'IDENTICAL' ? '#f1f5f9' : '#ffffff',
+                  color: previewFilterTab === 'IDENTICAL' ? '#1e293b' : '#475569',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Idênticos / Sem Alterações ({identicalCountInPreview})
+              </button>
             </div>
 
             {/* Preview Table */}
@@ -1358,17 +1575,18 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#5ea244', color: '#ffffff', textAlign: 'left', position: 'sticky', top: 0 }}>
-                    <th style={{ padding: '6px 8px', textAlign: 'center', width: '110px' }}>Status Ação</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'center', width: '130px' }}>Status da Verificação</th>
                     <th style={{ padding: '6px 8px' }}>Cultura</th>
                     <th style={{ padding: '6px 8px' }}>Variedade</th>
                     <th style={{ padding: '6px 8px' }}>Tipo</th>
                     <th style={{ padding: '6px 8px', textAlign: 'center' }}>Ciclo</th>
                     <th style={{ padding: '6px 8px', textAlign: 'center' }}>Produtividade</th>
                     <th style={{ padding: '6px 8px' }}>PMS</th>
+                    <th style={{ padding: '6px 8px' }}>Alterações Detectadas</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {importedPreview.map((row, i) => {
+                  {visiblePreviewItems.map((row, i) => {
                     const cCultura = cleanValue(row.cultura);
                     const cVar = cleanValue(row.variedade);
                     const cTipo = cleanValue(row.tipo);
@@ -1376,16 +1594,36 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                     const cProd = cleanValue(row.produtividade);
                     const cPMS = cleanValue(row.pms);
 
+                    const isIdentical = row.importStatus === 'identical';
+                    const isUpdate = row.importStatus === 'update';
+                    const isNew = row.importStatus === 'new';
+
                     return (
                       <tr
                         key={i}
                         style={{
                           borderBottom: '1px solid #e2e8f0',
-                          backgroundColor: row.isUpdate ? '#f0f9ff' : (i % 2 === 0 ? '#f8fafc' : '#ffffff')
+                          backgroundColor: isUpdate ? '#f0f9ff' : isNew ? '#f0fdf4' : '#f8fafc',
+                          opacity: isIdentical ? 0.75 : 1
                         }}
                       >
                         <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                          {row.isUpdate ? (
+                          {isNew && (
+                            <span style={{
+                              backgroundColor: '#dcfce7',
+                              color: '#166534',
+                              padding: '2px 6px',
+                              borderRadius: '10px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}>
+                              <i className="fa-solid fa-plus"></i> Novo Registro
+                            </span>
+                          )}
+                          {isUpdate && (
                             <span style={{
                               backgroundColor: '#dbeafe',
                               color: '#1e40af',
@@ -1399,19 +1637,20 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                             }}>
                               <i className="fa-solid fa-rotate"></i> Atualizar
                             </span>
-                          ) : (
+                          )}
+                          {isIdentical && (
                             <span style={{
-                              backgroundColor: '#dcfce7',
-                              color: '#166534',
+                              backgroundColor: '#e2e8f0',
+                              color: '#475569',
                               padding: '2px 6px',
                               borderRadius: '10px',
                               fontSize: '10px',
-                              fontWeight: 700,
+                              fontWeight: 600,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '3px'
                             }}>
-                              <i className="fa-solid fa-plus"></i> Novo
+                              <i className="fa-solid fa-check"></i> Idêntico (Mantido)
                             </span>
                           )}
                         </td>
@@ -1422,6 +1661,19 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                         <td style={{ padding: '5px 8px', textAlign: 'center' }}>{cProd}</td>
                         <td style={{ padding: '5px 8px', color: '#0b5394', fontWeight: 600 }}>
                           {cPMS}
+                        </td>
+                        <td style={{ padding: '5px 8px', fontSize: '10px' }}>
+                          {isIdentical && <span style={{ color: '#64748b' }}>Informações 100% idênticas no banco</span>}
+                          {isNew && <span style={{ color: '#166534', fontWeight: 600 }}>Variedade nova cadastrada</span>}
+                          {isUpdate && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                              {row.diffs.map((d, dIdx) => (
+                                <span key={dIdx} style={{ color: '#1e40af' }}>
+                                  <strong>{d.label}:</strong> {d.oldVal || '∅'} ➔ <strong>{d.newVal}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1441,7 +1693,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
             }}>
               <div style={{ fontSize: '11px', color: '#64748b' }}>
                 <i className="fa-solid fa-shield-halved" style={{ color: '#107c41', marginRight: '4px' }}></i>
-                Registros com mesma Cultura e Variedade substituirão os dados antigos com segurança.
+                Apenas <strong>{newCountInPreview + updateCountInPreview}</strong> registros modificados/novos serão gravados. <strong>{identicalCountInPreview}</strong> idênticos serão preservados sem duplicar.
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -1466,7 +1718,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   disabled={isImporting}
                   onClick={handleConfirmImport}
                   style={{
-                    backgroundColor: '#107c41',
+                    backgroundColor: (newCountInPreview + updateCountInPreview === 0) ? '#64748b' : '#107c41',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '3px',
@@ -1483,6 +1735,10 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
                   {isImporting ? (
                     <>
                       <i className="fa-solid fa-spinner fa-spin"></i> Salvando...
+                    </>
+                  ) : newCountInPreview + updateCountInPreview === 0 ? (
+                    <>
+                      <i className="fa-solid fa-check"></i> Tudo Idêntico (Nenhum dado novo a salvar)
                     </>
                   ) : (
                     <>
