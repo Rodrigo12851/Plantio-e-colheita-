@@ -67,7 +67,8 @@ export const COLLECTIONS = {
   amarracoes: 'amarracoes',
   unidades: 'unidades',
   lixeira: 'lixeira',
-  usuarios: 'usuarios'
+  usuarios: 'usuarios',
+  pms: 'pms'
 } as const;
 
 export type CollectionKey = keyof typeof COLLECTIONS;
