@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { PMSSection, PMSItem, DEFAULT_PMS_DATA, cleanValue, getPmsDocId } from './components/PMSSection';
+import { GeneralImportModal, GeneralCategoryKey } from './components/GeneralImportModal';
 import {
   subscribeToCollection,
   saveDocument,
@@ -1853,6 +1854,37 @@ export default function App() {
     }
   };
 
+  // General Import Modal State & Handlers
+  const [isGeneralImportOpen, setIsGeneralImportOpen] = useState(false);
+  const [generalImportTargetCategory, setGeneralImportTargetCategory] = useState<GeneralCategoryKey>('culturas');
+
+  const openGeneralImportModal = () => {
+    let targetCat: GeneralCategoryKey = 'culturas';
+    const validKeys: GeneralCategoryKey[] = ['plantio', 'colheita', 'empresas', 'anos', 'fazendas', 'pivos', 'glebas', 'variedades', 'culturas', 'colaboradores', 'motoristas', 'onibus'];
+    if (validKeys.includes(activePage as GeneralCategoryKey)) {
+      targetCat = activePage as GeneralCategoryKey;
+    } else if (activePage === 'cadastro_geral') {
+      targetCat = (cadastroSubPage as GeneralCategoryKey) || 'culturas';
+    }
+    setGeneralImportTargetCategory(targetCat);
+    setIsGeneralImportOpen(true);
+  };
+
+  const handleGeneralImportBatch = async (category: GeneralCategoryKey, items: { item: any; id?: string }[]) => {
+    const colName = COLLECTIONS[category as CollectionKey];
+    if (!colName) return;
+
+    for (const entry of items) {
+      const cleanObj: Record<string, any> = {};
+      Object.keys(entry.item).forEach(key => {
+        const val = entry.item[key];
+        cleanObj[key] = (val === undefined || val === null) ? '' : String(val).trim();
+      });
+      cleanObj.unidade = cleanObj.unidade || selectedUnidade;
+      await saveDocument(colName, cleanObj, entry.id);
+    }
+  };
+
   // Share Modal State
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [shareText, setShareText] = useState('');
@@ -3687,6 +3719,15 @@ export default function App() {
 
             <button className={`cmd-btn ${isGridEditing ? 'active-mode' : ''}`} id="btnGridMode" onClick={toggleGridMode}>
               <i className="fa-solid fa-table-cells"></i> <span id="gridBtnText">{isGridEditing ? 'Sair da Grade' : 'Modo grade'}</span>
+            </button>
+
+            <button
+              className="cmd-btn"
+              onClick={openGeneralImportModal}
+              style={{ display: activePage === 'lixeira' ? 'none' : 'inline-flex' }}
+              title="Importar planilha Excel ou CSV (.xlsx, .xls, .csv)"
+            >
+              <i className="fa-solid fa-file-import" style={{ color: '#107c41' }}></i> Importar
             </button>
 
             <button className="cmd-btn" onClick={openShareOptions}>
@@ -7928,6 +7969,30 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* GENERAL IMPORT MODAL */}
+      <GeneralImportModal
+        isOpen={isGeneralImportOpen}
+        onClose={() => setIsGeneralImportOpen(false)}
+        targetCategory={generalImportTargetCategory}
+        selectedUnidade={selectedUnidade}
+        existingData={{
+          culturas: culturasData,
+          variedades: variedadesData,
+          empresas: empresasData,
+          anos: anosData,
+          fazendas: fazendasData,
+          pivos: pivosData,
+          glebas: glebasData,
+          colaboradores: colaboradoresData,
+          motoristas: motoristasData,
+          onibus: onibusData,
+          plantio: plantioData,
+          colheita: colheitaData
+        }}
+        onImportBatch={handleGeneralImportBatch}
+        showToast={showToast}
+      />
 
       {/* PWA INSTALL MODAL */}
       <PWAInstallModal isOpen={isPwaModalOpen} onClose={() => setIsPwaModalOpen(false)} />
