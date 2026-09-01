@@ -1821,7 +1821,7 @@ export default function App() {
 
   const handleImportPmsBatch = async (newItems: PMSItem[]) => {
     for (const item of newItems) {
-      await saveDocument(COLLECTIONS.pms, item);
+      await saveDocument(COLLECTIONS.pms, item, item.id);
     }
   };
 
@@ -4493,6 +4493,8 @@ export default function App() {
             <PMSSection
               items={pmsData}
               selectedUnidade={selectedUnidade}
+              culturas={culturasData}
+              variedades={variedadesData}
               onSaveItem={handleSavePmsItem}
               onDeleteItem={handleDeletePmsItem}
               onImportBatch={handleImportPmsBatch}
