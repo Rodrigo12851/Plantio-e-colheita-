@@ -3429,6 +3429,20 @@ export default function App() {
 
         {/* MENU LATERAL */}
         <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`} id="sidebar">
+          <div className="sidebar-header">
+            <div className="sidebar-header-title">
+              <i className="fa-solid fa-bars" style={{ fontSize: '15px' }}></i>
+              <span>Menu Principal</span>
+            </div>
+            <button
+              className="sidebar-close-btn"
+              onClick={closeSidebar}
+              title="Fechar menu"
+              aria-label="Fechar menu"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+          </div>
           <div className="sidebar-title">Navegação</div>
           {hasPermission('amarracoes') && (
             <div
