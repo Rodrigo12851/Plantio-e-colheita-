@@ -1607,13 +1607,67 @@ export default function App() {
     }
   };
 
+  const getNextAutoCodeForPage = (page: string): string => {
+    let list: { codigo?: string; unidade?: string }[] = [];
+    if (page === 'variedades') list = getCombinedVariedades() as any;
+    else if (page === 'colaboradores') list = colaboradoresData;
+    else if (page === 'motoristas') list = motoristasData;
+    else if (page === 'onibus') list = onibusData;
+    else if (page === 'pivos') list = pivosData;
+    else if (page === 'glebas') list = glebasData;
+    else if (page === 'fazendas') list = fazendasData;
+    else if (page === 'culturas') list = culturasData;
+    else if (page === 'empresas') list = empresasData;
+    else if (page === 'anos') list = anosData;
+
+    const unitItems = list.filter(isItemInSelectedUnidade);
+    let max = 0;
+    for (const item of unitItems) {
+      if (item.codigo) {
+        const val = parseInt(item.codigo.replace(/\D/g, ''), 10);
+        if (!isNaN(val) && val > 0 && val < 50000 && val > max) {
+          max = val;
+        }
+      }
+    }
+    if (max === 0 && unitItems.length > 0) {
+      max = unitItems.length;
+    }
+    return String(max + 1);
+  };
+
+  const getNextAmarracaoCode = (): string => {
+    const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
+    let max = 0;
+    for (const item of unitAmarracoes) {
+      if (item.codigoMarca) {
+        const val = parseInt(item.codigoMarca.replace(/\D/g, ''), 10);
+        if (!isNaN(val) && val > 0 && val < 50000 && val > max) {
+          max = val;
+        }
+      }
+    }
+    if (max === 0 && unitAmarracoes.length > 0) {
+      max = unitAmarracoes.length;
+    }
+    const nextVal = max + 1;
+    return `#AMR-${String(nextVal).padStart(3, '0')}`;
+  };
+
   const handleAddSquareItem = async (category: 'empresa' | 'ano' | 'cultura' | 'fazenda' | 'pivo' | 'gleba' | 'variedade') => {
     if (!newSquareItemName.trim()) {
       showToast('Digite um nome para cadastrar.', 'warning');
       return;
     }
     const name = newSquareItemName.trim();
-    const newCode = Date.now().toString();
+    const pageKey = category === 'empresa' ? 'empresas'
+      : category === 'ano' ? 'anos'
+      : category === 'cultura' ? 'culturas'
+      : category === 'fazenda' ? 'fazendas'
+      : category === 'pivo' ? 'pivos'
+      : category === 'gleba' ? 'glebas'
+      : 'variedades';
+    const newCode = getNextAutoCodeForPage(pageKey);
 
     let targetList: SimpleItem[] = [];
     if (category === 'empresa') targetList = empresasData;
@@ -1631,22 +1685,22 @@ export default function App() {
 
     if (category === 'empresa') {
       await saveDocument(COLLECTIONS.empresas, { codigo: newCode, nome: name, unidade: selectedUnidade });
-      showToast(`Empresa "${name}" cadastrada!`, 'success');
+      showToast(`Empresa "${name}" (Cód: ${newCode}) cadastrada!`, 'success');
     } else if (category === 'ano') {
       await saveDocument(COLLECTIONS.anos, { codigo: newCode, nome: name, unidade: selectedUnidade });
-      showToast(`Ano "${name}" cadastrado!`, 'success');
+      showToast(`Ano "${name}" (Cód: ${newCode}) cadastrado!`, 'success');
     } else if (category === 'cultura') {
       await saveDocument(COLLECTIONS.culturas, { codigo: newCode, nome: name, unidade: selectedUnidade });
-      showToast(`Cultura "${name}" cadastrada!`, 'success');
+      showToast(`Cultura "${name}" (Cód: ${newCode}) cadastrada!`, 'success');
     } else if (category === 'fazenda') {
       await saveDocument(COLLECTIONS.fazendas, { codigo: newCode, nome: name, unidade: selectedUnidade });
-      showToast(`Fazenda "${name}" cadastrada!`, 'success');
+      showToast(`Fazenda "${name}" (Cód: ${newCode}) cadastrada!`, 'success');
     } else if (category === 'pivo') {
       await saveDocument(COLLECTIONS.pivos, { codigo: newCode, nome: name, unidade: selectedUnidade });
-      showToast(`Pivô "${name}" cadastrado!`, 'success');
+      showToast(`Pivô "${name}" (Cód: ${newCode}) cadastrado!`, 'success');
     } else if (category === 'gleba') {
       await saveDocument(COLLECTIONS.glebas, { codigo: newCode, nome: name, unidade: selectedUnidade });
-      showToast(`Gleba "${name}" cadastrada!`, 'success');
+      showToast(`Gleba "${name}" (Cód: ${newCode}) cadastrada!`, 'success');
     } else if (category === 'variedade') {
       const culturaVinculada = selectedCulturaForTie || '';
       const docId = getPmsDocId(culturaVinculada, name, selectedUnidade);
@@ -1658,7 +1712,7 @@ export default function App() {
         unidade: selectedUnidade
       }, docId);
       await saveDocument(COLLECTIONS.variedades, { codigo: newCode, nome: name, cultura: culturaVinculada, unidade: selectedUnidade });
-      showToast(`Variedade "${name}" cadastrada no PMS${culturaVinculada ? ` (Cultura: ${culturaVinculada})` : ''}!`, 'success');
+      showToast(`Variedade "${name}" (Cód: ${newCode}) cadastrada no PMS${culturaVinculada ? ` (Cultura: ${culturaVinculada})` : ''}!`, 'success');
     }
 
     setNewSquareItemName('');
@@ -1721,14 +1775,14 @@ export default function App() {
       return;
     }
 
-    const randomCode = '#AMR-' + Math.floor(100000 + Math.random() * 900000);
+    const nextCode = getNextAmarracaoCode();
     const titleText = selections.join(' ➔ ');
     const formattedHectares = tieHectares.trim()
       ? (tieHectares.trim().toLowerCase().includes('ha') ? tieHectares.trim() : `${tieHectares.trim()} ha`)
       : '';
 
     const newItem: AmarracaoItem = {
-      codigoMarca: randomCode,
+      codigoMarca: nextCode,
       categoria: 'geral',
       titulo: titleText,
       origem: selectedEmpresaForTie || selectedCulturaForTie || selectedFazendaForTie || 'Ordem Geral',
@@ -1740,7 +1794,7 @@ export default function App() {
     };
 
     await saveDocument(COLLECTIONS.amarracoes, newItem);
-    showToast(`Amarração (${randomCode}) criada no Geral!`, 'success');
+    showToast(`Amarração (${nextCode}) criada no Geral!`, 'success');
     setSelectedEmpresaForTie('');
     setSelectedAnoForTie('');
     setSelectedCulturaForTie('');
@@ -1822,8 +1876,9 @@ export default function App() {
       await saveDocument(COLLECTIONS.amarracoes, updated, editingAmarracao.id);
       showToast('Amarração atualizada com sucesso!', 'success');
     } else {
+      const nextCode = getNextAmarracaoCode();
       const newItem: AmarracaoItem = {
-        codigoMarca: `#AMR-${Date.now().toString().slice(-5)}`,
+        codigoMarca: nextCode,
         categoria: amarracaoFormData.categoria,
         titulo: autoTitle,
         origem: orig,
@@ -1834,7 +1889,7 @@ export default function App() {
         unidade: selectedUnidade
       };
       await saveDocument(COLLECTIONS.amarracoes, newItem);
-      showToast('Nova amarração criada com sucesso!', 'success');
+      showToast(`Nova amarração (${nextCode}) criada com sucesso!`, 'success');
     }
     setIsAmarracaoModalOpen(false);
     setEditingAmarracao(null);
@@ -2314,8 +2369,14 @@ export default function App() {
         .filter(r => isRowVisible(r));
     } else if (activePage === 'variedades') {
       headers = ['CÓDIGO', 'NOME', 'CULTURA'];
-      rows = variedadesData
-        .map(i => [i.codigo, i.nome, i.cultura])
+      rows = getCombinedVariedades()
+        .map((i, idx) => [i.codigo || String(idx + 1), i.nome, i.cultura || '-'])
+        .filter(r => isRowVisible(r));
+    } else if (activePage === 'amarracoes') {
+      headers = ['CÓDIGO', 'CATEGORIA', 'TÍTULO / ORDEM', 'ORIGEM', 'DESTINO', 'HECTARES', 'STATUS', 'OBSERVAÇÃO'];
+      rows = amarracoesData
+        .filter(isItemInSelectedUnidade)
+        .map(i => [i.codigoMarca || '-', i.categoria || 'geral', i.titulo || '-', i.origem || '-', i.destino || '-', i.hectares || '-', i.status || 'Ativo', i.observacao || '-'])
         .filter(r => isRowVisible(r));
     } else if (activePage === 'colaboradores') {
       headers = ['MATRÍCULA', 'NOME', 'APONTADOR', 'LOCAL', 'STATUS'];
@@ -2359,6 +2420,38 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const exportAmarracoesToCSV = () => {
+    const headers = ['CÓDIGO', 'CATEGORIA', 'TÍTULO / ORDEM', 'ORIGEM', 'DESTINO', 'HECTARES', 'STATUS', 'OBSERVAÇÃO'];
+    const rows = amarracoesData
+      .filter(isItemInSelectedUnidade)
+      .map(i => [
+        i.codigoMarca || '-',
+        i.categoria || 'geral',
+        i.titulo || '-',
+        i.origem || '-',
+        i.destino || '-',
+        i.hectares || '-',
+        i.status || 'Ativo',
+        i.observacao || '-'
+      ]);
+
+    const csvContent = [
+      headers.map(h => `"${h.replace(/"/g, '""')}"`).join(';'),
+      ...rows.map(row => row.map(cell => `"${String(cell || '').replace(/[\n\r]/g, ' ').replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Amarracoes_${selectedUnidade}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Exportação de Amarrações gerada com sucesso!', 'success');
   };
 
   // Date format conversion helpers
@@ -2416,32 +2509,6 @@ export default function App() {
       return parts[0];
     }
     return '';
-  };
-
-  const getNextAutoCodeForPage = (page: string): string => {
-    let list: { codigo?: string; unidade?: string }[] = [];
-    if (page === 'variedades') list = variedadesData;
-    else if (page === 'colaboradores') list = colaboradoresData;
-    else if (page === 'motoristas') list = motoristasData;
-    else if (page === 'onibus') list = onibusData;
-    else if (page === 'pivos') list = pivosData;
-    else if (page === 'glebas') list = glebasData;
-    else if (page === 'fazendas') list = fazendasData;
-    else if (page === 'culturas') list = culturasData;
-    else if (page === 'empresas') list = empresasData;
-    else if (page === 'anos') list = anosData;
-
-    const unitItems = list.filter(isItemInSelectedUnidade);
-    let max = 0;
-    for (const item of unitItems) {
-      if (item.codigo) {
-        const val = parseInt(item.codigo.replace(/\D/g, ''), 10);
-        if (!isNaN(val) && val > max) {
-          max = val;
-        }
-      }
-    }
-    return String(max + 1);
   };
 
   // Open Modal for Add/Edit
@@ -7898,24 +7965,45 @@ export default function App() {
                               Amarrações e Ligações de Ordens Cadastradas no Geral ({unitAmarracoes.length})
                             </h3>
                           </div>
-                          <button
-                            onClick={() => openNewAmarracaoModal('geral')}
-                            style={{
-                              backgroundColor: '#794b00',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <i className="fa-solid fa-plus"></i> Nova Amarração
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button
+                              onClick={exportAmarracoesToCSV}
+                              style={{
+                                backgroundColor: '#107c41',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                              title="Exportar todas as amarrações do Geral para arquivo CSV"
+                            >
+                              <i className="fa-solid fa-file-csv"></i> Exportar CSV
+                            </button>
+                            <button
+                              onClick={() => openNewAmarracaoModal('geral')}
+                              style={{
+                                backgroundColor: '#794b00',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <i className="fa-solid fa-plus"></i> Nova Amarração
+                            </button>
+                          </div>
                         </div>
 
                         {unitAmarracoes.length === 0 ? (

@@ -13,7 +13,8 @@ export type GeneralCategoryKey =
   | 'motoristas' 
   | 'onibus' 
   | 'plantio' 
-  | 'colheita';
+  | 'colheita'
+  | 'amarracoes';
 
 export interface CategoryInfo {
   key: GeneralCategoryKey;
@@ -177,6 +178,22 @@ export const CATEGORY_DEFINITIONS: Record<GeneralCategoryKey, CategoryInfo> = {
       { key: 'mediaHa', label: 'Média HA' },
       { key: 'mes', label: 'Mês' },
       { key: 'ano', label: 'Ano' }
+    ]
+  },
+  amarracoes: {
+    key: 'amarracoes',
+    label: 'Amarrações',
+    subTitle: 'Marcações e Amarrações',
+    icon: 'fa-link',
+    fields: [
+      { key: 'codigoMarca', label: 'Código' },
+      { key: 'categoria', label: 'Categoria' },
+      { key: 'titulo', label: 'Título / Ordem Completa', primaryKey: true, required: true },
+      { key: 'origem', label: 'Origem' },
+      { key: 'destino', label: 'Destino' },
+      { key: 'hectares', label: 'Hectares' },
+      { key: 'status', label: 'Status' },
+      { key: 'observacao', label: 'Observação' }
     ]
   }
 };
@@ -369,9 +386,25 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
 
       if (!hasAnyValue) continue;
 
-      // Auto generate code if missing
-      if (catInfo.fields.some(f => f.key === 'codigo') && !itemData['codigo']) {
-        itemData['codigo'] = String(Date.now() + r).slice(-6);
+      // Auto generate sequential code if missing
+      if (catInfo.fields.some(f => f.key === 'codigo' || f.key === 'codigoMarca') && !itemData['codigo'] && !itemData['codigoMarca']) {
+        let maxCod = 0;
+        for (const ex of existingList) {
+          const raw = cleanText(ex.codigo || ex.codigoMarca);
+          const num = parseInt(raw.replace(/\D/g, ''), 10);
+          if (!isNaN(num) && num > 0 && num < 50000 && num > maxCod) {
+            maxCod = num;
+          }
+        }
+        if (maxCod === 0 && existingList.length > 0) {
+          maxCod = existingList.length;
+        }
+        const nextNum = maxCod + r;
+        if (catKey === 'amarracoes') {
+          itemData['codigoMarca'] = `#AMR-${String(nextNum).padStart(3, '0')}`;
+        } else {
+          itemData['codigo'] = String(nextNum);
+        }
       }
 
       // Identify matching existing item
@@ -383,6 +416,12 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
           const matchN = normalizeKey(e.nome) === normName;
           const matchC = !normCult || !normalizeKey(e.cultura) || normalizeKey(e.cultura) === normCult;
           return matchN && matchC;
+        });
+      } else if (catKey === 'amarracoes') {
+        const normTit = normalizeKey(itemData.titulo);
+        const normCod = cleanText(itemData.codigoMarca);
+        matchedExisting = existingList.find(e => {
+          return (normCod && cleanText(e.codigoMarca) === normCod) || (normTit && normalizeKey(e.titulo) === normTit);
         });
       } else if (catKey === 'colaboradores') {
         const normCod = cleanText(itemData.codigo);
@@ -714,6 +753,7 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
               >
                 <optgroup label="Cadastro Geral">
                   <option value="culturas">Culturas (Cadastro_Culturas)</option>
+                  <option value="variedades">Variedades (Cadastro_Variedades)</option>
                   <option value="empresas">Empresas (Cadastro_Empresas)</option>
                   <option value="anos">Anos Safra (Cadastro_Anos)</option>
                   <option value="fazendas">Fazendas (Cadastro_Fazendas)</option>
@@ -723,9 +763,10 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
                   <option value="motoristas">Motoristas (Cadastro_Motoristas)</option>
                   <option value="onibus">Ônibus (Cadastro_Onibus)</option>
                 </optgroup>
-                <optgroup label="Bancos de Dados">
+                <optgroup label="Bancos de Dados & Amarrações">
                   <option value="plantio">BdPlantio (Plantio Geral)</option>
                   <option value="colheita">BdColheita (Colheita Geral)</option>
+                  <option value="amarracoes">Marcações e Amarrações (Geral)</option>
                 </optgroup>
               </select>
               <div style={{ marginTop: '6px', fontSize: '11px', color: '#605e5c' }}>
