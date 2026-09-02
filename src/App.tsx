@@ -1420,34 +1420,39 @@ export default function App() {
     return sortAlphanumeric(result);
   };
 
-  const getAmarracoesVariedades = (culturaName?: string) => {
+  const getCombinedVariedades = (culturaFilter?: string): VariedadeItem[] => {
     const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
     const unitPmsVariedades = pmsData
       .filter(isItemInSelectedUnidade)
       .filter(p => p.variedade && p.variedade.trim())
       .map((p, i) => ({
-        codigo: p.id || `pms-v-${i}`,
+        id: p.id || `pms-v-${i}`,
+        codigo: p.id || `PMS-${i + 1}`,
         nome: p.variedade.trim(),
-        cultura: p.cultura || '',
+        cultura: (p.cultura || '').trim(),
         unidade: p.unidade
       }));
 
     // Merge and deduplicate
     const combinedMap = new Map<string, VariedadeItem>();
-    [...unitVariedades, ...unitPmsVariedades].forEach(v => {
-      const key = `${(v.nome || '').trim().toLowerCase()}_${(v.cultura || '').trim().toLowerCase()}`;
+    [...unitPmsVariedades, ...unitVariedades].forEach(v => {
+      const key = `${(v.nome || '').trim().toLowerCase()}___${(v.cultura || '').trim().toLowerCase()}`;
       if (v.nome && !combinedMap.has(key)) {
         combinedMap.set(key, v);
       }
     });
-    const allVariedades = Array.from(combinedMap.values());
+    const all = Array.from(combinedMap.values());
+    const cLower = (culturaFilter || '').trim().toLowerCase();
+    if (!cLower) return all;
+    return all.filter(v => (v.cultura || '').trim().toLowerCase() === cLower);
+  };
 
+  const getAmarracoesVariedades = (culturaName?: string) => {
+    const allVariedades = getCombinedVariedades(culturaName);
     const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
-    const cLower = (culturaName || '').trim().toLowerCase();
-    const filtered = allVariedades.filter(v => !cLower || (v.cultura && v.cultura.trim().toLowerCase() === cLower));
-    if (!unitAmarracoes || unitAmarracoes.length === 0) return filtered;
+    if (!unitAmarracoes || unitAmarracoes.length === 0) return allVariedades;
 
-    const linked = filtered.filter(v => {
+    const linked = allVariedades.filter(v => {
       const vName = v.nome.trim().toLowerCase();
       return unitAmarracoes.some(tie => {
         if (tie.status === 'Inativo') return false;
@@ -1455,7 +1460,7 @@ export default function App() {
         return text.includes(vName);
       });
     });
-    return linked.length > 0 ? linked : filtered;
+    return linked.length > 0 ? linked : allVariedades;
   };
 
   // --- COLHEITA OPTION HELPERS (Pull only items that exist in plantioData) ---
@@ -1562,8 +1567,8 @@ export default function App() {
 
   const getPlantioVariedades = (culturaName?: string, fazendaName?: string, pivoName?: string, glebaName?: string) => {
     const unitPlantio = plantioData.filter(isItemInSelectedUnidade);
-    const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
-    if (!unitPlantio || unitPlantio.length === 0) return [];
+    const unitVariedades = getCombinedVariedades(culturaName);
+    if (!unitPlantio || unitPlantio.length === 0) return unitVariedades;
     const cLower = (culturaName || '').trim().toLowerCase();
     const fLower = (fazendaName || '').trim().toLowerCase();
     const pLower = (pivoName || '').trim().toLowerCase();
@@ -1587,14 +1592,15 @@ export default function App() {
         nome: matching.find(p => p.variedade?.trim().toLowerCase() === name)?.variedade || name,
         cultura: culturaName || ''
       }));
-    return [...filtered, ...extra];
+    const result = [...filtered, ...extra];
+    return result.length > 0 ? result : unitVariedades;
   };
 
   const handleSelectCultura = (culturaNome: string) => {
     const nextCultura = selectedCulturaForTie === culturaNome ? '' : culturaNome;
     setSelectedCulturaForTie(nextCultura);
     if (nextCultura && selectedVariedadeForTie) {
-      const isValidVar = variedadesData.filter(isItemInSelectedUnidade).some(v => v.nome === selectedVariedadeForTie && v.cultura?.trim().toLowerCase() === nextCultura.trim().toLowerCase());
+      const isValidVar = getCombinedVariedades(nextCultura).some(v => v.nome.trim().toLowerCase() === selectedVariedadeForTie.trim().toLowerCase());
       if (!isValidVar) {
         setSelectedVariedadeForTie('');
       }
@@ -1616,7 +1622,7 @@ export default function App() {
     else if (category === 'fazenda') targetList = fazendasData;
     else if (category === 'pivo') targetList = pivosData;
     else if (category === 'gleba') targetList = glebasData;
-    else if (category === 'variedade') targetList = variedadesData as any;
+    else if (category === 'variedade') targetList = getCombinedVariedades(selectedCulturaForTie) as any;
 
     if (targetList.some(item => (item.nome || '').trim().toLowerCase() === name.toLowerCase())) {
       showToast(`O item "${name}" já está cadastrado.`, 'warning');
@@ -1643,14 +1649,40 @@ export default function App() {
       showToast(`Gleba "${name}" cadastrada!`, 'success');
     } else if (category === 'variedade') {
       const culturaVinculada = selectedCulturaForTie || '';
+      const docId = getPmsDocId(culturaVinculada, name, selectedUnidade);
+      await saveDocument(COLLECTIONS.pms, {
+        id: docId,
+        cultura: culturaVinculada,
+        variedade: name,
+        tipo: 'Cereais',
+        unidade: selectedUnidade
+      }, docId);
       await saveDocument(COLLECTIONS.variedades, { codigo: newCode, nome: name, cultura: culturaVinculada, unidade: selectedUnidade });
-      showToast(`Variedade "${name}" cadastrada${culturaVinculada ? ` (Cultura: ${culturaVinculada})` : ''}!`, 'success');
+      showToast(`Variedade "${name}" cadastrada no PMS${culturaVinculada ? ` (Cultura: ${culturaVinculada})` : ''}!`, 'success');
     }
 
     setNewSquareItemName('');
   };
 
   const handleDeleteSquareItem = async (category: 'empresa' | 'ano' | 'cultura' | 'fazenda' | 'pivo' | 'gleba' | 'variedade', codigo: string) => {
+    if (category === 'variedade') {
+      const allVars = getCombinedVariedades(selectedCulturaForTie);
+      const item = allVars.find(x => x.codigo === codigo || x.id === codigo || x.nome === codigo);
+      if (item) {
+        const itemNome = item.nome.trim().toLowerCase();
+        const varMatches = variedadesData.filter(x => isItemInSelectedUnidade(x) && (x.codigo === codigo || x.id === codigo || (x.nome && x.nome.trim().toLowerCase() === itemNome)));
+        for (const m of varMatches) {
+          if (m.id) await removeDocument(COLLECTIONS.variedades, m.id);
+        }
+        const pmsMatches = pmsData.filter(x => isItemInSelectedUnidade(x) && (x.id === codigo || (x.variedade && x.variedade.trim().toLowerCase() === itemNome)));
+        for (const m of pmsMatches) {
+          if (m.id) await removeDocument(COLLECTIONS.pms, m.id);
+        }
+      }
+      showToast('Variedade removida com sucesso.', 'info');
+      return;
+    }
+
     let targetList: SimpleItem[] = [];
     let colName: string = category;
     if (category === 'empresa') { targetList = empresasData; colName = COLLECTIONS.empresas; }
@@ -1659,7 +1691,6 @@ export default function App() {
     else if (category === 'fazenda') { targetList = fazendasData; colName = COLLECTIONS.fazendas; }
     else if (category === 'pivo') { targetList = pivosData; colName = COLLECTIONS.pivos; }
     else if (category === 'gleba') { targetList = glebasData; colName = COLLECTIONS.glebas; }
-    else if (category === 'variedade') { targetList = variedadesData as any; colName = COLLECTIONS.variedades; }
 
     const item = targetList.find(x => x.codigo === codigo);
     if (item) {
@@ -7131,8 +7162,8 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Variedade --</option>
-                      {variedadesData.filter(isItemInSelectedUnidade).map((v, i) => (
-                        <option key={i} value={v.nome}>{v.nome}</option>
+                      {getCombinedVariedades().map((v, i) => (
+                        <option key={i} value={v.nome}>{v.nome}{v.cultura ? ` (${v.cultura})` : ''}</option>
                       ))}
                     </select>
                   ) : amarracaoFormData.categoria === 'ano' ? (
@@ -7174,7 +7205,7 @@ export default function App() {
                       required
                     >
                       <option value="">-- Selecione a Variedade Amarrada --</option>
-                      {variedadesData.filter(isItemInSelectedUnidade).map((v, i) => (
+                      {getCombinedVariedades(amarracaoFormData.origem).map((v, i) => (
                         <option key={i} value={v.nome}>{v.nome}</option>
                       ))}
                     </select>
@@ -7349,12 +7380,9 @@ export default function App() {
               const unitAnos = anosData.filter(isItemInSelectedUnidade);
               const unitCulturas = culturasData.filter(isItemInSelectedUnidade);
               const unitFazendas = fazendasData.filter(isItemInSelectedUnidade);
-              const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
               const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
 
-              const filteredVariedadesData = selectedCulturaForTie
-                ? unitVariedades.filter(v => v.cultura && v.cultura.trim().toLowerCase() === selectedCulturaForTie.trim().toLowerCase())
-                : unitVariedades;
+              const filteredVariedadesData = getCombinedVariedades(selectedCulturaForTie);
 
               const filteredPivosData = getLinkedPivosForFazenda(selectedFazendaForTie);
               const rawGlebasData = getLinkedGlebasForPivo(selectedPivoForTie, selectedFazendaForTie, selectedCulturaForTie);
