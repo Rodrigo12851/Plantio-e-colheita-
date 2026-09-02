@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { PMSSection, PMSItem, DEFAULT_PMS_DATA, cleanValue, getPmsDocId } from './components/PMSSection';
+import { SankhyaSection, SankhyaProjectItem, DEFAULT_PROJETOS_SANKHYA } from './components/SankhyaSection';
 import { GeneralImportModal, GeneralCategoryKey } from './components/GeneralImportModal';
 import {
   subscribeToCollection,
@@ -118,7 +119,7 @@ export interface AmarracaoItem {
   unidade?: string;
 }
 
-type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes' | 'cadastro_geral' | 'controle';
+type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes' | 'cadastro_geral' | 'controle' | 'projetos_sankhya';
 
 export interface TrashItem {
   id?: string;
@@ -159,7 +160,8 @@ const mainCategories: { key: PageKey; label: string }[] = [
   { key: 'plantio', label: 'BdPlantio' },
   { key: 'colheita', label: 'BdColheita' },
   { key: 'cadastro_geral', label: 'Cadastro_Geral' },
-  { key: 'controle', label: 'PMS' }
+  { key: 'controle', label: 'PMS' },
+  { key: 'projetos_sankhya', label: 'Projetos Sankhya' }
 ];
 
 const cadastroSubCategories: { key: MainCategoryKey; label: string; icon: string }[] = [
@@ -215,6 +217,7 @@ const ALL_PERMISSION_CATEGORIES: PermissionCategory[] = [
   { key: 'apontamentos_apsa', label: 'TbApontamentos_APSa', icon: 'fa-clipboard-check', group: 'Operacional & Lançamentos' },
   { key: 'apontamentos_safris', label: 'TbApontamentosSafris', icon: 'fa-clipboard-list', group: 'Operacional & Lançamentos' },
   { key: 'controle', label: 'PMS', icon: 'fa-file-excel', group: 'Operacional & Lançamentos' },
+  { key: 'projetos_sankhya', label: 'Projetos Sankhya', icon: 'fa-diagram-project', group: 'Operacional & Lançamentos' },
 
   // CADASTRO GERAL
   { key: 'empresas', label: 'Cadastro_Empresas', icon: 'fa-building', group: 'Cadastro Geral' },
@@ -743,6 +746,8 @@ export default function App() {
       motoristas: motoristasData,
       onibus: onibusData,
       amarracoes: amarracoesData,
+      pms: pmsData,
+      projetosSankhya: projetosSankhyaData,
       lixeira: trashData,
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
@@ -947,6 +952,7 @@ export default function App() {
   const [onibusData, setOnibusData] = useState<OnibusItem[]>([]);
   const [amarracoesData, setAmarracoesData] = useState<AmarracaoItem[]>([]);
   const [pmsData, setPmsData] = useState<PMSItem[]>([]);
+  const [projetosSankhyaData, setProjetosSankhyaData] = useState<SankhyaProjectItem[]>([]);
 
   // Subscribe to Firebase Firestore collections in real-time
   useEffect(() => {
@@ -964,6 +970,7 @@ export default function App() {
     const unsubOnibus = subscribeToCollection<OnibusItem>(COLLECTIONS.onibus, setOnibusData, DEFAULT_ONIBUS);
     const unsubAmarracoes = subscribeToCollection<AmarracaoItem>(COLLECTIONS.amarracoes, setAmarracoesData, DEFAULT_AMARRACOES);
     const unsubPMS = subscribeToCollection<PMSItem>(COLLECTIONS.pms, setPmsData, DEFAULT_PMS_DATA);
+    const unsubSankhya = subscribeToCollection<SankhyaProjectItem>(COLLECTIONS.projetos_sankhya, setProjetosSankhyaData, DEFAULT_PROJETOS_SANKHYA);
     const unsubUnidades = subscribeToCollection<{ id?: string; nome: string }>(COLLECTIONS.unidades, (docs) => {
       setUnidadesDocs(docs);
       setUnidadesList(docs.map(d => d.nome));
@@ -994,6 +1001,7 @@ export default function App() {
       unsubOnibus();
       unsubAmarracoes();
       unsubPMS();
+      unsubSankhya();
       unsubUnidades();
       unsubTrash();
       unsubUsuarios();
@@ -1957,6 +1965,24 @@ export default function App() {
     }
   };
 
+  // Sankhya Projects Handlers
+  const handleSaveSankhyaItem = async (item: SankhyaProjectItem, id?: string) => {
+    const targetId = id || item.id;
+    await saveDocument(COLLECTIONS.projetos_sankhya, item, targetId);
+  };
+
+  const handleDeleteSankhyaItem = async (id?: string) => {
+    if (id) {
+      await removeDocument(COLLECTIONS.projetos_sankhya, id);
+    }
+  };
+
+  const handleImportSankhyaBatch = async (newItems: SankhyaProjectItem[]) => {
+    for (const item of newItems) {
+      await saveDocument(COLLECTIONS.projetos_sankhya, item, item.id);
+    }
+  };
+
   // General Import Modal State & Handlers
   const [isGeneralImportOpen, setIsGeneralImportOpen] = useState(false);
   const [generalImportTargetCategory, setGeneralImportTargetCategory] = useState<GeneralCategoryKey>('culturas');
@@ -2016,7 +2042,8 @@ export default function App() {
     lixeira: 'Lixeira',
     amarracoes: 'Marcações e Amarrações',
     cadastro_geral: 'Cadastro Geral',
-    controle: 'PMS'
+    controle: 'PMS',
+    projetos_sankhya: 'Projetos Sankhya'
   };
 
   // Modal entity name map
@@ -2036,7 +2063,8 @@ export default function App() {
     lixeira: 'Item',
     amarracoes: 'Marcação',
     cadastro_geral: 'Cadastro',
-    controle: 'PMS'
+    controle: 'PMS',
+    projetos_sankhya: 'Projeto Sankhya'
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -3675,6 +3703,28 @@ export default function App() {
             </div>
           )}
 
+          {/* MÓDULO PROJETOS SANKHYA */}
+          {hasPermission('projetos_sankhya') && (
+            <div
+              className={`sidebar-item ${activePage === 'projetos_sankhya' ? 'active' : ''}`}
+              onClick={() => {
+                closeSidebar();
+                switchPage('projetos_sankhya');
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontWeight: activePage === 'projetos_sankhya' ? 600 : 400,
+                color: activePage === 'projetos_sankhya' ? '#0078d4' : '#323130'
+              }}
+            >
+              <i className="fa-solid fa-diagram-project" style={{ color: activePage === 'projetos_sankhya' ? '#0284c7' : '#605e5c', width: '14px', textAlign: 'center' }}></i>
+              <span>Projetos Sankhya</span>
+            </div>
+          )}
+
           {hasPermission('lixeira') && (
             <div
               className={`sidebar-item ${activePage === 'lixeira' ? 'active' : ''}`}
@@ -4701,6 +4751,20 @@ export default function App() {
               onSaveItem={handleSavePmsItem}
               onDeleteItem={handleDeletePmsItem}
               onImportBatch={handleImportPmsBatch}
+              showToast={showToast}
+            />
+          </div>
+
+          {/* PAGE PROJETOS SANKHYA */}
+          <div id="pageProjetosSankhya" className={`page-section ${activePage === 'projetos_sankhya' ? 'active' : ''}`}>
+            <SankhyaSection
+              items={projetosSankhyaData}
+              selectedUnidade={selectedUnidade}
+              culturas={culturasData}
+              anos={anosData}
+              onSaveItem={handleSaveSankhyaItem}
+              onDeleteItem={handleDeleteSankhyaItem}
+              onImportBatch={handleImportSankhyaBatch}
               showToast={showToast}
             />
           </div>
