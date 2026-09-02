@@ -619,7 +619,7 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
 
       {/* Filter and Search Bar */}
       <div style={{
-        padding: '8px 16px',
+        padding: '6px 14px',
         backgroundColor: '#ffffff',
         borderBottom: '1px solid #e2e8f0',
         display: 'flex',
@@ -628,8 +628,8 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
         flexWrap: 'wrap',
         gap: '8px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 300px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: '100%', maxWidth: '280px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: '260px' }}>
             <i className="fa-solid fa-magnifying-glass" style={{
               position: 'absolute',
               left: '8px',
@@ -721,51 +721,62 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
         </div>
       </div>
 
-      {/* Projects Table - EXACT 5 COLUMNS */}
-      <div style={{ overflowX: 'auto', maxHeight: '620px' }}>
+      {/* Projects Table - Compact columns without excessive horizontal space */}
+      <div style={{ overflowX: 'auto', maxHeight: '640px' }}>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
           fontSize: '12px',
           textAlign: 'left',
-          tableLayout: 'auto'
+          tableLayout: 'fixed'
         }}>
+          <colgroup>
+            <col style={{ width: '130px' }} />
+            <col style={{ width: '330px' }} />
+            <col style={{ width: '160px' }} />
+            <col style={{ width: '180px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: 'auto' }} />
+          </colgroup>
           <thead>
             <tr style={{
               backgroundColor: '#0369a1',
               color: '#ffffff',
               fontWeight: 700,
-              fontSize: '12px',
-              letterSpacing: '0.2px',
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.3px',
               borderBottom: '2px solid #075985',
               position: 'sticky',
               top: 0,
               zIndex: 10
             }}>
-              <th style={{ padding: '8px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', width: '140px', whiteSpace: 'nowrap' }}>
+              <th style={{ padding: '6px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>
                 Projeto
               </th>
-              <th style={{ padding: '8px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', minWidth: '240px' }}>
+              <th style={{ padding: '6px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>
                 Identificação
               </th>
-              <th style={{ padding: '8px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', width: '180px', whiteSpace: 'nowrap' }}>
+              <th style={{ padding: '6px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>
                 Abreviação Projeto
               </th>
-              <th style={{ padding: '8px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', width: '200px', whiteSpace: 'nowrap' }}>
+              <th style={{ padding: '6px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>
                 Descrição do Lote
               </th>
-              <th style={{ padding: '8px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', width: '120px', whiteSpace: 'nowrap' }}>
+              <th style={{ padding: '6px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>
                 Safra
               </th>
-              <th style={{ padding: '8px 10px', textAlign: 'center', width: '80px', whiteSpace: 'nowrap' }}>
+              <th style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                 Ações
               </th>
+              <th style={{ padding: '6px 0', border: 'none' }}></th>
             </tr>
           </thead>
           <tbody>
             {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '32px 16px', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={7} style={{ padding: '32px 16px', textAlign: 'center', color: '#64748b' }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
                     Nenhum projeto Sankhya encontrado
                   </div>
@@ -789,24 +800,24 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isEven ? '#ffffff' : '#f8fafc')}
                   >
                     {/* 1. Projeto */}
-                    <td style={{ padding: '7px 10px', borderRight: '1px solid #e2e8f0', fontWeight: 700, color: '#0369a1', fontFamily: 'monospace', fontSize: '12px' }}>
+                    <td style={{ padding: '6px 10px', borderRight: '1px solid #e2e8f0', fontWeight: 700, color: '#0369a1', fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
                       {cleanSankhyaValue(item.projeto)}
                     </td>
 
                     {/* 2. Identificação */}
-                    <td style={{ padding: '7px 10px', borderRight: '1px solid #e2e8f0', fontWeight: 600, color: '#1e293b' }}>
+                    <td style={{ padding: '6px 10px', borderRight: '1px solid #e2e8f0', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cleanSankhyaValue(item.identificacao)}>
                       {cleanSankhyaValue(item.identificacao)}
                     </td>
 
                     {/* 3. Abreviação Projeto (Cultura) */}
-                    <td style={{ padding: '7px 10px', borderRight: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '6px 10px', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
                       <span style={{
                         display: 'inline-block',
-                        padding: '2px 8px',
+                        padding: '1px 7px',
                         backgroundColor: '#dcfce7',
                         color: '#15803d',
                         border: '1px solid #bbf7d0',
-                        borderRadius: '4px',
+                        borderRadius: '3px',
                         fontWeight: 700,
                         fontSize: '11px'
                       }}>
@@ -816,17 +827,17 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
                     </td>
 
                     {/* 4. Descrição do Lote */}
-                    <td style={{ padding: '7px 10px', borderRight: '1px solid #e2e8f0', color: '#334155', fontFamily: 'monospace', fontSize: '12px' }}>
+                    <td style={{ padding: '6px 10px', borderRight: '1px solid #e2e8f0', color: '#334155', fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
                       {cleanSankhyaValue(item.descricaoLote) || '-'}
                     </td>
 
                     {/* 5. Safra */}
-                    <td style={{ padding: '7px 10px', borderRight: '1px solid #e2e8f0', fontWeight: 600, color: '#0f172a' }}>
+                    <td style={{ padding: '6px 10px', borderRight: '1px solid #e2e8f0', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {cleanSankhyaValue(item.safra) || '-'}
                     </td>
 
                     {/* Ações */}
-                    <td style={{ padding: '7px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <button
                           onClick={() => handleOpenEditModal(item)}
@@ -860,6 +871,9 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
                         </button>
                       </div>
                     </td>
+
+                    {/* Trailing spacer cell */}
+                    <td style={{ padding: '0', border: 'none' }}></td>
                   </tr>
                 );
               })
