@@ -714,7 +714,6 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
               >
                 <optgroup label="Cadastro Geral">
                   <option value="culturas">Culturas (Cadastro_Culturas)</option>
-                  <option value="variedades">Variedades (Cadastro_Variedades)</option>
                   <option value="empresas">Empresas (Cadastro_Empresas)</option>
                   <option value="anos">Anos Safra (Cadastro_Anos)</option>
                   <option value="fazendas">Fazendas (Cadastro_Fazendas)</option>

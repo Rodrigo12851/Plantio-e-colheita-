@@ -168,7 +168,6 @@ const cadastroSubCategories: { key: MainCategoryKey; label: string; icon: string
   { key: 'fazendas', label: 'Fazendas', icon: 'fa-wheat-awn' },
   { key: 'pivos', label: 'Pivôs', icon: 'fa-water' },
   { key: 'glebas', label: 'Glebas', icon: 'fa-vector-square' },
-  { key: 'variedades', label: 'Variedades', icon: 'fa-seedling' },
   { key: 'culturas', label: 'Culturas', icon: 'fa-plant-wilt' },
   { key: 'colaboradores', label: 'Colaboradores', icon: 'fa-id-card-clip' },
   { key: 'onibus', label: 'Ônibus', icon: 'fa-bus' },
@@ -183,7 +182,6 @@ const lixeiraCategories: { key: MainCategoryKey; label: string }[] = [
   { key: 'fazendas', label: 'Cadastro_Fazendas' },
   { key: 'pivos', label: 'Cadastro_Pivos' },
   { key: 'glebas', label: 'Cadastro_Glebas' },
-  { key: 'variedades', label: 'Cadastro_Variedades' },
   { key: 'culturas', label: 'Cadastro_Culturas' },
   { key: 'colaboradores', label: 'Cadastro_Colaboradores' },
   { key: 'onibus', label: 'Cadastro_Onibus' },
@@ -224,7 +222,6 @@ const ALL_PERMISSION_CATEGORIES: PermissionCategory[] = [
   { key: 'fazendas', label: 'Cadastro_Fazendas', icon: 'fa-wheat-awn', group: 'Cadastro Geral' },
   { key: 'pivos', label: 'Cadastro_Pivos', icon: 'fa-water', group: 'Cadastro Geral' },
   { key: 'glebas', label: 'Cadastro_Glebas', icon: 'fa-vector-square', group: 'Cadastro Geral' },
-  { key: 'variedades', label: 'Cadastro_Variedades', icon: 'fa-seedling', group: 'Cadastro Geral' },
   { key: 'culturas', label: 'Cadastro_Culturas', icon: 'fa-plant-wilt', group: 'Cadastro Geral' },
 
   // EQUIPE & TRANSPORTE
@@ -259,7 +256,7 @@ const DEFAULT_USER_ACCOUNTS: UserAccount[] = [
 const isCadastroPage = (page: PageKey) => {
   return [
     'cadastro_geral', 'empresas', 'anos', 'fazendas', 'pivos', 'glebas',
-    'variedades', 'culturas', 'colaboradores', 'onibus', 'motoristas'
+    'culturas', 'colaboradores', 'onibus', 'motoristas'
   ].includes(page);
 };
 
@@ -1425,9 +1422,29 @@ export default function App() {
 
   const getAmarracoesVariedades = (culturaName?: string) => {
     const unitVariedades = variedadesData.filter(isItemInSelectedUnidade);
+    const unitPmsVariedades = pmsData
+      .filter(isItemInSelectedUnidade)
+      .filter(p => p.variedade && p.variedade.trim())
+      .map((p, i) => ({
+        codigo: p.id || `pms-v-${i}`,
+        nome: p.variedade.trim(),
+        cultura: p.cultura || '',
+        unidade: p.unidade
+      }));
+
+    // Merge and deduplicate
+    const combinedMap = new Map<string, VariedadeItem>();
+    [...unitVariedades, ...unitPmsVariedades].forEach(v => {
+      const key = `${(v.nome || '').trim().toLowerCase()}_${(v.cultura || '').trim().toLowerCase()}`;
+      if (v.nome && !combinedMap.has(key)) {
+        combinedMap.set(key, v);
+      }
+    });
+    const allVariedades = Array.from(combinedMap.values());
+
     const unitAmarracoes = amarracoesData.filter(isItemInSelectedUnidade);
     const cLower = (culturaName || '').trim().toLowerCase();
-    const filtered = unitVariedades.filter(v => !cLower || (v.cultura && v.cultura.trim().toLowerCase() === cLower));
+    const filtered = allVariedades.filter(v => !cLower || (v.cultura && v.cultura.trim().toLowerCase() === cLower));
     if (!unitAmarracoes || unitAmarracoes.length === 0) return filtered;
 
     const linked = filtered.filter(v => {
@@ -1940,6 +1957,11 @@ export default function App() {
   const closeSidebar = () => setIsSidebarOpen(false);
 
   const switchPage = (page: PageKey) => {
+    if (page === 'variedades') {
+      // Redireciona para o módulo PMS onde as variedades são cadastradas e gerenciadas
+      switchPage('controle');
+      return;
+    }
     if (!hasPermission(page)) {
       showToast(`Acesso restrito: você não possui permissão para visualizar "${titleMap[page] || page}".`, 'warning');
       return;
@@ -1947,7 +1969,7 @@ export default function App() {
     if (isGridEditing) setIsGridEditing(false);
     setPopoverState(null);
     if (page === 'cadastro_geral') {
-      const subKeys: MainCategoryKey[] = ['empresas', 'anos', 'fazendas', 'pivos', 'glebas', 'variedades', 'culturas', 'colaboradores', 'onibus', 'motoristas'];
+      const subKeys: MainCategoryKey[] = ['empresas', 'anos', 'fazendas', 'pivos', 'glebas', 'culturas', 'colaboradores', 'onibus', 'motoristas'];
       const allowedSub = subKeys.find(k => hasPermission(k)) || 'empresas';
       setActivePage(allowedSub);
       setLixeiraCategory(allowedSub);
