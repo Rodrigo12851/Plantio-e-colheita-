@@ -32,10 +32,26 @@ export interface RomaneioItem {
   destinatarioNome: string;
   destinatarioCidadeUf: string;
   motoristaNome: string;
-  placaVeiculo: string;
+  placaVeiculo?: string;
+  veiculoPlaca?: string;
   pesoLiquidoKg: number;
   unidade: string;
   itens?: any[];
+  [key: string]: any;
+}
+
+export interface SaldoItem {
+  controleCod: string;
+  fazendaNome: string;
+  culturaNome: string;
+  pivoNome: string;
+  glebaNome: string;
+  variedadeNome: string;
+  produtoNome: string;
+  localNome: string;
+  caixas: number;
+  contentores: number;
+  sacos: number;
 }
 
 export interface EstoqueMovimentacao {
@@ -354,20 +370,8 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
   // =========================================================================
   // CÁLCULO DE SALDOS DE ESTOQUE
   // =========================================================================
-  const saldosAtuais = useMemo(() => {
-    const saldos: Record<string, {
-      controleCod: string;
-      fazendaNome: string;
-      culturaNome: string;
-      pivoNome: string;
-      glebaNome: string;
-      variedadeNome: string;
-      produtoNome: string;
-      localNome: string;
-      caixas: number;
-      contentores: number;
-      sacos: number;
-    }> = {};
+  const saldosAtuais = useMemo((): Record<string, SaldoItem> => {
+    const saldos: Record<string, SaldoItem> = {};
 
     entradas.forEach(ent => {
       const chave = `${ent.controleCod}_${ent.localNome}_${ent.produtoNome}_${ent.variedadeNome}_${ent.glebaNome}`;
@@ -418,24 +422,28 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     return saldos;
   }, [entradas, saidas]);
 
+  const listaSaldosAtuais = useMemo((): SaldoItem[] => {
+    return Object.values(saldosAtuais);
+  }, [saldosAtuais]);
+
   // Controles que possuem saldo positivo para Saída
   const controlesComSaldoParaSaida = useMemo(() => {
     const setControles = new Set<string>();
-    Object.values(saldosAtuais).forEach(s => {
+    listaSaldosAtuais.forEach(s => {
       if (s.caixas > 0 || s.contentores > 0 || s.sacos > 0) {
         setControles.add(s.controleCod);
       }
     });
     return Array.from(setControles);
-  }, [saldosAtuais]);
+  }, [listaSaldosAtuais]);
 
   // Itens de saldo para o Controle selecionado na Saída
   const itensComSaldoNoControleSaida = useMemo(() => {
     if (!formSaida.controleCod) return [];
-    return Object.values(saldosAtuais).filter(s =>
+    return listaSaldosAtuais.filter(s =>
       s.controleCod === formSaida.controleCod && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0)
     );
-  }, [formSaida.controleCod, saldosAtuais]);
+  }, [formSaida.controleCod, listaSaldosAtuais]);
 
   // =========================================================================
   // SALVAMENTO DE ENTRADAS E SAÍDAS
@@ -584,9 +592,9 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
   // =========================================================================
   const resumoEstoque = useMemo(() => {
     const termo = filtroGeral.toLowerCase().trim();
-    const grupos: Record<string, typeof saldosAtuais[keyof typeof saldosAtuais][]> = {};
+    const grupos: Record<string, SaldoItem[]> = {};
 
-    Object.values(saldosAtuais).forEach(item => {
+    listaSaldosAtuais.forEach(item => {
       if (item.caixas === 0 && item.contentores === 0 && item.sacos === 0) return;
       const ctrl = item.controleCod || 'SEM CONTROLE';
       if (!grupos[ctrl]) grupos[ctrl] = [];
@@ -736,7 +744,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                 className="btn-principal"
                 onClick={() => {
                   const ctrlInicial = controlesComSaldoParaSaida[0] || '';
-                  const itemSaldo = Object.values(saldosAtuais).find(s => s.controleCod === ctrlInicial && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0));
+                  const itemSaldo = listaSaldosAtuais.find(s => s.controleCod === ctrlInicial && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0));
                   setFormSaida({
                     id: null,
                     data: dataHoje(),
@@ -1038,7 +1046,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
               value={formSaida.controleCod}
               onChange={(e) => {
                 const cod = e.target.value;
-                const primeiroComSaldo = Object.values(saldosAtuais).find(s => s.controleCod === cod && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0));
+                const primeiroComSaldo = listaSaldosAtuais.find(s => s.controleCod === cod && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0));
                 setFormSaida({
                   ...formSaida,
                   controleCod: cod,

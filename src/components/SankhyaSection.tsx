@@ -722,7 +722,7 @@ export const SankhyaSection: React.FC<SankhyaSectionProps> = ({
       </div>
 
       {/* Projects Table - Compact columns without excessive horizontal space */}
-      <div style={{ overflowX: 'auto', maxHeight: '640px' }}>
+      <div style={{ overflowX: 'auto', width: '100%' }}>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',

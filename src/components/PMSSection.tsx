@@ -911,7 +911,7 @@ export const PMSSection: React.FC<PMSSectionProps> = ({
       </div>
 
       {/* Table Container - Compact Grid View */}
-      <div style={{ overflowX: 'auto', maxHeight: '620px' }}>
+      <div style={{ overflowX: 'auto', width: '100%' }}>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
