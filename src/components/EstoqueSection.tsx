@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 
 // Interfaces exported for compatibility with App.tsx
 export interface EstoqueItem {
@@ -61,6 +61,11 @@ export interface EstoqueSectionProps {
   culturas?: any[];
   variedades?: any[];
   fazendas?: any[];
+  pivos?: any[];
+  glebas?: any[];
+  colheitaData?: any[];
+  plantioData?: any[];
+  projetosSankhya?: any[];
   motoristas?: any[];
   onSaveEstoqueItem?: (item: EstoqueItem) => void;
   onDeleteEstoqueItem?: (id: string) => void;
@@ -70,88 +75,62 @@ export interface EstoqueSectionProps {
   showToast?: (msg: string, type?: 'success' | 'warning' | 'error' | 'info') => void;
 }
 
-// Model types based on the user's application
-interface ItemCad { id: number; nome: string; cod?: string; culturaId?: number; fazendaId?: number; pivoId?: number; glebasIds?: number[]; }
-interface Movimento { id: number; data: string; controleId: number; glebaId: number; variedadeId?: number; produtoId?: number; localId?: number; embalagem: string; qtd: number; }
-
-const DEFAULT_CADASTROS = {
-  cultura: [
-    { id: 1, cod: '001', nome: 'Cenoura' },
-    { id: 2, cod: '002', nome: 'Cebola' },
-    { id: 3, cod: '003', nome: 'Alho' },
-    { id: 4, cod: '004', nome: 'Batata' }
-  ],
-  variedade: [
-    { id: 1, culturaId: 1, nome: 'Híbrida Juliana' },
-    { id: 2, culturaId: 1, nome: 'Brasília' },
-    { id: 3, culturaId: 2, nome: 'Baia Periforme' },
-    { id: 4, culturaId: 3, nome: 'Roxo Pérola' }
-  ],
-  produto: [
-    { id: 1, culturaId: 1, cod: '101', nome: 'Cenoura Especial Calibre 2' },
-    { id: 2, culturaId: 1, cod: '102', nome: 'Cenoura Padrão Calibre 1' },
-    { id: 3, culturaId: 1, cod: '103', nome: 'Cenoura Descarte / Indústria' },
-    { id: 4, culturaId: 2, cod: '201', nome: 'Cebola Caixa 3' },
-    { id: 5, culturaId: 2, cod: '202', nome: 'Cebola Caixa 2' }
-  ],
-  local: [
-    { id: 1, culturaId: 1, nome: 'Câmara Fria 01' },
-    { id: 2, culturaId: 1, nome: 'Câmara Fria 02' },
-    { id: 3, culturaId: 1, nome: 'Galpão Packing House' },
-    { id: 4, culturaId: 2, nome: 'Galpão 03 Ventilado' }
-  ],
-  fazenda: [
-    { id: 1, nome: 'Fazenda Cristalina' },
-    { id: 2, nome: 'Fazenda Boa Vista' },
-    { id: 3, nome: 'Fazenda Samambaia' }
-  ],
-  gleba: [
-    { id: 1, nome: 'Gleba 01' },
-    { id: 2, nome: 'Gleba 02' },
-    { id: 3, nome: 'Gleba 03' },
-    { id: 4, nome: 'Gleba 04' }
-  ],
-  pivo: [
-    { id: 1, nome: 'Pivô 01' },
-    { id: 2, nome: 'Pivô 02' },
-    { id: 3, nome: 'Pivô 03' }
-  ],
-  controle: [
-    { id: 1, cod: 'CTR-2025/26-01', fazendaId: 1, culturaId: 1, pivoId: 1, glebasIds: [1, 2] },
-    { id: 2, cod: 'CTR-2025/26-02', fazendaId: 1, culturaId: 1, pivoId: 2, glebasIds: [3] },
-    { id: 3, cod: 'CTR-2025/26-03', fazendaId: 2, culturaId: 2, pivoId: 3, glebasIds: [4] }
-  ],
-  usuario: [] as any[]
-};
+interface Movimento {
+  id: number;
+  data: string;
+  controleCod: string;
+  fazendaNome: string;
+  culturaNome: string;
+  pivoNome: string;
+  glebaNome: string;
+  variedadeNome: string;
+  produtoNome: string;
+  localNome: string;
+  embalagem: string;
+  qtd: number;
+  origemColheitaId?: string;
+}
 
 const DEFAULT_ENTRADAS: Movimento[] = [
-  { id: 101, data: '2026-09-01', controleId: 1, glebaId: 1, variedadeId: 1, produtoId: 1, localId: 1, embalagem: 'Caixa', qtd: 450 },
-  { id: 102, data: '2026-09-02', controleId: 1, glebaId: 2, variedadeId: 1, produtoId: 2, localId: 3, embalagem: 'Caixa', qtd: 320 },
-  { id: 103, data: '2026-09-02', controleId: 1, glebaId: 1, variedadeId: 2, produtoId: 3, localId: 3, embalagem: 'Contentor', qtd: 28 },
-  { id: 104, data: '2026-09-03', controleId: 3, glebaId: 4, variedadeId: 3, produtoId: 4, localId: 4, embalagem: 'Saco', qtd: 600 }
+  { id: 101, data: '2026-09-01', controleCod: 'CTR-2025/26-01', fazendaNome: 'Fazenda Cristalina', culturaNome: 'Cenoura', pivoNome: 'Pivô 01', glebaNome: 'Gleba 01', variedadeNome: 'Híbrida Juliana', produtoNome: 'Especial Calibre 2', localNome: 'Câmara Fria 01', embalagem: 'Caixa', qtd: 450 },
+  { id: 102, data: '2026-09-02', controleCod: 'CTR-2025/26-01', fazendaNome: 'Fazenda Cristalina', culturaNome: 'Cenoura', pivoNome: 'Pivô 01', glebaNome: 'Gleba 02', variedadeNome: 'Híbrida Juliana', produtoNome: 'Padrão Calibre 1', localNome: 'Galpão Packing House', embalagem: 'Caixa', qtd: 320 },
+  { id: 103, data: '2026-09-02', controleCod: 'CTR-2025/26-01', fazendaNome: 'Fazenda Cristalina', culturaNome: 'Cenoura', pivoNome: 'Pivô 01', glebaNome: 'Gleba 01', variedadeNome: 'Brasília', produtoNome: 'Descarte / Indústria', localNome: 'Galpão Packing House', embalagem: 'Contentor', qtd: 28 },
+  { id: 104, data: '2026-09-03', controleCod: 'CTR-2025/26-02', fazendaNome: 'Fazenda Boa Vista', culturaNome: 'Cebola', pivoNome: 'Pivô 03', glebaNome: 'Gleba 04', variedadeNome: 'Baia Periforme', produtoNome: 'Caixa 3', localNome: 'Galpão 03 Ventilado', embalagem: 'Saco', qtd: 600 }
 ];
 
 const DEFAULT_SAIDAS: Movimento[] = [
-  { id: 201, data: '2026-09-03', controleId: 1, glebaId: 1, variedadeId: 1, produtoId: 1, localId: 1, embalagem: 'Caixa', qtd: 120 }
+  { id: 201, data: '2026-09-03', controleCod: 'CTR-2025/26-01', fazendaNome: 'Fazenda Cristalina', culturaNome: 'Cenoura', pivoNome: 'Pivô 01', glebaNome: 'Gleba 01', variedadeNome: 'Híbrida Juliana', produtoNome: 'Especial Calibre 2', localNome: 'Câmara Fria 01', embalagem: 'Caixa', qtd: 120 }
 ];
 
-export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => {
+// Locais padrão de armazenagem
+const LOCAIS_ARMAZENAMENTO_PADRAO = [
+  'Câmara Fria 01',
+  'Câmara Fria 02',
+  'Galpão Packing House',
+  'Galpão 03 Ventilado',
+  'Silo 01',
+  'Silo 02',
+  'Tenda de Classificação'
+];
+
+export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
+  culturas = [],
+  variedades = [],
+  fazendas = [],
+  pivos = [],
+  glebas = [],
+  colheitaData = [],
+  plantioData = [],
+  projetosSankhya = [],
+  showToast
+}) => {
   // Navigation State
-  const [paginaAtiva, setPaginaAtiva] = useState<'inicial' | 'cadastro' | 'configuracao' | 'relatorio-bonitao' | 'entrada' | 'saida' | 'romaneio'>('inicial');
-  const [tipoAtual, setTipoAtual] = useState<string>('cultura');
+  const [paginaAtiva, setPaginaAtiva] = useState<'inicial' | 'entrada' | 'saida'>('inicial');
 
-  // Core Data
-  const [cadastros, setCadastros] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cadastros');
-      if (saved) return JSON.parse(saved);
-    } catch (e) { /* ignore */ }
-    return DEFAULT_CADASTROS;
-  });
-
+  // Core Data State (Entradas e Saídas)
   const [entradas, setEntradas] = useState<Movimento[]>(() => {
     try {
-      const saved = localStorage.getItem('entrada');
+      const saved = localStorage.getItem('estoque_entradas_v2');
       if (saved) return JSON.parse(saved);
     } catch (e) { /* ignore */ }
     return DEFAULT_ENTRADAS;
@@ -159,33 +138,19 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
 
   const [saidas, setSaidas] = useState<Movimento[]>(() => {
     try {
-      const saved = localStorage.getItem('saida');
+      const saved = localStorage.getItem('estoque_saidas_v2');
       if (saved) return JSON.parse(saved);
     } catch (e) { /* ignore */ }
     return DEFAULT_SAIDAS;
   });
 
-  // User State
-  const [usuarioLogado, setUsuarioLogado] = useState(() => ({
-    nome: "Operador Teste",
-    podeEntrada: true,
-    podeSaida: true,
-    podeFurarEstoque: false,
-    podeCadastrar: true,
-    podeExcluir: true,
-    permissoes: { exportarDados: true, imprimirRelatorio: true }
-  }));
-
-  // Save to LocalStorage
-  const persistirDados = (novosCadastros = cadastros, novasEntradas = entradas, novasSaidas = saidas) => {
+  const persistirDados = (novasEntradas = entradas, novasSaidas = saidas) => {
     try {
-      localStorage.setItem('cadastros', JSON.stringify(novosCadastros));
-      localStorage.setItem('entrada', JSON.stringify(novasEntradas));
-      localStorage.setItem('saida', JSON.stringify(novasSaidas));
+      localStorage.setItem('estoque_entradas_v2', JSON.stringify(novasEntradas));
+      localStorage.setItem('estoque_saidas_v2', JSON.stringify(novasSaidas));
     } catch (e) { /* ignore */ }
   };
 
-  // Helper date function
   const dataHoje = () => {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
@@ -207,45 +172,22 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
     return nome.replace(/pivô/gi, '').replace(/pivo/gi, '').replace(/\s+/g, ' ').trim() || nome;
   };
 
-  // IA Assistant State & Logic
-  const [perguntaIA, setPerguntaIA] = useState('');
-  const [respostaIA, setRespostaIA] = useState<string | null>(null);
-
-  // Filters State
+  // Search Filter
   const [filtroGeral, setFiltroGeral] = useState('');
-  const [menuExportarAberto, setMenuExportarAberto] = useState(false);
-
-  // Relatório Bonitão State
-  const [campoFiltroRel, setCampoFiltroRel] = useState<'data' | 'fazenda' | 'cultura' | 'produto' | 'tipo'>('data');
-  const [valorFiltroRel, setValorFiltroRel] = useState('');
-  const [filtrosAcumulados, setFiltrosAcumulados] = useState<Array<{ campo: string; label: string; valor: string; texto: string }>>([]);
-
-  // Modal Detalhes (Aba Detalhes)
-  const [abaDetalhesAberta, setAbaDetalhesAberta] = useState(false);
-  const [tituloAba, setTituloAba] = useState('');
-  const [tipoAbaDetalhes, setTipoAbaDetalhes] = useState<'cadastro' | 'entrada' | 'saida'>('cadastro');
-
-  // Form Cadastros State
-  const [idEditando, setIdEditando] = useState<number | null>(null);
-  const [formCultura, setFormCultura] = useState({ cod: '', nome: '' });
-  const [formVariedade, setFormVariedade] = useState({ culturaId: '', nome: '' });
-  const [formProduto, setFormProduto] = useState({ culturaId: '', cod: '', nome: '' });
-  const [formLocal, setFormLocal] = useState({ culturaId: '', nome: '' });
-  const [formFazenda, setFormFazenda] = useState({ nome: '' });
-  const [formGleba, setFormGleba] = useState({ nome: '' });
-  const [formPivo, setFormPivo] = useState({ nome: '' });
-  const [formControle, setFormControle] = useState({ cod: '', fazendaId: '', culturaId: '', pivoId: '', glebasIds: [] as number[] });
 
   // Form Entrada State
   const [formEntrada, setFormEntrada] = useState({
     id: null as number | null,
     data: dataHoje(),
-    controleId: '',
-    glebaId: '',
-    variedadeId: '',
-    produtoId: '',
-    localId: '',
-    embalagem: '',
+    controleCod: '',
+    fazendaNome: '',
+    culturaNome: '',
+    pivoNome: '',
+    glebaNome: '',
+    variedadeNome: '',
+    produtoNome: '',
+    localNome: 'Câmara Fria 01',
+    embalagem: 'Caixa',
     qtd: ''
   });
 
@@ -253,34 +195,196 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
   const [formSaida, setFormSaida] = useState({
     id: null as number | null,
     data: dataHoje(),
-    controleId: '',
-    glebaId: '',
-    variedadeId: '',
-    produtoId: '',
-    localId: '',
+    controleCod: '',
+    fazendaNome: '',
+    culturaNome: '',
+    pivoNome: '',
+    glebaNome: '',
+    variedadeNome: '',
+    produtoNome: '',
+    localNome: '',
     embalagem: '',
     qtd: ''
   });
 
   // Feedback Messages
-  const [msgCad, setMsgCad] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
   const [msgEntrada, setMsgEntrada] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
   const [msgSaida, setMsgSaida] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
-  const [msgUsuario, setMsgUsuario] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
 
   const mostrarMsg = (texto: string, tipo: 'sucesso' | 'erro', setMsg: any) => {
     setMsg({ texto, tipo });
     setTimeout(() => setMsg(null), 3000);
   };
 
-  // Calculate Current Saldos
+  // =========================================================================
+  // INTEGRAÇÃO COM OS CADASTROS GERAIS DO CONTROLE AGRÍCOLA APONTADORES
+  // =========================================================================
+
+  // 1. Culturas interligadas
+  const culturasDisponiveis = useMemo(() => {
+    if (culturas && culturas.length > 0) {
+      return culturas.map(c => c.nome.trim()).filter(Boolean);
+    }
+    return ['Cenoura', 'Cebola', 'Alho', 'Batata', 'Milho Doce'];
+  }, [culturas]);
+
+  // 2. Fazendas interligadas
+  const fazendasDisponiveis = useMemo(() => {
+    if (fazendas && fazendas.length > 0) {
+      return fazendas.map(f => f.nome.trim()).filter(Boolean);
+    }
+    return ['Fazenda Cristalina', 'Fazenda Boa Vista', 'Fazenda Samambaia'];
+  }, [fazendas]);
+
+  // 3. Pivôs interligados
+  const pivosDisponiveis = useMemo(() => {
+    if (pivos && pivos.length > 0) {
+      return pivos.map(p => p.nome.trim()).filter(Boolean);
+    }
+    return ['Pivô 01', 'Pivô 02', 'Pivô 03', 'Pivô 04'];
+  }, [pivos]);
+
+  // 4. Glebas interligadas
+  const glebasDisponiveis = useMemo(() => {
+    if (glebas && glebas.length > 0) {
+      return glebas.map(g => g.nome.trim()).filter(Boolean);
+    }
+    return ['Gleba 01', 'Gleba 02', 'Gleba 03', 'Gleba 04'];
+  }, [glebas]);
+
+  // 5. Variedades interligadas (filtráveis por Cultura)
+  const getVariedadesParaCultura = (culturaNome: string) => {
+    if (!culturaNome) return [];
+    if (variedades && variedades.length > 0) {
+      const vars = variedades
+        .filter(v => !v.cultura || v.cultura.toLowerCase() === culturaNome.toLowerCase())
+        .map(v => v.nome.trim());
+      if (vars.length > 0) return Array.from(new Set(vars));
+    }
+    // Fallbacks inteligentes por cultura
+    if (culturaNome.toLowerCase().includes('cenoura')) return ['Híbrida Juliana', 'Brasília', 'Kuronoda', 'Natuna'];
+    if (culturaNome.toLowerCase().includes('cebola')) return ['Baia Periforme', 'Soberana', 'Sirius', 'Buccaneer'];
+    if (culturaNome.toLowerCase().includes('alho')) return ['Roxo Pérola', 'Cateto Roxo', 'Chonan'];
+    if (culturaNome.toLowerCase().includes('batata')) return ['Ágata', 'Cupido', 'Asterix', 'Markies'];
+    return ['Padrão'];
+  };
+
+  // 6. Produtos / Classificações comerciais interligados por Cultura
+  const getProdutosParaCultura = (culturaNome: string) => {
+    if (!culturaNome) return ['Padrão Comercial'];
+    const cult = culturaNome.toLowerCase();
+    if (cult.includes('cenoura')) return ['Especial Calibre 2', 'Padrão Calibre 1', 'Média Calibre 3', 'Descarte / Indústria'];
+    if (cult.includes('cebola')) return ['Caixa 3 (Graúda)', 'Caixa 2 (Média)', 'Caixa 1 (Miúda)', 'Descarte / Indústria'];
+    if (cult.includes('alho')) return ['Alho Roxo Cat. 1', 'Alho Roxo Cat. 2', 'Alho Industrial'];
+    if (cult.includes('batata')) return ['Batata Lavada Especial', 'Batata Lavada Padrão', 'Batata Miúda'];
+    return ['Especial', 'Padrão', 'Segunda Linha'];
+  };
+
+  // 7. Controles / Projetos interligados com Projetos Sankhya + BdColheita + BdPlantio
+  const controlesInterligados = useMemo(() => {
+    const mapa = new Map<string, { controleCod: string; safra: string; fazendaNome?: string; culturaNome?: string; pivoNome?: string; glebaNome?: string; variedadeNome?: string; label: string }>();
+
+    // Origem 1: Projetos Sankhya
+    if (projetosSankhya && projetosSankhya.length > 0) {
+      projetosSankhya.forEach(p => {
+        const cod = p.projeto?.trim();
+        if (!cod) return;
+        const safra = p.safra || '2025/26';
+        mapa.set(cod, {
+          controleCod: cod,
+          safra,
+          label: `${cod} (${p.identificacao || 'Sankhya'} - Safra ${safra})`
+        });
+      });
+    }
+
+    // Origem 2: Apontamentos de Colheita (BdColheita)
+    if (colheitaData && colheitaData.length > 0) {
+      colheitaData.forEach(c => {
+        const os = c.os?.trim() || c.cCusto?.trim();
+        const cod = os ? `CTR-${os}` : `CTR-${c.ano || '2025/26'}-${c.pivo || '01'}`;
+        const safra = c.ano ? (c.ano.includes('/') ? c.ano : `${c.ano}/${parseInt(c.ano.slice(-2)) + 1}`) : '2025/26';
+        if (!mapa.has(cod)) {
+          mapa.set(cod, {
+            controleCod: cod,
+            safra,
+            fazendaNome: c.fazenda,
+            culturaNome: c.cultura,
+            pivoNome: c.pivo,
+            glebaNome: c.gleba,
+            variedadeNome: c.variedade,
+            label: `${cod} (${c.fazenda || ''} ${c.pivo || ''} - ${c.cultura || ''} - Safra ${safra})`
+          });
+        }
+      });
+    }
+
+    // Origem 3: Apontamentos de Plantio (BdPlantio)
+    if (plantioData && plantioData.length > 0) {
+      plantioData.forEach(p => {
+        const os = p.os?.trim() || p.cCusto?.trim();
+        const cod = os ? `CTR-${os}` : `CTR-${p.ano || '2025/26'}-${p.pivo || '01'}`;
+        const safra = p.ano ? (p.ano.includes('/') ? p.ano : `${p.ano}/${parseInt(p.ano.slice(-2)) + 1}`) : '2025/26';
+        if (!mapa.has(cod)) {
+          mapa.set(cod, {
+            controleCod: cod,
+            safra,
+            fazendaNome: p.fazenda,
+            culturaNome: p.cultura,
+            pivoNome: p.pivo,
+            glebaNome: p.gleba,
+            variedadeNome: p.variedade,
+            label: `${cod} (${p.fazenda || ''} ${p.pivo || ''} - ${p.cultura || ''} - Safra ${safra})`
+          });
+        }
+      });
+    }
+
+    // Controles padrão base caso a base inicial esteja vazia
+    if (!mapa.has('CTR-2025/26-01')) {
+      mapa.set('CTR-2025/26-01', { controleCod: 'CTR-2025/26-01', safra: '2025/26', fazendaNome: 'Fazenda Cristalina', culturaNome: 'Cenoura', pivoNome: 'Pivô 01', glebaNome: 'Gleba 01', variedadeNome: 'Híbrida Juliana', label: 'CTR-2025/26-01 (Fazenda Cristalina Pivô 01 - Cenoura)' });
+    }
+    if (!mapa.has('CTR-2025/26-02')) {
+      mapa.set('CTR-2025/26-02', { controleCod: 'CTR-2025/26-02', safra: '2025/26', fazendaNome: 'Fazenda Boa Vista', culturaNome: 'Cebola', pivoNome: 'Pivô 03', glebaNome: 'Gleba 04', variedadeNome: 'Baia Periforme', label: 'CTR-2025/26-02 (Fazenda Boa Vista Pivô 03 - Cebola)' });
+    }
+
+    return Array.from(mapa.values());
+  }, [projetosSankhya, colheitaData, plantioData]);
+
+  // =========================================================================
+  // CÁLCULO DE SALDOS DE ESTOQUE
+  // =========================================================================
   const saldosAtuais = useMemo(() => {
-    const saldos: Record<string, { localId: number; produtoId: number; controleId: number; glebaId: number; variedadeId: number; caixas: number; contentores: number; sacos: number }> = {};
-    
+    const saldos: Record<string, {
+      controleCod: string;
+      fazendaNome: string;
+      culturaNome: string;
+      pivoNome: string;
+      glebaNome: string;
+      variedadeNome: string;
+      produtoNome: string;
+      localNome: string;
+      caixas: number;
+      contentores: number;
+      sacos: number;
+    }> = {};
+
     entradas.forEach(ent => {
-      const chave = `${ent.localId || 0}_${ent.produtoId || 0}_${ent.controleId}_${ent.glebaId || 0}_${ent.variedadeId || 0}`;
+      const chave = `${ent.controleCod}_${ent.localNome}_${ent.produtoNome}_${ent.variedadeNome}_${ent.glebaNome}`;
       if (!saldos[chave]) {
-        saldos[chave] = { localId: ent.localId || 0, produtoId: ent.produtoId || 0, controleId: ent.controleId, glebaId: ent.glebaId, variedadeId: ent.variedadeId || 0, caixas: 0, contentores: 0, sacos: 0 };
+        saldos[chave] = {
+          controleCod: ent.controleCod,
+          fazendaNome: ent.fazendaNome,
+          culturaNome: ent.culturaNome,
+          pivoNome: ent.pivoNome,
+          glebaNome: ent.glebaNome,
+          variedadeNome: ent.variedadeNome,
+          produtoNome: ent.produtoNome,
+          localNome: ent.localNome,
+          caixas: 0,
+          contentores: 0,
+          sacos: 0
+        };
       }
       const qtd = parseInt(String(ent.qtd) || '0', 10);
       if (ent.embalagem === 'Caixa') saldos[chave].caixas += qtd;
@@ -289,9 +393,21 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
     });
 
     saidas.forEach(sai => {
-      const chave = `${sai.localId || 0}_${sai.produtoId || 0}_${sai.controleId}_${sai.glebaId || 0}_${sai.variedadeId || 0}`;
+      const chave = `${sai.controleCod}_${sai.localNome}_${sai.produtoNome}_${sai.variedadeNome}_${sai.glebaNome}`;
       if (!saldos[chave]) {
-        saldos[chave] = { localId: sai.localId || 0, produtoId: sai.produtoId || 0, controleId: sai.controleId, glebaId: sai.glebaId, variedadeId: sai.variedadeId || 0, caixas: 0, contentores: 0, sacos: 0 };
+        saldos[chave] = {
+          controleCod: sai.controleCod,
+          fazendaNome: sai.fazendaNome,
+          culturaNome: sai.culturaNome,
+          pivoNome: sai.pivoNome,
+          glebaNome: sai.glebaNome,
+          variedadeNome: sai.variedadeNome,
+          produtoNome: sai.produtoNome,
+          localNome: sai.localNome,
+          caixas: 0,
+          contentores: 0,
+          sacos: 0
+        };
       }
       const qtd = parseInt(String(sai.qtd) || '0', 10);
       if (sai.embalagem === 'Caixa') saldos[chave].caixas -= qtd;
@@ -302,411 +418,179 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
     return saldos;
   }, [entradas, saidas]);
 
-  // Handle AI question
-  const processarPerguntaIA = () => {
-    const pergunta = perguntaIA.toLowerCase().trim();
-    if (!pergunta) return;
-
-    let tCaixas = 0, tContentores = 0, tSacos = 0;
-    Object.keys(saldosAtuais).forEach(k => {
-      tCaixas += saldosAtuais[k].caixas;
-      tContentores += saldosAtuais[k].contentores;
-      tSacos += saldosAtuais[k].sacos;
+  // Controles que possuem saldo positivo para Saída
+  const controlesComSaldoParaSaida = useMemo(() => {
+    const setControles = new Set<string>();
+    Object.values(saldosAtuais).forEach(s => {
+      if (s.caixas > 0 || s.contentores > 0 || s.sacos > 0) {
+        setControles.add(s.controleCod);
+      }
     });
+    return Array.from(setControles);
+  }, [saldosAtuais]);
 
-    let totalSaidasCaixas = 0, totalSaidasContentores = 0, totalSaidasSacos = 0;
-    saidas.forEach(s => {
-      const q = parseInt(String(s.qtd || 0), 10);
-      if (s.embalagem === 'Caixa') totalSaidasCaixas += q;
-      if (s.embalagem === 'Contentor') totalSaidasContentores += q;
-      if (s.embalagem === 'Saco') totalSaidasSacos += q;
-    });
+  // Itens de saldo para o Controle selecionado na Saída
+  const itensComSaldoNoControleSaida = useMemo(() => {
+    if (!formSaida.controleCod) return [];
+    return Object.values(saldosAtuais).filter(s =>
+      s.controleCod === formSaida.controleCod && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0)
+    );
+  }, [formSaida.controleCod, saldosAtuais]);
 
-    let totalEntradasCaixas = 0, totalEntradasContentores = 0, totalEntradasSacos = 0;
-    entradas.forEach(e => {
-      const q = parseInt(String(e.qtd || 0), 10);
-      if (e.embalagem === 'Caixa') totalEntradasCaixas += q;
-      if (e.embalagem === 'Contentor') totalEntradasContentores += q;
-      if (e.embalagem === 'Saco') totalEntradasSacos += q;
-    });
-
-    if (pergunta.includes('ir para') || pergunta.includes('abrir') || pergunta.includes('tela de')) {
-      if (pergunta.includes('cadastro')) { setPaginaAtiva('cadastro'); setRespostaIA('🤖 Tela de cadastros aberta.'); return; }
-      if (pergunta.includes('entrada')) { setPaginaAtiva('entrada'); setRespostaIA('🤖 Tela de entrada de estoque aberta.'); return; }
-      if (pergunta.includes('saí') || pergunta.includes('saida')) { setPaginaAtiva('saida'); setRespostaIA('🤖 Tela de saída de estoque aberta.'); return; }
-      if (pergunta.includes('relatório') || pergunta.includes('relatorio')) { setPaginaAtiva('relatorio-bonitao'); setRespostaIA('🤖 Relatório Avançado aberto.'); return; }
-      if (pergunta.includes('inicial') || pergunta.includes('home')) { setPaginaAtiva('inicial'); setRespostaIA('🤖 Retornado à home principal.'); return; }
-    }
-
-    if (pergunta.includes('limpar') && (pergunta.includes('filtro') || pergunta.includes('pesquisa'))) {
-      setFiltroGeral('');
-      setFiltrosAcumulados([]);
-      setRespostaIA('🤖 Filtros redefinidos com sucesso.');
-      return;
-    }
-
-    if (pergunta.includes('saiu') || pergunta.includes('saida') || pergunta.includes('saídas')) {
-      if (pergunta.includes('caixa')) {
-        setRespostaIA(`📤 Já saíram um total de ${totalSaidasCaixas} caixas do estoque.`);
-      } else if (pergunta.includes('contentor')) {
-        setRespostaIA(`📤 Já saíram um total de ${totalSaidasContentores} contentores do estoque.`);
-      } else if (pergunta.includes('saco')) {
-        setRespostaIA(`📤 Já saíram um total de ${totalSaidasSacos} sacos do estoque.`);
-      } else {
-        setRespostaIA(`📤 Total de Saídas Realizadas: Caixas: ${totalSaidasCaixas} un. | Contentores: ${totalSaidasContentores} un. | Sacos: ${totalSaidasSacos} un.`);
-      }
-      return;
-    }
-
-    if (pergunta.includes('entrou') || pergunta.includes('entrada') || pergunta.includes('entradas')) {
-      if (pergunta.includes('caixa')) {
-        setRespostaIA(`📥 Foram lançadas ${totalEntradasCaixas} caixas no sistema.`);
-      } else if (pergunta.includes('contentor')) {
-        setRespostaIA(`📥 Foram lançados ${totalEntradasContentores} contentores no sistema.`);
-      } else if (pergunta.includes('saco')) {
-        setRespostaIA(`📥 Foram lançados ${totalEntradasSacos} sacos no sistema.`);
-      } else {
-        setRespostaIA(`📥 Total de Entradas: Caixas: ${totalEntradasCaixas} un. | Contentores: ${totalEntradasContentores} un. | Sacos: ${totalEntradasSacos} un.`);
-      }
-      return;
-    }
-
-    if (pergunta.includes('saldo') || pergunta.includes('tem no estoque') || pergunta.includes('atual') || pergunta.includes('resta')) {
-      if (pergunta.includes('caixa')) {
-        setRespostaIA(`🤖 O saldo disponível atual é de ${tCaixas} caixas em estoque.`);
-      } else if (pergunta.includes('contentor')) {
-        setRespostaIA(`🤖 O saldo disponível atual é de ${tContentores} contentores.`);
-      } else if (pergunta.includes('saco')) {
-        setRespostaIA(`🤖 O saldo disponível atual é de ${tSacos} sacos.`);
-      } else {
-        setRespostaIA(`🤖 Balanço Volumétrico Disponível: Caixas: ${tCaixas} un. | Contentores: ${tContentores} un. | Sacos: ${tSacos} un. (Total geral: ${tCaixas + tContentores + tSacos} volumes)`);
-      }
-      return;
-    }
-
-    setRespostaIA(`❌ IA: Comando não reconhecido. Exemplos: "Quantas caixas saíram?", "Qual o saldo total?", "Ir para a tela de entrada"`);
-  };
-
-  // Save Cadastros
-  const salvarCadastro = () => {
-    const novosCadastros = { ...cadastros };
-    const id = idEditando || Date.now();
-
-    if (tipoAtual === 'cultura') {
-      const cod = formCultura.cod.trim();
-      const nome = formCultura.nome.trim();
-      if (!cod || !nome) return mostrarMsg('Preencha todos os campos', 'erro', setMsgCad);
-      if (novosCadastros.cultura.some((c: any) => c.cod.toLowerCase() === cod.toLowerCase() && c.id !== id)) {
-        return mostrarMsg('Este código de Cultura já existe!', 'erro', setMsgCad);
-      }
-      const idx = novosCadastros.cultura.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.cultura[idx] = { id, cod, nome };
-      else novosCadastros.cultura.push({ id, cod, nome });
-      setFormCultura({ cod: '', nome: '' });
-    } else if (tipoAtual === 'variedade') {
-      const culturaId = parseInt(formVariedade.culturaId, 10);
-      const nome = formVariedade.nome.trim();
-      if (!culturaId || !nome) return mostrarMsg('Preencha todos os campos', 'erro', setMsgCad);
-      const idx = novosCadastros.variedade.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.variedade[idx] = { id, culturaId, nome };
-      else novosCadastros.variedade.push({ id, culturaId, nome });
-      setFormVariedade({ culturaId: '', nome: '' });
-    } else if (tipoAtual === 'produto') {
-      const culturaId = parseInt(formProduto.culturaId, 10);
-      const cod = formProduto.cod.trim();
-      const nome = formProduto.nome.trim();
-      if (!culturaId || !cod || !nome) return mostrarMsg('Preencha todos os campos', 'erro', setMsgCad);
-      if (novosCadastros.produto.some((p: any) => p.cod.toLowerCase() === cod.toLowerCase() && p.id !== id)) {
-        return mostrarMsg('Este código de Produto já existe!', 'erro', setMsgCad);
-      }
-      const idx = novosCadastros.produto.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.produto[idx] = { id, culturaId, cod, nome };
-      else novosCadastros.produto.push({ id, culturaId, cod, nome });
-      setFormProduto({ culturaId: '', cod: '', nome: '' });
-    } else if (tipoAtual === 'local') {
-      const culturaId = parseInt(formLocal.culturaId, 10);
-      const nome = formLocal.nome.trim();
-      if (!culturaId || !nome) return mostrarMsg('Preencha todos os campos', 'erro', setMsgCad);
-      const idx = novosCadastros.local.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.local[idx] = { id, culturaId, nome };
-      else novosCadastros.local.push({ id, culturaId, nome });
-      setFormLocal({ culturaId: '', nome: '' });
-    } else if (tipoAtual === 'fazenda') {
-      const nome = formFazenda.nome.trim();
-      if (!nome) return mostrarMsg('Preencha o nome', 'erro', setMsgCad);
-      const idx = novosCadastros.fazenda.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.fazenda[idx] = { id, nome };
-      else novosCadastros.fazenda.push({ id, nome });
-      setFormFazenda({ nome: '' });
-    } else if (tipoAtual === 'gleba') {
-      const nome = formGleba.nome.trim();
-      if (!nome) return mostrarMsg('Preencha o nome', 'erro', setMsgCad);
-      const idx = novosCadastros.gleba.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.gleba[idx] = { id, nome };
-      else novosCadastros.gleba.push({ id, nome });
-      setFormGleba({ nome: '' });
-    } else if (tipoAtual === 'pivo') {
-      const nome = formPivo.nome.trim();
-      if (!nome) return mostrarMsg('Preencha o nome', 'erro', setMsgCad);
-      const idx = novosCadastros.pivo.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.pivo[idx] = { id, nome };
-      else novosCadastros.pivo.push({ id, nome });
-      setFormPivo({ nome: '' });
-    } else if (tipoAtual === 'controle') {
-      const cod = formControle.cod.trim();
-      const fazendaId = parseInt(formControle.fazendaId, 10);
-      const culturaId = parseInt(formControle.culturaId, 10);
-      const pivoId = parseInt(formControle.pivoId, 10);
-      const glebasIds = formControle.glebasIds;
-      if (!cod || !fazendaId || !culturaId || !pivoId || glebasIds.length === 0) {
-        return mostrarMsg('Preencha tudo e selecione ao menos uma gleba', 'erro', setMsgCad);
-      }
-      const idx = novosCadastros.controle.findIndex((x: any) => x.id === id);
-      if (idx >= 0) novosCadastros.controle[idx] = { id, cod, fazendaId, culturaId, pivoId, glebasIds };
-      else novosCadastros.controle.push({ id, cod, fazendaId, culturaId, pivoId, glebasIds });
-      setFormControle({ cod: '', fazendaId: '', culturaId: '', pivoId: '', glebasIds: [] });
-    }
-
-    setCadastros(novosCadastros);
-    persistirDados(novosCadastros, entradas, saidas);
-    setIdEditando(null);
-    mostrarMsg('Salvo com sucesso!', 'sucesso', setMsgCad);
-  };
-
-  const cancelarEdicaoCadastro = () => {
-    setIdEditando(null);
-    setFormCultura({ cod: '', nome: '' });
-    setFormVariedade({ culturaId: '', nome: '' });
-    setFormProduto({ culturaId: '', cod: '', nome: '' });
-    setFormLocal({ culturaId: '', nome: '' });
-    setFormFazenda({ nome: '' });
-    setFormGleba({ nome: '' });
-    setFormPivo({ nome: '' });
-    setFormControle({ cod: '', fazendaId: '', culturaId: '', pivoId: '', glebasIds: [] });
-  };
-
-  // Salvar Entrada
+  // =========================================================================
+  // SALVAMENTO DE ENTRADAS E SAÍDAS
+  // =========================================================================
   const salvarEntrada = () => {
-    const controleId = parseInt(formEntrada.controleId, 10);
-    const glebaId = parseInt(formEntrada.glebaId, 10);
-    const variedadeId = parseInt(formEntrada.variedadeId, 10) || undefined;
-    const produtoId = parseInt(formEntrada.produtoId, 10);
-    const localId = parseInt(formEntrada.localId, 10);
-    const embalagem = formEntrada.embalagem;
-    const qtd = parseInt(formEntrada.qtd, 10);
+    if (!formEntrada.controleCod || !formEntrada.fazendaNome || !formEntrada.culturaNome || !formEntrada.produtoNome || !formEntrada.qtd) {
+      return mostrarMsg('Preencha os campos obrigatórios (Controle, Cultura, Produto e Quantidade)', 'erro', setMsgEntrada);
+    }
 
-    if (!controleId || !glebaId || !produtoId || !localId || !embalagem || !qtd) {
-      return mostrarMsg('Preencha todos os campos obrigatórios', 'erro', setMsgEntrada);
+    const qtd = parseInt(formEntrada.qtd, 10);
+    if (isNaN(qtd) || qtd <= 0) {
+      return mostrarMsg('A quantidade deve ser um número maior que zero', 'erro', setMsgEntrada);
     }
 
     const id = formEntrada.id || Date.now();
     const novaEntrada: Movimento = {
       id,
       data: formEntrada.data || dataHoje(),
-      controleId,
-      glebaId,
-      variedadeId,
-      produtoId,
-      localId,
-      embalagem,
+      controleCod: formEntrada.controleCod,
+      fazendaNome: formEntrada.fazendaNome,
+      culturaNome: formEntrada.culturaNome,
+      pivoNome: formEntrada.pivoNome,
+      glebaNome: formEntrada.glebaNome,
+      variedadeNome: formEntrada.variedadeNome,
+      produtoNome: formEntrada.produtoNome,
+      localNome: formEntrada.localNome || 'Câmara Fria 01',
+      embalagem: formEntrada.embalagem || 'Caixa',
       qtd
     };
 
-    let novasEntradas = [...entradas];
+    const novasEntradas = [...entradas];
     const idx = novasEntradas.findIndex(e => e.id === id);
     if (idx >= 0) novasEntradas[idx] = novaEntrada;
     else novasEntradas.push(novaEntrada);
 
     setEntradas(novasEntradas);
-    persistirDados(cadastros, novasEntradas, saidas);
-    setFormEntrada({ id: null, data: dataHoje(), controleId: '', glebaId: '', variedadeId: '', produtoId: '', localId: '', embalagem: '', qtd: '' });
-    mostrarMsg('Entrada cadastrada com sucesso!', 'sucesso', setMsgEntrada);
+    persistirDados(novasEntradas, saidas);
+    mostrarMsg('Entrada registrada com sucesso no Estoque!', 'sucesso', setMsgEntrada);
+    if (showToast) showToast(`Entrada de ${qtd} ${novaEntrada.embalagem}s lançada no estoque!`, 'success');
+    setPaginaAtiva('inicial');
   };
 
-  // Salvar Saída
   const salvarSaida = () => {
-    const controleId = parseInt(formSaida.controleId, 10);
-    const glebaId = parseInt(formSaida.glebaId, 10);
-    const variedadeId = parseInt(formSaida.variedadeId, 10) || undefined;
-    const produtoId = parseInt(formSaida.produtoId, 10);
-    const localId = parseInt(formSaida.localId, 10);
-    const embalagem = formSaida.embalagem;
+    if (!formSaida.controleCod || !formSaida.produtoNome || !formSaida.embalagem || !formSaida.qtd) {
+      return mostrarMsg('Preencha todos os campos obrigatórios para saída', 'erro', setMsgSaida);
+    }
+
     const qtd = parseInt(formSaida.qtd, 10);
-
-    if (!controleId || !glebaId || !produtoId || !localId || !embalagem || !qtd) {
-      return mostrarMsg('Preencha todos os campos', 'erro', setMsgSaida);
+    if (isNaN(qtd) || qtd <= 0) {
+      return mostrarMsg('A quantidade deve ser um número maior que zero', 'erro', setMsgSaida);
     }
 
-    const chave = `${localId}_${produtoId}_${controleId}_${glebaId}_${variedadeId || 0}`;
+    // Validação de saldo
+    const chave = `${formSaida.controleCod}_${formSaida.localNome}_${formSaida.produtoNome}_${formSaida.variedadeNome}_${formSaida.glebaNome}`;
+    const saldoItem = saldosAtuais[chave];
     let saldoDisponivel = 0;
-    if (saldosAtuais[chave]) {
-      if (embalagem === 'Caixa') saldoDisponivel = saldosAtuais[chave].caixas;
-      else if (embalagem === 'Contentor') saldoDisponivel = saldosAtuais[chave].contentores;
-      else if (embalagem === 'Saco') saldoDisponivel = saldosAtuais[chave].sacos;
+    if (saldoItem) {
+      if (formSaida.embalagem === 'Caixa') saldoDisponivel = saldoItem.caixas;
+      else if (formSaida.embalagem === 'Contentor') saldoDisponivel = saldoItem.contentores;
+      else if (formSaida.embalagem === 'Saco') saldoDisponivel = saldoItem.sacos;
     }
 
-    if (formSaida.id) {
-      const regAntigo = saidas.find(s => s.id === formSaida.id);
-      if (regAntigo && regAntigo.embalagem === embalagem && regAntigo.localId === localId && regAntigo.produtoId === produtoId && regAntigo.controleId === controleId && regAntigo.glebaId === glebaId) {
-        saldoDisponivel += regAntigo.qtd;
-      }
-    }
-
-    if (qtd > saldoDisponivel && !usuarioLogado.podeFurarEstoque) {
-      return mostrarMsg(`Saldo insuficiente! Disponível: ${saldoDisponivel} un.`, 'erro', setMsgSaida);
+    if (qtd > saldoDisponivel) {
+      return mostrarMsg(`Saldo insuficiente! Saldo disponível no local: ${saldoDisponivel} un.`, 'erro', setMsgSaida);
     }
 
     const id = formSaida.id || Date.now();
     const novaSaida: Movimento = {
       id,
       data: formSaida.data || dataHoje(),
-      controleId,
-      glebaId,
-      variedadeId,
-      produtoId,
-      localId,
-      embalagem,
+      controleCod: formSaida.controleCod,
+      fazendaNome: formSaida.fazendaNome,
+      culturaNome: formSaida.culturaNome,
+      pivoNome: formSaida.pivoNome,
+      glebaNome: formSaida.glebaNome,
+      variedadeNome: formSaida.variedadeNome,
+      produtoNome: formSaida.produtoNome,
+      localNome: formSaida.localNome,
+      embalagem: formSaida.embalagem,
       qtd
     };
 
-    let novasSaidas = [...saidas];
+    const novasSaidas = [...saidas];
     const idx = novasSaidas.findIndex(s => s.id === id);
     if (idx >= 0) novasSaidas[idx] = novaSaida;
     else novasSaidas.push(novaSaida);
 
     setSaidas(novasSaidas);
-    persistirDados(cadastros, entradas, novasSaidas);
-    setFormSaida({ id: null, data: dataHoje(), controleId: '', glebaId: '', variedadeId: '', produtoId: '', localId: '', embalagem: '', qtd: '' });
-    mostrarMsg('Saída registrada com sucesso!', 'sucesso', setMsgSaida);
+    persistirDados(entradas, novasSaidas);
+    mostrarMsg('Saída registrada com sucesso do Estoque!', 'sucesso', setMsgSaida);
+    if (showToast) showToast(`Saída de ${qtd} ${novaSaida.embalagem}s baixada do estoque!`, 'success');
+    setPaginaAtiva('inicial');
   };
 
-  // Detalhes & Ações (Exclusões / Edições)
-  const abrirListaCadastros = () => {
-    setTituloAba(`Lista: ${tipoAtual.toUpperCase()}`);
-    setTipoAbaDetalhes('cadastro');
-    setAbaDetalhesAberta(true);
-  };
+  // Sincronização direta das cargas colhidas em BdColheita
+  const sincronizarCargasColheita = () => {
+    if (!colheitaData || colheitaData.length === 0) {
+      if (showToast) showToast('Nenhum apontamento em BdColheita para sincronizar.', 'info');
+      return;
+    }
 
-  const abrirListaEntrada = () => {
-    setTituloAba('📥 Histórico de Entradas');
-    setTipoAbaDetalhes('entrada');
-    setAbaDetalhesAberta(true);
-  };
+    const novasEntradas = [...entradas];
+    let inseridos = 0;
 
-  const abrirListaSaida = () => {
-    setTituloAba('📤 Histórico de Saídas');
-    setTipoAbaDetalhes('saida');
-    setAbaDetalhesAberta(true);
-  };
-
-  const editarRegistro = (item: any) => {
-    setAbaDetalhesAberta(false);
-    setIdEditando(item.id);
-    if (tipoAtual === 'cultura') setFormCultura({ cod: item.cod, nome: item.nome });
-    else if (tipoAtual === 'variedade') setFormVariedade({ culturaId: String(item.culturaId), nome: item.nome });
-    else if (tipoAtual === 'produto') setFormProduto({ culturaId: String(item.culturaId), cod: item.cod || '', nome: item.nome });
-    else if (tipoAtual === 'local') setFormLocal({ culturaId: String(item.culturaId), nome: item.nome });
-    else if (tipoAtual === 'fazenda') setFormFazenda({ nome: item.nome });
-    else if (tipoAtual === 'gleba') setFormGleba({ nome: item.nome });
-    else if (tipoAtual === 'pivo') setFormPivo({ nome: item.nome });
-    else if (tipoAtual === 'controle') setFormControle({ cod: item.cod, fazendaId: String(item.fazendaId), culturaId: String(item.culturaId), pivoId: String(item.pivoId), glebasIds: item.glebasIds || [] });
-  };
-
-  const excluirRegistro = (id: number) => {
-    if (!usuarioLogado.podeExcluir) { alert('Você não tem permissão para excluir registros!'); return; }
-    if (!window.confirm('Tem certeza que deseja excluir este registro?')) return;
-    const novosCadastros = { ...cadastros, [tipoAtual]: (cadastros as any)[tipoAtual].filter((x: any) => x.id !== id) };
-    setCadastros(novosCadastros);
-    persistirDados(novosCadastros, entradas, saidas);
-  };
-
-  const editarEntradaItem = (lanc: Movimento) => {
-    setAbaDetalhesAberta(false);
-    setPaginaAtiva('entrada');
-    setFormEntrada({
-      id: lanc.id,
-      data: lanc.data,
-      controleId: String(lanc.controleId),
-      glebaId: String(lanc.glebaId),
-      variedadeId: lanc.variedadeId ? String(lanc.variedadeId) : '',
-      produtoId: lanc.produtoId ? String(lanc.produtoId) : '',
-      localId: lanc.localId ? String(lanc.localId) : '',
-      embalagem: lanc.embalagem,
-      qtd: String(lanc.qtd)
+    colheitaData.forEach(c => {
+      const idRef = `colh_${c.id || `${c.data}_${c.os}_${c.fazenda}_${c.pivo}_${c.gleba}`}`;
+      // Evita duplicar carga já sincronizada
+      const jaExiste = novasEntradas.some(e => e.origemColheitaId === idRef);
+      if (!jaExiste) {
+        const qtdNum = parseInt(c.caixasCortadas || c.qtdColhida || c.qtdColhido || '0', 10);
+        if (qtdNum > 0) {
+          const os = c.os?.trim() || c.cCusto?.trim();
+          const controleCod = os ? `CTR-${os}` : `CTR-${c.ano || '2025/26'}-${c.pivo || '01'}`;
+          const embalagem = c.embalagem || c.caixaBinBag || 'Caixa';
+          novasEntradas.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            data: c.data || dataHoje(),
+            controleCod,
+            fazendaNome: c.fazenda || 'Fazenda Cristalina',
+            culturaNome: c.cultura || 'Cenoura',
+            pivoNome: c.pivo || '',
+            glebaNome: c.gleba || '',
+            variedadeNome: c.variedade || '',
+            produtoNome: 'Padrão Comercial',
+            localNome: 'Câmara Fria 01',
+            embalagem: embalagem.includes('Contentor') || embalagem.includes('Bin') ? 'Contentor' : embalagem.includes('Saco') || embalagem.includes('Bag') ? 'Saco' : 'Caixa',
+            qtd: qtdNum,
+            origemColheitaId: idRef
+          });
+          inseridos++;
+        }
+      }
     });
+
+    if (inseridos > 0) {
+      setEntradas(novasEntradas);
+      persistirDados(novasEntradas, saidas);
+      if (showToast) showToast(`Sincronização concluída: ${inseridos} cargas de BdColheita inseridas no Estoque!`, 'success');
+    } else {
+      if (showToast) showToast('O Estoque já está totalmente sincronizado com BdColheita.', 'info');
+    }
   };
 
-  const excluirEntradaItem = (id: number) => {
-    if (!usuarioLogado.podeExcluir) { alert('Você não tem permissão para excluir registros!'); return; }
-    if (!window.confirm('Excluir lançamento de entrada?')) return;
-    const novasEntradas = entradas.filter(e => e.id !== id);
-    setEntradas(novasEntradas);
-    persistirDados(cadastros, novasEntradas, saidas);
-  };
-
-  const editarSaidaItem = (lanc: Movimento) => {
-    setAbaDetalhesAberta(false);
-    setPaginaAtiva('saida');
-    setFormSaida({
-      id: lanc.id,
-      data: lanc.data,
-      controleId: String(lanc.controleId),
-      glebaId: String(lanc.glebaId),
-      variedadeId: lanc.variedadeId ? String(lanc.variedadeId) : '',
-      produtoId: lanc.produtoId ? String(lanc.produtoId) : '',
-      localId: lanc.localId ? String(lanc.localId) : '',
-      embalagem: lanc.embalagem,
-      qtd: String(lanc.qtd)
-    });
-  };
-
-  const excluirSaidaItem = (id: number) => {
-    if (!usuarioLogado.podeExcluir) { alert('Você não tem permissão para excluir registros!'); return; }
-    if (!window.confirm('Excluir lançamento de saída?')) return;
-    const novasSaidas = saidas.filter(s => s.id !== id);
-    setSaidas(novasSaidas);
-    persistirDados(cadastros, entradas, novasSaidas);
-  };
-
-  // Grouped Stocks for Resumo Screen
+  // =========================================================================
+  // AGRUPAMENTO E FORMATAÇÃO DA TABELA PRINCIPAL
+  // =========================================================================
   const resumoEstoque = useMemo(() => {
-    const saldos: Record<string, { localId: number; produtoId: number; controleId: number; glebasSet: Set<number>; variedadesSet: Set<number>; caixas: number; contentores: number; sacos: number }> = {};
     const termo = filtroGeral.toLowerCase().trim();
+    const grupos: Record<string, typeof saldosAtuais[keyof typeof saldosAtuais][]> = {};
 
-    entradas.forEach(ent => {
-      const chave = `${ent.localId || 0}_${ent.produtoId || 0}_${ent.controleId}`;
-      if (!saldos[chave]) {
-        saldos[chave] = { localId: ent.localId || 0, produtoId: ent.produtoId || 0, controleId: ent.controleId, glebasSet: new Set(), variedadesSet: new Set(), caixas: 0, contentores: 0, sacos: 0 };
-      }
-      if (ent.glebaId) saldos[chave].glebasSet.add(ent.glebaId);
-      if (ent.variedadeId) saldos[chave].variedadesSet.add(ent.variedadeId);
-      const q = parseInt(String(ent.qtd || 0), 10);
-      if (ent.embalagem === 'Caixa') saldos[chave].caixas += q;
-      else if (ent.embalagem === 'Contentor') saldos[chave].contentores += q;
-      else if (ent.embalagem === 'Saco') saldos[chave].sacos += q;
-    });
-
-    saidas.forEach(sai => {
-      const chave = `${sai.localId || 0}_${sai.produtoId || 0}_${sai.controleId}`;
-      if (!saldos[chave]) {
-        saldos[chave] = { localId: sai.localId || 0, produtoId: sai.produtoId || 0, controleId: sai.controleId, glebasSet: new Set(), variedadesSet: new Set(), caixas: 0, contentores: 0, sacos: 0 };
-      }
-      if (sai.glebaId) saldos[chave].glebasSet.add(sai.glebaId);
-      if (sai.variedadeId) saldos[chave].variedadesSet.add(sai.variedadeId);
-      const q = parseInt(String(sai.qtd || 0), 10);
-      if (sai.embalagem === 'Caixa') saldos[chave].caixas -= q;
-      else if (sai.embalagem === 'Contentor') saldos[chave].contentores -= q;
-      else if (sai.embalagem === 'Saco') saldos[chave].sacos -= q;
-    });
-
-    const grupos: Record<string, any[]> = {};
-    Object.keys(saldos).forEach(k => {
-      const item = saldos[k];
+    Object.values(saldosAtuais).forEach(item => {
       if (item.caixas === 0 && item.contentores === 0 && item.sacos === 0) return;
-      const ctrl = cadastros.controle.find((x: any) => x.id === item.controleId);
-      const controleCod = ctrl?.cod || 'SEM CONTROLE';
-      if (!grupos[controleCod]) grupos[controleCod] = [];
-      grupos[controleCod].push(item);
+      const ctrl = item.controleCod || 'SEM CONTROLE';
+      if (!grupos[ctrl]) grupos[ctrl] = [];
+      grupos[ctrl].push(item);
     });
 
     const coresCabecalho = [
@@ -715,29 +599,32 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
       { bg: '#b7950b', border: '#9a7d0a', th: '#d4ac0d', thBorder: '#b7950b' }
     ];
 
-    const blocosFormatados = Object.keys(grupos).map((controleCodigo, idx) => {
+    const blocos = Object.keys(grupos).map((controleCodigo, idx) => {
       const cor = coresCabecalho[idx % coresCabecalho.length];
       let temCaixa = false, temContentor = false, temSaco = false;
-      let nomeCultura = "";
+      let nomeCultura = '';
 
-      const itensFiltrados = grupos[controleCodigo].map(item => {
-        const prodObj = cadastros.produto.find((x: any) => x.id === item.produtoId);
-        const ctrlObj = cadastros.controle.find((x: any) => x.id === item.controleId);
-        if (!nomeCultura && ctrlObj) {
-          const cultObj = cadastros.cultura.find((x: any) => x.id === ctrlObj.culturaId);
-          if (cultObj) nomeCultura = cultObj.nome.toUpperCase();
+      const itens = grupos[controleCodigo].map((item, itemIdx) => {
+        if (!nomeCultura && item.culturaNome) {
+          nomeCultura = item.culturaNome.toUpperCase();
         }
 
-        const localNome = limparNomeGalpao(cadastros.local.find((x: any) => x.id === item.localId)?.nome || '-');
-        const produtoNomeLimpo = limparNomeProduto(prodObj?.nome || '-');
-        const txtVariedade = Array.from(item.variedadesSet).map(id => cadastros.variedade.find((v: any) => v.id === id)?.nome).filter(Boolean).join(', ') || '-';
-        const fazendaNome = cadastros.fazenda.find((x: any) => x.id === ctrlObj?.fazendaId)?.nome || '-';
-        const pivoNome = limparNomePivo(cadastros.pivo.find((x: any) => x.id === ctrlObj?.pivoId)?.nome || '');
-        let txtGleba = ctrlObj?.glebasIds ? ctrlObj.glebasIds.map((id: number) => cadastros.gleba.find((g: any) => g.id === id)?.nome).filter(Boolean).join(', ') : '-';
-        txtGleba = txtGleba.replace(/gleba/gi, '').replace(/\s+/g, ' ').trim() || '-';
-        const localidadeCombinada = pivoNome ? `${fazendaNome} ${pivoNome} / ${txtGleba}` : `${fazendaNome} / ${txtGleba}`;
+        const localNome = limparNomeGalpao(item.localNome);
+        const produtoNomeLimpo = limparNomeProduto(item.produtoNome);
+        const pivoLimpo = limparNomePivo(item.pivoNome);
+        const localidadeCombinada = pivoLimpo
+          ? `${item.fazendaNome} ${pivoLimpo} / ${item.glebaNome || '-'}`
+          : `${item.fazendaNome} / ${item.glebaNome || '-'}`;
 
-        const matches = !termo || [prodObj?.cod || '', localNome, produtoNomeLimpo, localidadeCombinada, txtVariedade, controleCodigo].some(v => v.toLowerCase().includes(termo));
+        const matches = !termo || [
+          item.controleCod,
+          item.culturaNome,
+          localNome,
+          produtoNomeLimpo,
+          localidadeCombinada,
+          item.variedadeNome
+        ].some(v => v && v.toLowerCase().includes(termo));
+
         if (!matches) return null;
 
         if (item.caixas !== 0) temCaixa = true;
@@ -745,12 +632,12 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
         if (item.sacos !== 0) temSaco = true;
 
         return {
-          cod: prodObj?.cod || '-',
+          cod: String(100 + itemIdx + 1),
           localNome,
           produtoNomeLimpo,
           localidadeCombinada,
-          txtVariedade,
-          controleCodigo,
+          txtVariedade: item.variedadeNome || '-',
+          controleCodigo: item.controleCod,
           caixas: item.caixas,
           contentores: item.contentores,
           sacos: item.sacos
@@ -770,81 +657,17 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
         temCaixa,
         temContentor,
         temSaco,
-        itens: itensFiltrados
+        itens
       };
     }).filter(b => b.itens.length > 0);
 
-    return blocosFormatados;
-  }, [entradas, saidas, cadastros, filtroGeral]);
-
-  // Relatório Gerencial Query
-  const movimentosRelatorio = useMemo(() => {
-    let list: any[] = [];
-    entradas.forEach(e => list.push({ ...e, tipo: 'Entrada', icone: '📥' }));
-    saidas.forEach(s => list.push({ ...s, tipo: 'Saída', icone: '📤' }));
-
-    filtrosAcumulados.forEach(f => {
-      if (f.campo === "data") list = list.filter(m => m.data === f.valor);
-      else if (f.campo === "tipo") list = list.filter(m => m.tipo === f.valor);
-      else if (f.campo === "produto") list = list.filter(m => m.produtoId === parseInt(f.valor, 10));
-      else if (f.campo === "fazenda" || f.campo === "cultura") {
-        list = list.filter(m => {
-          const ctrl = cadastros.controle.find((x: any) => x.id === m.controleId);
-          if (!ctrl) return false;
-          return f.campo === "fazenda" ? ctrl.fazendaId === parseInt(f.valor, 10) : ctrl.culturaId === parseInt(f.valor, 10);
-        });
-      }
-    });
-
-    list.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-    return list;
-  }, [entradas, saidas, cadastros, filtrosAcumulados]);
-
-  // Export functions
-  const exportarCSV = () => {
-    let csv = "\uFEFFOp.;Data;Controle;Fazenda;Cultura;Pivô;Gleba;Variedade;Produto;Local;Embalagem;Qtd\r\n";
-    movimentosRelatorio.forEach(m => {
-      const ctrl = cadastros.controle.find((x: any) => x.id === m.controleId);
-      const fazenda = cadastros.fazenda.find((x: any) => x.id === ctrl?.fazendaId)?.nome || '-';
-      const cultura = cadastros.cultura.find((x: any) => x.id === ctrl?.culturaId)?.nome || '-';
-      const pivo = cadastros.pivo.find((x: any) => x.id === ctrl?.pivoId)?.nome || '-';
-      const gleba = cadastros.gleba.find((x: any) => x.id === m.glebaId)?.nome || '-';
-      const variedadeItem = cadastros.variedade.find((x: any) => x.id === m.variedadeId)?.nome || '-';
-      const produto = limparNomeProduto(cadastros.produto.find((x: any) => x.id === m.produtoId)?.nome || '-');
-      const local = cadastros.local.find((x: any) => x.id === m.localId)?.nome || '-';
-      const dataBR = m.data ? m.data.split('-').reverse().join('/') : '-';
-      csv += `"${m.tipo}";"${dataBR}";"${ctrl?.cod || '-'}";"${fazenda}";"${cultura}";"${pivo}";"${gleba}";"${variedadeItem}";"${produto}";"${local}";"${m.embalagem}";"${m.qtd}"\r\n`;
-    });
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `Relatorio_Estoque_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setMenuExportarAberto(false);
-  };
-
-  // Helper for Controle Change in Entrada
-  const controleEntradaObj = useMemo(() => {
-    if (!formEntrada.controleId) return null;
-    return cadastros.controle.find((c: any) => c.id === parseInt(formEntrada.controleId, 10)) || null;
-  }, [formEntrada.controleId, cadastros.controle]);
-
-  // Helper for Controle Change in Saída
-  const controleSaidaObj = useMemo(() => {
-    if (!formSaida.controleId) return null;
-    return cadastros.controle.find((c: any) => c.id === parseInt(formSaida.controleId, 10)) || null;
-  }, [formSaida.controleId, cadastros.controle]);
+    return blocos;
+  }, [saldosAtuais, filtroGeral]);
 
   return (
     <div className="app-estoque-intacto" style={{ background: '#f8faf6', padding: '10px', minHeight: '100%', fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#333' }}>
-      {/* SCOPED STYLES MATCHING THE EXACT USER CODE */}
       <style>{`
         .app-estoque-intacto * { box-sizing: border-box; }
-        .app-estoque-intacto header { background: #0d47a1; color: white; padding: 10px 14px; border-radius: 6px; text-align: center; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .app-estoque-intacto header h1 { font-size: 15px; margin: 0; font-weight: bold; letter-spacing: 0.5px; }
         .app-estoque-intacto .card { background: white; border-radius: 6px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); margin-bottom: 10px; position: relative; border: 1px solid #e2e8f0; }
         .app-estoque-intacto .top-area { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .app-estoque-intacto .filtro { width: 100%; height: 36px; padding: 0 12px 0 34px; border: 1px solid #bbdefb; border-radius: 6px; background: #e3f2fd url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230d47a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") no-repeat 10px center; color: #0d47a1; font-size: 13px; }
@@ -852,16 +675,9 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
         .app-estoque-intacto .botoes-principais { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .app-estoque-intacto .btn-principal { width: 100%; padding: 10px 8px; border: 1px solid #0d47a1; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: #e3f2fd; color: #0d47a1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .app-estoque-intacto .btn-principal:hover { background: #d4e8fc; }
-        .app-estoque-intacto .btn-lupa-topo { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; background: #e3f2fd; border: 1px solid #0d47a1; border-radius: 50%; color: #0d47a1; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
-        .app-estoque-intacto .menu-tipos { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-        .app-estoque-intacto .btn-tipo { background: #f5f5f5; border: 1px solid #ddd; padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #555; cursor: pointer; font-weight: 500; }
-        .app-estoque-intacto .btn-tipo.ativa { background: #e3f2fd; color: #0d47a1; border-color: #bbdefb; font-weight: bold; }
         .app-estoque-intacto label { display: block; margin: 8px 0 2px; font-weight: 600; color: #444; font-size: 12px; }
         .app-estoque-intacto input, .app-estoque-intacto select { width: 100%; height: 34px; padding: 0 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; margin-bottom: 6px; background: #ffffff; }
         .app-estoque-intacto input:disabled, .app-estoque-intacto select:disabled { background: #f5f5f5; color: #666; cursor: not-allowed; }
-        .app-estoque-intacto .multi-selecao { border: 1px solid #ccc; border-radius: 6px; padding: 6px; max-height: 120px; overflow-y: auto; background: #fff; margin-bottom: 6px; }
-        .app-estoque-intacto .multi-selecao-item { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer; font-size: 12px; font-weight: normal; }
-        .app-estoque-intacto .multi-selecao-item input { width: auto; height: auto; margin-bottom: 0; cursor: pointer; }
         .app-estoque-intacto .btn { height: 34px; padding: 0 14px; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 4px; }
         .app-estoque-intacto .btn-salvar { background: #0d47a1; color: white; margin-right: 6px; }
         .app-estoque-intacto .btn-cancelar { background: #6c757d; color: white; }
@@ -875,26 +691,15 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
         .app-estoque-intacto .tabela td { padding: 6px 4px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap; }
         .app-estoque-intacto .tabela tr:nth-child(even) { background: #f2f7f9; }
         .app-estoque-intacto .vazio { padding: 30px; text-align: center; color: #777; font-style: italic; font-size: 12px; }
-        .app-estoque-intacto .btn-acao { width: 30px; height: 30px; border: 1px solid #dcdcdc; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: #ffffff; color: #444; }
-        .app-estoque-intacto .btn-acao:hover { background: #f1f5f9; border-color: #cbd5e1; }
-        .app-estoque-intacto .btn-acao svg { width: 16px; height: 16px; fill: currentColor; }
-        .app-estoque-intacto .badge-mov { padding: 2px 5px; border-radius: 3px; font-weight: bold; font-size: 10px; text-transform: uppercase; }
-        .app-estoque-intacto .badge-ent { background-color: #e6fcf5; color: #0ca678; border: 1px solid #c3fae8; }
-        .app-estoque-intacto .badge-sai { background-color: #fff5f5; color: #c92a2a; border: 1px solid #ffdeeb; }
-        .app-estoque-intacto .tag-filtro { background-color: #e7f5ff; color: #1c7ed6; border: 1px solid #d0ebff; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; height: 22px; }
-        .app-estoque-intacto .tag-filtro .remover-tag { color: #fa5252; cursor: pointer; font-weight: bold; font-size: 13px; }
-        .app-estoque-intacto .mini-planilha { width: 16px; height: 14px; border: 1.5px solid #107c41; border-radius: 2px; position: relative; background: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: 1px; }
-        .app-estoque-intacto .mini-planilha::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #107c41; }
-        .app-estoque-intacto .linha-planilha { height: 1.5px; background: #107c41; width: 7px; margin-left: 5px; }
       `}</style>
 
       {/* ========================================================================= */}
-      {/* 1. PÁGINA INICIAL */}
+      {/* 1. TELA PRINCIPAL (ESTOQUE ATIVO) */}
       {/* ========================================================================= */}
       {paginaAtiva === 'inicial' && (
         <div className="card">
           <div className="top-area">
-            {/* FILTRO GERAL DE PESQUISA (MANTIDO CONFORME SOLICITADO) */}
+            {/* PESQUISAR NO ESTOQUE ATIVO */}
             <input
               type="text"
               value={filtroGeral}
@@ -903,17 +708,87 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
               placeholder="Pesquisar no Estoque Ativo..."
             />
 
-            {/* BOTÕES ENTRADA E SAÍDA */}
+            {/* BOTÕES DE AÇÃO: ENTRADA, SAÍDA E SINCRONIZAR COM BDCOLHEITA */}
             <div className="botoes-principais">
-              <button className="btn-principal" onClick={() => setPaginaAtiva('entrada')}>📥 Entrada</button>
-              <button className="btn-principal" onClick={() => setPaginaAtiva('saida')}>📤 Saída</button>
+              <button
+                className="btn-principal"
+                onClick={() => {
+                  setFormEntrada({
+                    id: null,
+                    data: dataHoje(),
+                    controleCod: controlesInterligados[0]?.controleCod || '',
+                    fazendaNome: controlesInterligados[0]?.fazendaNome || fazendasDisponiveis[0] || '',
+                    culturaNome: controlesInterligados[0]?.culturaNome || culturasDisponiveis[0] || '',
+                    pivoNome: controlesInterligados[0]?.pivoNome || pivosDisponiveis[0] || '',
+                    glebaNome: controlesInterligados[0]?.glebaNome || glebasDisponiveis[0] || '',
+                    variedadeNome: getVariedadesParaCultura(controlesInterligados[0]?.culturaNome || culturasDisponiveis[0])[0] || '',
+                    produtoNome: getProdutosParaCultura(controlesInterligados[0]?.culturaNome || culturasDisponiveis[0])[0] || '',
+                    localNome: LOCAIS_ARMAZENAMENTO_PADRAO[0],
+                    embalagem: 'Caixa',
+                    qtd: ''
+                  });
+                  setPaginaAtiva('entrada');
+                }}
+              >
+                📥 Entrada
+              </button>
+              <button
+                className="btn-principal"
+                onClick={() => {
+                  const ctrlInicial = controlesComSaldoParaSaida[0] || '';
+                  const itemSaldo = Object.values(saldosAtuais).find(s => s.controleCod === ctrlInicial && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0));
+                  setFormSaida({
+                    id: null,
+                    data: dataHoje(),
+                    controleCod: ctrlInicial,
+                    fazendaNome: itemSaldo?.fazendaNome || '',
+                    culturaNome: itemSaldo?.culturaNome || '',
+                    pivoNome: itemSaldo?.pivoNome || '',
+                    glebaNome: itemSaldo?.glebaNome || '',
+                    variedadeNome: itemSaldo?.variedadeNome || '',
+                    produtoNome: itemSaldo?.produtoNome || '',
+                    localNome: itemSaldo?.localNome || '',
+                    embalagem: itemSaldo?.caixas > 0 ? 'Caixa' : itemSaldo?.contentores > 0 ? 'Contentor' : 'Saco',
+                    qtd: ''
+                  });
+                  setPaginaAtiva('saida');
+                }}
+              >
+                📤 Saída
+              </button>
             </div>
+
+            {/* BOTÃO DE INTERLIGAÇÃO DIRETA COM AS CARGAS COLHIDAS */}
+            {colheitaData && colheitaData.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                <button
+                  type="button"
+                  onClick={sincronizarCargasColheita}
+                  style={{
+                    background: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    padding: '4px 8px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#0d47a1',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Puxa e sincroniza automaticamente os apontamentos de colheita para o estoque"
+                >
+                  🔄 Sincronizar com BdColheita ({colheitaData.length} apontamentos disponíveis)
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* TABELAS DE RESUMO DE ESTOQUE POR CONTROLE / SAFRA */}
+          {/* TABELAS DE RESUMO POR CONTROLE E SAFRA */}
           <div id="containerResumoEstoque" className="tabela-wrapper">
             {resumoEstoque.length === 0 ? (
-              <p className="vazio">Nenhum saldo ativo para exibir.</p>
+              <p className="vazio">Nenhum saldo ativo para exibir no momento.</p>
             ) : (
               resumoEstoque.map((bloco, bIdx) => (
                 <div key={bIdx} style={{ marginTop: '10px', marginBottom: '8px' }}>
@@ -936,15 +811,15 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
                     <table className="tabela">
                       <thead>
                         <tr>
-                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Cód</th>
-                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Local</th>
-                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Produto</th>
-                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Fazenda / Glebas</th>
-                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Variedades</th>
-                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Controle</th>
-                          {bloco.temCaixa && <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Caix</th>}
-                          {bloco.temContentor && <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Cont</th>}
-                          {bloco.temSaco && <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>Sac</th>}
+                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>CÓD</th>
+                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>LOCAL</th>
+                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>PRODUTO</th>
+                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>FAZENDA / GLEBAS</th>
+                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>VARIEDADES</th>
+                          <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>CONTROLE</th>
+                          {bloco.temCaixa && <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>CAIX</th>}
+                          {bloco.temContentor && <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>CONT</th>}
+                          {bloco.temSaco && <th style={{ background: bloco.cor.th, border: `1px solid ${bloco.cor.thBorder}`, color: 'white' }}>SAC</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -984,529 +859,146 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
       )}
 
       {/* ========================================================================= */}
-      {/* 2. PÁGINA CADASTROS */}
-      {/* ========================================================================= */}
-      {paginaAtiva === 'cadastro' && (
-        <div className="card">
-          <button className="btn-lupa-topo" onClick={abrirListaCadastros} title="Ver registros">🔍</button>
-          <button className="btn btn-voltar" onClick={() => setPaginaAtiva('inicial')}>⬅️ Voltar</button>
-          <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>Cadastros</h3>
-
-          {/* MENU TIPOS */}
-          <div className="menu-tipos">
-            {['cultura', 'variedade', 'produto', 'local', 'fazenda', 'gleba', 'pivo', 'controle'].map((tipo) => (
-              <button
-                key={tipo}
-                className={`btn-tipo ${tipoAtual === tipo ? 'ativa' : ''}`}
-                onClick={() => { setTipoAtual(tipo); cancelarEdicaoCadastro(); }}
-              >
-                {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {/* FORMULÁRIO CULTURA */}
-          {tipoAtual === 'cultura' && (
-            <div>
-              <label>Código da Cultura (Apenas Números)</label>
-              <input
-                type="text"
-                value={formCultura.cod}
-                onChange={(e) => setFormCultura({ ...formCultura, cod: e.target.value.replace(/[^0-9]/g, '') })}
-                placeholder="Ex: 001"
-              />
-              <label>Nome da Cultura</label>
-              <input
-                type="text"
-                value={formCultura.nome}
-                onChange={(e) => setFormCultura({ ...formCultura, nome: e.target.value })}
-                placeholder="Ex: Cenoura"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO VARIEDADE */}
-          {tipoAtual === 'variedade' && (
-            <div>
-              <label>Cultura</label>
-              <select value={formVariedade.culturaId} onChange={(e) => setFormVariedade({ ...formVariedade, culturaId: e.target.value })}>
-                <option value="">Selecione</option>
-                {cadastros.cultura.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-              <label>Nome da Variedade</label>
-              <input
-                type="text"
-                value={formVariedade.nome}
-                onChange={(e) => setFormVariedade({ ...formVariedade, nome: e.target.value })}
-                placeholder="Ex: Híbrida"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO PRODUTO */}
-          {tipoAtual === 'produto' && (
-            <div>
-              <label>Cultura Vinculada</label>
-              <select value={formProduto.culturaId} onChange={(e) => setFormProduto({ ...formProduto, culturaId: e.target.value })}>
-                <option value="">Selecione</option>
-                {cadastros.cultura.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-              <label>Código do Produto (Apenas Números)</label>
-              <input
-                type="text"
-                value={formProduto.cod}
-                onChange={(e) => setFormProduto({ ...formProduto, cod: e.target.value.replace(/[^0-9]/g, '') })}
-                placeholder="Ex: 102"
-              />
-              <label>Nome do Produto (Classificação)</label>
-              <input
-                type="text"
-                value={formProduto.nome}
-                onChange={(e) => setFormProduto({ ...formProduto, nome: e.target.value })}
-                placeholder="Ex: Cenoura Calibre 2"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO LOCAL */}
-          {tipoAtual === 'local' && (
-            <div>
-              <label>Cultura Vinculada</label>
-              <select value={formLocal.culturaId} onChange={(e) => setFormLocal({ ...formLocal, culturaId: e.target.value })}>
-                <option value="">Selecione</option>
-                {cadastros.cultura.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-              <label>Nome do Local de Depósito</label>
-              <input
-                type="text"
-                value={formLocal.nome}
-                onChange={(e) => setFormLocal({ ...formLocal, nome: e.target.value })}
-                placeholder="Ex: Câmara Fria 1"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO FAZENDA */}
-          {tipoAtual === 'fazenda' && (
-            <div>
-              <label>Nome da Fazenda</label>
-              <input
-                type="text"
-                value={formFazenda.nome}
-                onChange={(e) => setFormFazenda({ nome: e.target.value })}
-                placeholder="Ex: Fazenda Boa Vista"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO GLEBA */}
-          {tipoAtual === 'gleba' && (
-            <div>
-              <label>Nome/Número da Gleba</label>
-              <input
-                type="text"
-                value={formGleba.nome}
-                onChange={(e) => setFormGleba({ nome: e.target.value })}
-                placeholder="Ex: Gleba 3"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO PIVÔ */}
-          {tipoAtual === 'pivo' && (
-            <div>
-              <label>Nome/Número do Pivô</label>
-              <input
-                type="text"
-                value={formPivo.nome}
-                onChange={(e) => setFormPivo({ nome: e.target.value })}
-                placeholder="Ex: Pivô 2"
-              />
-            </div>
-          )}
-
-          {/* FORMULÁRIO CONTROLE */}
-          {tipoAtual === 'controle' && (
-            <div>
-              <label>Número de Controle</label>
-              <input
-                type="text"
-                value={formControle.cod}
-                onChange={(e) => setFormControle({ ...formControle, cod: e.target.value })}
-                placeholder="Ex: CTR001"
-              />
-              <label>Fazenda</label>
-              <select value={formControle.fazendaId} onChange={(e) => setFormControle({ ...formControle, fazendaId: e.target.value })}>
-                <option value="">Selecione</option>
-                {cadastros.fazenda.map((f: any) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-              </select>
-              <label>Cultura</label>
-              <select value={formControle.culturaId} onChange={(e) => setFormControle({ ...formControle, culturaId: e.target.value })}>
-                <option value="">Selecione</option>
-                {cadastros.cultura.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-              <label>Pivô</label>
-              <select value={formControle.pivoId} onChange={(e) => setFormControle({ ...formControle, pivoId: e.target.value })}>
-                <option value="">Selecione</option>
-                {cadastros.pivo.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-              </select>
-              <label>Selecione as Glebas Vinculadas:</label>
-              <div className="multi-selecao">
-                {cadastros.gleba.map((g: any) => {
-                  const isChecked = formControle.glebasIds.includes(g.id);
-                  return (
-                    <label key={g.id} className="multi-selecao-item">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          if (e.target.checked) setFormControle({ ...formControle, glebasIds: [...formControle.glebasIds, g.id] });
-                          else setFormControle({ ...formControle, glebasIds: formControle.glebasIds.filter((id: number) => id !== g.id) });
-                        }}
-                      />
-                      <span>{g.nome}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* BOTÕES SALVAR / CANCELAR */}
-          <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-            <button className="btn btn-salvar" onClick={salvarCadastro}>💾 Salvar</button>
-            {idEditando !== null && (
-              <button className="btn btn-cancelar" onClick={cancelarEdicaoCadastro}>❌ Cancelar</button>
-            )}
-          </div>
-
-          {msgCad && <div className={`resultado ${msgCad.tipo}`}>{msgCad.texto}</div>}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 3. PÁGINA CONFIGURAÇÕES E USUÁRIOS */}
-      {/* ========================================================================= */}
-      {paginaAtiva === 'configuracao' && (
-        <div className="card">
-          <button className="btn btn-voltar" onClick={() => setPaginaAtiva('inicial')}>⬅️ Voltar</button>
-          <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>⚙️ Configurações e Usuários</h3>
-
-          <div className="botoes-principais" style={{ marginBottom: '15px' }}>
-            <button className="btn-principal" onClick={() => setPaginaAtiva('relatorio-bonitao')}>
-              📊 Relatório Geral
-            </button>
-            <button
-              className="btn-principal"
-              onClick={() => {
-                const el = document.getElementById('area-usuario-box');
-                if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-              }}
-            >
-              🔧 Configurar Usuários
-            </button>
-          </div>
-
-          <div id="area-usuario-box" className="card" style={{ display: 'none', background: '#fdfdfd', border: '1px solid #ddd' }}>
-            <h4 style={{ marginBottom: '8px', color: '#0d47a1', fontWeight: 'bold' }}>Novo Usuário / Permissões</h4>
-            <label>Nome / Login</label>
-            <input type="text" id="loginUsuarioInput" placeholder="Ex: joao.silva" />
-            <label>Senha</label>
-            <input type="password" id="senhaUsuarioInput" placeholder="Senha de acesso" />
-
-            <label style={{ marginTop: '12px', fontWeight: 'bold', color: '#000' }}>Marque as funções liberadas:</label>
-            <div className="multi-selecao" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              <label className="multi-selecao-item"><input type="checkbox" defaultChecked /> <span>📥 Permitir Lançar Entradas</span></label>
-              <label className="multi-selecao-item"><input type="checkbox" defaultChecked /> <span>📤 Permitir Lançar Saídas</span></label>
-              <label className="multi-selecao-item"><input type="checkbox" /> <span>⚠️ Permitir Venda sem Estoque (Furar)</span></label>
-              <label className="multi-selecao-item"><input type="checkbox" defaultChecked /> <span>💾 Permitir Criar Cadastros Gerais</span></label>
-              <label className="multi-selecao-item"><input type="checkbox" defaultChecked /> <span>❌ Permitir Exclusões no Sistema</span></label>
-              <label className="multi-selecao-item"><input type="checkbox" defaultChecked /> <span>📋 Exportar Dados (Excel/PDF)</span></label>
-              <label className="multi-selecao-item"><input type="checkbox" defaultChecked /> <span>🤖 Permitir Usar Assistente IA</span></label>
-            </div>
-
-            {msgUsuario && <div className={`resultado ${msgUsuario.tipo}`}>{msgUsuario.texto}</div>}
-            <div style={{ marginTop: '8px' }}>
-              <button
-                className="btn btn-salvar"
-                onClick={() => {
-                  mostrarMsg("Usuário configurado e salvo com sucesso!", "sucesso", setMsgUsuario);
-                }}
-              >
-                Salvar Usuário
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 4. PÁGINA RELATÓRIO GERAL AVANÇADO (RELATÓRIO BONITÃO) */}
-      {/* ========================================================================= */}
-      {paginaAtiva === 'relatorio-bonitao' && (
-        <div className="card">
-          <button className="btn btn-voltar" onClick={() => setPaginaAtiva('configuracao')}>⬅️ Voltar</button>
-
-          {/* EXPORTAÇÃO HAMBURGUER */}
-          <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
-            <button
-              onClick={() => setMenuExportarAberto(!menuExportarAberto)}
-              title="Opções de Exportação"
-              style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#444' }}
-            >
-              ☰
-            </button>
-            {menuExportarAberto && (
-              <div style={{ position: 'absolute', right: 0, top: '28px', backgroundColor: 'white', minWidth: '140px', boxShadow: '0px 4px 8px rgba(0,0,0,0.15)', border: '1px solid #ddd', borderRadius: '6px', zIndex: 1000 }}>
-                <div onClick={exportarCSV} style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-                  <div className="mini-planilha"><div className="linha-planilha"></div><div className="linha-planilha"></div><div className="linha-planilha"></div></div>
-                  <span style={{ color: '#107c41' }}>Excel / CSV</span>
-                </div>
-                <div onClick={() => { window.print(); setMenuExportarAberto(false); }} style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold', borderTop: '1px solid #eee' }}>
-                  <span style={{ color: '#e74c3c' }}>🖨️ Imprimir / PDF</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>📊 Relatório Geral Avançado</h3>
-
-          {/* PAINEL DE FILTROS AVANÇADOS INTELIGENTES */}
-          <div style={{ border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa', marginBottom: '15px' }}>
-            <div style={{ backgroundColor: '#e9ecef', padding: '6px 10px', fontWeight: 'bold', fontSize: '11px', color: '#495057', borderBottom: '1px solid #ced4da', textTransform: 'uppercase' }}>
-              Filtros Avançados Inteligentes
-            </div>
-            <div style={{ display: 'flex', borderBottom: '1px solid #ced4da', flexWrap: 'wrap' }}>
-              <div style={{ padding: '8px', flex: 1, minWidth: '260px', display: 'flex', gap: '8px', alignItems: 'flex-end', backgroundColor: '#ffffff' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-                  <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#495057' }}>Campo de Filtragem</label>
-                  <select value={campoFiltroRel} onChange={(e: any) => { setCampoFiltroRel(e.target.value); setValorFiltroRel(''); }}>
-                    <option value="data">Período (Data)</option>
-                    <option value="fazenda">Fazenda</option>
-                    <option value="cultura">Cultura</option>
-                    <option value="produto">Produto</option>
-                    <option value="tipo">Tipo Movimento</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-                  <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#495057' }}>Valor do Filtro</label>
-                  {campoFiltroRel === 'data' && (
-                    <input type="date" value={valorFiltroRel || dataHoje()} onChange={(e) => setValorFiltroRel(e.target.value)} />
-                  )}
-                  {campoFiltroRel === 'fazenda' && (
-                    <select value={valorFiltroRel} onChange={(e) => setValorFiltroRel(e.target.value)}>
-                      <option value="">Selecione</option>
-                      {cadastros.fazenda.map((f: any) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                    </select>
-                  )}
-                  {campoFiltroRel === 'cultura' && (
-                    <select value={valorFiltroRel} onChange={(e) => setValorFiltroRel(e.target.value)}>
-                      <option value="">Selecione</option>
-                      {cadastros.cultura.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                    </select>
-                  )}
-                  {campoFiltroRel === 'produto' && (
-                    <select value={valorFiltroRel} onChange={(e) => setValorFiltroRel(e.target.value)}>
-                      <option value="">Selecione</option>
-                      {cadastros.produto.map((p: any) => <option key={p.id} value={p.id}>{limparNomeProduto(p.nome)}</option>)}
-                    </select>
-                  )}
-                  {campoFiltroRel === 'tipo' && (
-                    <select value={valorFiltroRel} onChange={(e) => setValorFiltroRel(e.target.value)}>
-                      <option value="">Selecione</option>
-                      <option value="Entrada">Entrada (📥)</option>
-                      <option value="Saída">Saída (📤)</option>
-                    </select>
-                  )}
-                </div>
-              </div>
-
-              {/* AÇÕES FILTRO LATERAL */}
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '4px', padding: '6px 10px', backgroundColor: '#f1f3f5', borderLeft: '1px solid #ced4da', borderRight: '1px solid #ced4da', minWidth: '44px' }}>
-                <button
-                  className="btn-acao"
-                  style={{ color: 'green', fontWeight: 'bold' }}
-                  title="Adicionar Condição"
-                  onClick={() => {
-                    const val = valorFiltroRel || (campoFiltroRel === 'data' ? dataHoje() : '');
-                    if (!val) return;
-                    let label = "Campo";
-                    let texto = val;
-                    if (campoFiltroRel === 'data') { label = "Data"; texto = val.split('-').reverse().join('/'); }
-                    else if (campoFiltroRel === 'fazenda') { label = "Fazenda"; texto = cadastros.fazenda.find((f: any) => f.id === parseInt(val, 10))?.nome || val; }
-                    else if (campoFiltroRel === 'cultura') { label = "Cultura"; texto = cadastros.cultura.find((c: any) => c.id === parseInt(val, 10))?.nome || val; }
-                    else if (campoFiltroRel === 'produto') { label = "Produto"; texto = limparNomeProduto(cadastros.produto.find((p: any) => p.id === parseInt(val, 10))?.nome || val); }
-                    else if (campoFiltroRel === 'tipo') { label = "Tipo"; texto = val; }
-
-                    if (!filtrosAcumulados.some(f => f.campo === campoFiltroRel && f.valor === val)) {
-                      setFiltrosAcumulados([...filtrosAcumulados, { campo: campoFiltroRel, label, valor: val, texto }]);
-                    }
-                  }}
-                >
-                  ▼
-                </button>
-                <button className="btn-acao" style={{ color: 'red' }} title="Limpar Tudo" onClick={() => setFiltrosAcumulados([])}>
-                  ❌
-                </button>
-              </div>
-
-              {/* CONDIÇÕES ATIVAS */}
-              <div style={{ padding: '8px', flex: 1.5, minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#495057', textTransform: 'uppercase' }}>Condições Aplicadas Ativas:</div>
-                <div style={{ border: '1px dashed #ced4da', borderRadius: '4px', backgroundColor: '#fff', minHeight: '45px', padding: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {filtrosAcumulados.map((f, idx) => (
-                    <div key={idx} className="tag-filtro">
-                      <span><strong>{f.label}:</strong> {f.texto}</span>
-                      <span className="remover-tag" onClick={() => setFiltrosAcumulados(filtrosAcumulados.filter((_, i) => i !== idx))}>×</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* TABELA DO RELATÓRIO */}
-          <div className="tabela-wrapper">
-            {movimentosRelatorio.length === 0 ? (
-              <p className="vazio">Nenhum registro encontrado com os filtros aplicados.</p>
-            ) : (
-              <table className="tabela" style={{ minWidth: '900px' }}>
-                <thead>
-                  <tr style={{ background: '#0d47a1', color: 'white' }}>
-                    <th>Op.</th>
-                    <th>Data</th>
-                    <th>Controle</th>
-                    <th>Fazenda</th>
-                    <th>Cultura</th>
-                    <th>Pivô</th>
-                    <th>Gleba</th>
-                    <th>Variedade</th>
-                    <th>Produto</th>
-                    <th>Local</th>
-                    <th>Embalagem</th>
-                    <th>Qtd</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movimentosRelatorio.map((m, idx) => {
-                    const ctrl = cadastros.controle.find((x: any) => x.id === m.controleId);
-                    const fazenda = cadastros.fazenda.find((x: any) => x.id === ctrl?.fazendaId)?.nome || '-';
-                    const cultura = cadastros.cultura.find((x: any) => x.id === ctrl?.culturaId)?.nome || '-';
-                    const pivo = cadastros.pivo.find((x: any) => x.id === ctrl?.pivoId)?.nome || '-';
-                    const gleba = cadastros.gleba.find((x: any) => x.id === m.glebaId)?.nome || '-';
-                    const variedadeItem = cadastros.variedade.find((x: any) => x.id === m.variedadeId)?.nome || '-';
-                    const produto = limparNomeProduto(cadastros.produto.find((x: any) => x.id === m.produtoId)?.nome || '-');
-                    const local = cadastros.local.find((x: any) => x.id === m.localId)?.nome || '-';
-                    const dataBR = m.data ? m.data.split('-').reverse().join('/') : '-';
-                    return (
-                      <tr key={idx}>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`badge-mov ${m.tipo === 'Entrada' ? 'badge-ent' : 'badge-sai'}`}>{m.icone}</span>
-                        </td>
-                        <td>{dataBR}</td>
-                        <td><strong>{ctrl?.cod || '-'}</strong></td>
-                        <td>{fazenda}</td>
-                        <td>{cultura}</td>
-                        <td>{pivo}</td>
-                        <td>{gleba}</td>
-                        <td>{variedadeItem}</td>
-                        <td><strong>{produto}</strong></td>
-                        <td>{local}</td>
-                        <td>{m.embalagem}</td>
-                        <td style={{ fontWeight: 'bold', color: m.tipo === 'Saída' ? '#dc3545' : '#1b5e20' }}>{m.qtd}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 5. PÁGINA ENTRADA */}
+      {/* 2. TELA ENTRADA (TOTALMENTE INTERLIGADA COM O CONTROLE AGRÍCOLA) */}
       {/* ========================================================================= */}
       {paginaAtiva === 'entrada' && (
         <div className="card">
-          <button className="btn-lupa-topo" onClick={abrirListaEntrada} title="Ver entradas">🔍</button>
           <button className="btn btn-voltar" onClick={() => setPaginaAtiva('inicial')}>⬅️ Voltar</button>
           <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>📥 Entrada de Estoque</h3>
 
           <div>
-            <label>Data</label>
-            <input type="date" value={formEntrada.data} disabled />
+            <label>Data da Entrada</label>
+            <input type="date" value={formEntrada.data} onChange={(e) => setFormEntrada({ ...formEntrada, data: e.target.value })} />
 
-            <label>Número de Controle</label>
+            {/* SELEÇÃO DO NÚMERO DE CONTROLE INTERLIGADO */}
+            <label>Número de Controle / Projeto (Interligado)</label>
             <select
-              value={formEntrada.controleId}
+              value={formEntrada.controleCod}
               onChange={(e) => {
-                setFormEntrada({ ...formEntrada, controleId: e.target.value, glebaId: '', variedadeId: '', produtoId: '', localId: '' });
+                const cod = e.target.value;
+                const match = controlesInterligados.find(c => c.controleCod === cod);
+                setFormEntrada(prev => ({
+                  ...prev,
+                  controleCod: cod,
+                  fazendaNome: match?.fazendaNome || prev.fazendaNome || fazendasDisponiveis[0] || '',
+                  culturaNome: match?.culturaNome || prev.culturaNome || culturasDisponiveis[0] || '',
+                  pivoNome: match?.pivoNome || prev.pivoNome || pivosDisponiveis[0] || '',
+                  glebaNome: match?.glebaNome || prev.glebaNome || glebasDisponiveis[0] || '',
+                  variedadeNome: match?.variedadeNome || getVariedadesParaCultura(match?.culturaNome || prev.culturaNome)[0] || '',
+                  produtoNome: getProdutosParaCultura(match?.culturaNome || prev.culturaNome)[0] || ''
+                }));
               }}
             >
-              <option value="">Selecione</option>
-              {cadastros.controle.map((c: any) => <option key={c.id} value={c.id}>{c.cod}</option>)}
+              <option value="">Selecione o Controle...</option>
+              {controlesInterligados.map(c => (
+                <option key={c.controleCod} value={c.controleCod}>{c.label}</option>
+              ))}
             </select>
 
+            {/* CAMPOS INTERLIGADOS DE FAZENDA, CULTURA, PIVÔ E GLEBA */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', margin: '8px 0' }}>
               <div>
-                <label>Fazenda</label>
-                <input type="text" disabled value={cadastros.fazenda.find((f: any) => f.id === controleEntradaObj?.fazendaId)?.nome || ''} />
+                <label>Fazenda (Cadastro Geral)</label>
+                <select
+                  value={formEntrada.fazendaNome}
+                  onChange={(e) => setFormEntrada({ ...formEntrada, fazendaNome: e.target.value })}
+                >
+                  <option value="">Selecione a Fazenda</option>
+                  {fazendasDisponiveis.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label>Cultura</label>
-                <input type="text" disabled value={cadastros.cultura.find((cu: any) => cu.id === controleEntradaObj?.culturaId)?.nome || ''} />
+                <label>Cultura (Cadastro Geral)</label>
+                <select
+                  value={formEntrada.culturaNome}
+                  onChange={(e) => {
+                    const cult = e.target.value;
+                    setFormEntrada({
+                      ...formEntrada,
+                      culturaNome: cult,
+                      variedadeNome: getVariedadesParaCultura(cult)[0] || '',
+                      produtoNome: getProdutosParaCultura(cult)[0] || ''
+                    });
+                  }}
+                >
+                  <option value="">Selecione a Cultura</option>
+                  {culturasDisponiveis.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label>Pivô</label>
-                <input type="text" disabled value={cadastros.pivo.find((p: any) => p.id === controleEntradaObj?.pivoId)?.nome || ''} />
+                <label>Pivô (Cadastro Geral)</label>
+                <select
+                  value={formEntrada.pivoNome}
+                  onChange={(e) => setFormEntrada({ ...formEntrada, pivoNome: e.target.value })}
+                >
+                  <option value="">Selecione o Pivô</option>
+                  {pivosDisponiveis.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label>Gleba</label>
-                <select value={formEntrada.glebaId} onChange={(e) => setFormEntrada({ ...formEntrada, glebaId: e.target.value })}>
-                  <option value="">Selecione</option>
-                  {(controleEntradaObj?.glebasIds || []).map((gId: number) => {
-                    const g = cadastros.gleba.find((x: any) => x.id === gId);
-                    return g ? <option key={g.id} value={g.id}>{g.nome}</option> : null;
-                  })}
+                <label>Gleba (Cadastro Geral)</label>
+                <select
+                  value={formEntrada.glebaNome}
+                  onChange={(e) => setFormEntrada({ ...formEntrada, glebaNome: e.target.value })}
+                >
+                  <option value="">Selecione a Gleba</option>
+                  {glebasDisponiveis.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div>
-                <label>Variedade</label>
-                <select value={formEntrada.variedadeId} onChange={(e) => setFormEntrada({ ...formEntrada, variedadeId: e.target.value })}>
-                  <option value="">{controleEntradaObj ? 'Selecione' : 'Selecione o controle primeiro'}</option>
-                  {controleEntradaObj && cadastros.variedade.filter((v: any) => v.culturaId === controleEntradaObj.culturaId).map((v: any) => (
-                    <option key={v.id} value={v.id}>{v.nome}</option>
+                <label>Variedade (Vinculada à Cultura)</label>
+                <select
+                  value={formEntrada.variedadeNome}
+                  onChange={(e) => setFormEntrada({ ...formEntrada, variedadeNome: e.target.value })}
+                >
+                  <option value="">Selecione a Variedade</option>
+                  {getVariedadesParaCultura(formEntrada.culturaNome).map(v => (
+                    <option key={v} value={v}>{v}</option>
                   ))}
                 </select>
               </div>
               <div>
                 <label>Tipo de Embalagem</label>
-                <select value={formEntrada.embalagem} onChange={(e) => setFormEntrada({ ...formEntrada, embalagem: e.target.value })}>
-                  <option value="">Selecione</option>
-                  <option value="Saco">Saco</option>
+                <select
+                  value={formEntrada.embalagem}
+                  onChange={(e) => setFormEntrada({ ...formEntrada, embalagem: e.target.value })}
+                >
                   <option value="Caixa">Caixa</option>
-                  <option value="Contentor">Contentor</option>
+                  <option value="Saco">Saco</option>
+                  <option value="Contentor">Contentor / Bin</option>
                 </select>
               </div>
             </div>
 
             <label>Produto (Classificação Comercial)</label>
-            <select value={formEntrada.produtoId} onChange={(e) => setFormEntrada({ ...formEntrada, produtoId: e.target.value })}>
-              <option value="">{controleEntradaObj ? 'Selecione' : 'Selecione o controle primeiro'}</option>
-              {controleEntradaObj && cadastros.produto.filter((p: any) => p.culturaId === controleEntradaObj.culturaId).map((p: any) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
+            <select
+              value={formEntrada.produtoNome}
+              onChange={(e) => setFormEntrada({ ...formEntrada, produtoNome: e.target.value })}
+            >
+              <option value="">Selecione o Produto</option>
+              {getProdutosParaCultura(formEntrada.culturaNome).map(p => (
+                <option key={p} value={p}>{p}</option>
               ))}
             </select>
 
             <label>Local de Armazenamento</label>
-            <select value={formEntrada.localId} onChange={(e) => setFormEntrada({ ...formEntrada, localId: e.target.value })}>
-              <option value="">{controleEntradaObj ? 'Selecione' : 'Selecione o controle primeiro'}</option>
-              {controleEntradaObj && cadastros.local.filter((l: any) => l.culturaId === controleEntradaObj.culturaId).map((l: any) => (
-                <option key={l.id} value={l.id}>{l.nome}</option>
+            <select
+              value={formEntrada.localNome}
+              onChange={(e) => setFormEntrada({ ...formEntrada, localNome: e.target.value })}
+            >
+              {LOCAIS_ARMAZENAMENTO_PADRAO.map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
               ))}
             </select>
 
@@ -1519,16 +1011,9 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
               placeholder="Ex: 120"
             />
 
-            <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
               <button className="btn btn-salvar" onClick={salvarEntrada}>✅ Lançar Entrada</button>
-              {formEntrada.id && (
-                <button
-                  className="btn btn-cancelar"
-                  onClick={() => setFormEntrada({ id: null, data: dataHoje(), controleId: '', glebaId: '', variedadeId: '', produtoId: '', localId: '', embalagem: '', qtd: '' })}
-                >
-                  ❌ Cancelar
-                </button>
-              )}
+              <button className="btn btn-cancelar" onClick={() => setPaginaAtiva('inicial')}>❌ Cancelar</button>
             </div>
 
             {msgEntrada && <div className={`resultado ${msgEntrada.tipo}`}>{msgEntrada.texto}</div>}
@@ -1537,92 +1022,131 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
       )}
 
       {/* ========================================================================= */}
-      {/* 6. PÁGINA SAÍDA */}
+      {/* 3. TELA SAÍDA (TOTALMENTE INTERLIGADA COM OS SALDOS DO SISTEMA) */}
       {/* ========================================================================= */}
       {paginaAtiva === 'saida' && (
         <div className="card">
-          <button className="btn-lupa-topo" onClick={abrirListaSaida} title="Ver saídas">🔍</button>
           <button className="btn btn-voltar" onClick={() => setPaginaAtiva('inicial')}>⬅️ Voltar</button>
           <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>📤 Saída de Estoque</h3>
 
           <div>
-            <label>Data</label>
-            <input type="date" value={formSaida.data} disabled />
+            <label>Data da Saída</label>
+            <input type="date" value={formSaida.data} onChange={(e) => setFormSaida({ ...formSaida, data: e.target.value })} />
 
-            <label>Número de Controle</label>
+            <label>Número de Controle com Saldo</label>
             <select
-              value={formSaida.controleId}
+              value={formSaida.controleCod}
               onChange={(e) => {
-                setFormSaida({ ...formSaida, controleId: e.target.value, produtoId: '', glebaId: '', variedadeId: '', localId: '', embalagem: '' });
+                const cod = e.target.value;
+                const primeiroComSaldo = Object.values(saldosAtuais).find(s => s.controleCod === cod && (s.caixas > 0 || s.contentores > 0 || s.sacos > 0));
+                setFormSaida({
+                  ...formSaida,
+                  controleCod: cod,
+                  fazendaNome: primeiroComSaldo?.fazendaNome || '',
+                  culturaNome: primeiroComSaldo?.culturaNome || '',
+                  pivoNome: primeiroComSaldo?.pivoNome || '',
+                  glebaNome: primeiroComSaldo?.glebaNome || '',
+                  variedadeNome: primeiroComSaldo?.variedadeNome || '',
+                  produtoNome: primeiroComSaldo?.produtoNome || '',
+                  localNome: primeiroComSaldo?.localNome || '',
+                  embalagem: primeiroComSaldo?.caixas > 0 ? 'Caixa' : primeiroComSaldo?.contentores > 0 ? 'Contentor' : 'Saco'
+                });
               }}
             >
-              <option value="">Selecione</option>
-              {cadastros.controle.map((c: any) => <option key={c.id} value={c.id}>{c.cod}</option>)}
+              <option value="">Selecione o Controle com saldo...</option>
+              {controlesComSaldoParaSaida.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
 
-            <label>Produto (Classificação Comercial)</label>
+            {/* ITENS DISPONÍVEIS NESTE CONTROLE */}
+            <label>Produto / Lote Disponível no Controle</label>
             <select
-              value={formSaida.produtoId}
+              value={formSaida.produtoNome}
               onChange={(e) => {
-                setFormSaida({ ...formSaida, produtoId: e.target.value });
+                const prod = e.target.value;
+                const match = itensComSaldoNoControleSaida.find(s => s.produtoNome === prod);
+                if (match) {
+                  setFormSaida({
+                    ...formSaida,
+                    produtoNome: prod,
+                    localNome: match.localNome,
+                    variedadeNome: match.variedadeNome,
+                    glebaNome: match.glebaNome,
+                    embalagem: match.caixas > 0 ? 'Caixa' : match.contentores > 0 ? 'Contentor' : 'Saco'
+                  });
+                } else {
+                  setFormSaida({ ...formSaida, produtoNome: prod });
+                }
               }}
             >
-              <option value="">{controleSaidaObj ? 'Selecione o Produto' : 'Selecione o controle primeiro'}</option>
-              {controleSaidaObj && cadastros.produto.filter((p: any) => p.culturaId === controleSaidaObj.culturaId).map((p: any) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
+              <option value="">Selecione o Produto em estoque...</option>
+              {Array.from(new Set(itensComSaldoNoControleSaida.map(s => s.produtoNome))).map(p => (
+                <option key={p} value={p}>{p}</option>
               ))}
             </select>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', margin: '8px 0' }}>
               <div>
                 <label>Fazenda</label>
-                <input type="text" disabled value={cadastros.fazenda.find((f: any) => f.id === controleSaidaObj?.fazendaId)?.nome || ''} />
+                <input type="text" disabled value={formSaida.fazendaNome} />
               </div>
               <div>
                 <label>Cultura</label>
-                <input type="text" disabled value={cadastros.cultura.find((cu: any) => cu.id === controleSaidaObj?.culturaId)?.nome || ''} />
+                <input type="text" disabled value={formSaida.culturaNome} />
               </div>
               <div>
                 <label>Pivô</label>
-                <input type="text" disabled value={cadastros.pivo.find((p: any) => p.id === controleSaidaObj?.pivoId)?.nome || ''} />
+                <input type="text" disabled value={formSaida.pivoNome} />
               </div>
               <div>
                 <label>Gleba</label>
-                <select value={formSaida.glebaId} onChange={(e) => setFormSaida({ ...formSaida, glebaId: e.target.value })}>
-                  <option value="">Selecione</option>
-                  {(controleSaidaObj?.glebasIds || []).map((gId: number) => {
-                    const g = cadastros.gleba.find((x: any) => x.id === gId);
-                    return g ? <option key={g.id} value={g.id}>{g.nome}</option> : null;
-                  })}
-                </select>
+                <input type="text" disabled value={formSaida.glebaNome} />
               </div>
             </div>
 
             <label>Variedade</label>
-            <select value={formSaida.variedadeId} onChange={(e) => setFormSaida({ ...formSaida, variedadeId: e.target.value })}>
-              <option value="">Selecione</option>
-              {controleSaidaObj && cadastros.variedade.filter((v: any) => v.culturaId === controleSaidaObj.culturaId).map((v: any) => (
-                <option key={v.id} value={v.id}>{v.nome}</option>
-              ))}
-            </select>
+            <input type="text" disabled value={formSaida.variedadeNome} />
 
             <label>Local de Armazenamento</label>
-            <select value={formSaida.localId} onChange={(e) => setFormSaida({ ...formSaida, localId: e.target.value })}>
-              <option value="">Selecione</option>
-              {controleSaidaObj && cadastros.local.filter((l: any) => l.culturaId === controleSaidaObj.culturaId).map((l: any) => (
-                <option key={l.id} value={l.id}>{l.nome}</option>
+            <select
+              value={formSaida.localNome}
+              onChange={(e) => setFormSaida({ ...formSaida, localNome: e.target.value })}
+            >
+              <option value="">Selecione o Local...</option>
+              {Array.from(new Set(itensComSaldoNoControleSaida.map(s => s.localNome))).map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
               ))}
             </select>
 
             <label>Tipo de Embalagem</label>
-            <select value={formSaida.embalagem} onChange={(e) => setFormSaida({ ...formSaida, embalagem: e.target.value })}>
-              <option value="">Selecione</option>
+            <select
+              value={formSaida.embalagem}
+              onChange={(e) => setFormSaida({ ...formSaida, embalagem: e.target.value })}
+            >
               <option value="Caixa">Caixa</option>
-              <option value="Contentor">Contentor</option>
               <option value="Saco">Saco</option>
+              <option value="Contentor">Contentor / Bin</option>
             </select>
 
-            <label>Quantidade (unidades)</label>
+            {/* SALDO EM TEMPO REAL */}
+            {(() => {
+              const chave = `${formSaida.controleCod}_${formSaida.localNome}_${formSaida.produtoNome}_${formSaida.variedadeNome}_${formSaida.glebaNome}`;
+              const s = saldosAtuais[chave];
+              let saldoAtual = 0;
+              if (s) {
+                if (formSaida.embalagem === 'Caixa') saldoAtual = s.caixas;
+                else if (formSaida.embalagem === 'Contentor') saldoAtual = s.contentores;
+                else if (formSaida.embalagem === 'Saco') saldoAtual = s.sacos;
+              }
+              return (
+                <div style={{ padding: '6px 10px', background: '#e3f2fd', borderRadius: '4px', margin: '6px 0', fontSize: '12px', color: '#0d47a1', fontWeight: 'bold' }}>
+                  Saldo disponível neste lote: {saldoAtual} {formSaida.embalagem || 'unidades'}
+                </div>
+              );
+            })()}
+
+            <label>Quantidade a Baixar (unidades)</label>
             <input
               type="number"
               min="1"
@@ -1631,169 +1155,12 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
               placeholder="Ex: 50"
             />
 
-            <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
               <button className="btn btn-salvar" onClick={salvarSaida}>✅ Lançar Saída</button>
-              {formSaida.id && (
-                <button
-                  className="btn btn-cancelar"
-                  onClick={() => setFormSaida({ id: null, data: dataHoje(), controleId: '', glebaId: '', variedadeId: '', produtoId: '', localId: '', embalagem: '', qtd: '' })}
-                >
-                  ❌ Cancelar
-                </button>
-              )}
+              <button className="btn btn-cancelar" onClick={() => setPaginaAtiva('inicial')}>❌ Cancelar</button>
             </div>
 
             {msgSaida && <div className={`resultado ${msgSaida.tipo}`}>{msgSaida.texto}</div>}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 7. ABA DETALHES (MODAL COMPLETO) */}
-      {/* ========================================================================= */}
-      {abaDetalhesAberta && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', zIndex: 99999, justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: 'white', width: '95%', maxWidth: '850px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#e3f2fd', borderBottom: '2px solid #bbdefb' }}>
-              <h3 style={{ color: '#0d47a1', fontWeight: 'bold', fontSize: '15px', margin: 0 }}>{tituloAba}</h3>
-              <button
-                onClick={() => setAbaDetalhesAberta(false)}
-                style={{ background: '#0d47a1', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
-              >
-                &times;
-              </button>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-              {tipoAbaDetalhes === 'cadastro' && (
-                <div className="tabela-wrapper">
-                  {(cadastros as any)[tipoAtual].length === 0 ? (
-                    <p className="vazio">Nenhum registro encontrado</p>
-                  ) : (
-                    <table className="tabela">
-                      <thead>
-                        <tr>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Informações</th>
-                          <th style={{ color: 'white', background: '#1f7294', textAlign: 'center', width: '80px' }}>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(cadastros as any)[tipoAtual].map((item: any) => {
-                          let info = '';
-                          if (tipoAtual === 'cultura') info = `Cód: ${item.cod} | Nome: ${item.nome}`;
-                          else if (tipoAtual === 'variedade') info = `Cultura: ${cadastros.cultura.find((c: any) => c.id === item.culturaId)?.nome || '-'} | Nome: ${item.nome}`;
-                          else if (tipoAtual === 'produto') info = `Cultura: ${cadastros.cultura.find((c: any) => c.id === item.culturaId)?.nome || '-'} | Cód: ${item.cod} | Nome: ${item.nome}`;
-                          else if (tipoAtual === 'local') info = `Cultura: ${cadastros.cultura.find((c: any) => c.id === item.culturaId)?.nome || '-'} | Nome: ${item.nome}`;
-                          else if (tipoAtual === 'fazenda' || tipoAtual === 'gleba' || tipoAtual === 'pivo') info = `Nome: ${item.nome}`;
-                          else if (tipoAtual === 'controle') {
-                            const glebasNomes = (item.glebasIds || []).map((id: number) => cadastros.gleba.find((g: any) => g.id === id)?.nome).filter(Boolean).join(', ');
-                            info = `Controle: ${item.cod} | Fazenda: ${cadastros.fazenda.find((f: any) => f.id === item.fazendaId)?.nome || '-'} | Glebas: [${glebasNomes}]`;
-                          }
-                          return (
-                            <tr key={item.id}>
-                              <td>{info}</td>
-                              <td style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                <button className="btn-acao" onClick={() => editarRegistro(item)} title="Editar">
-                                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                                </button>
-                                <button className="btn-acao" onClick={() => excluirRegistro(item.id)} title="Excluir">
-                                  <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-
-              {tipoAbaDetalhes === 'entrada' && (
-                <div className="tabela-wrapper">
-                  {entradas.length === 0 ? (
-                    <p className="vazio">Nenhuma entrada cadastrada</p>
-                  ) : (
-                    <table className="tabela">
-                      <thead>
-                        <tr>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Data</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Local</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Produto</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Controle</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Qtd</th>
-                          <th style={{ color: 'white', background: '#1f7294', textAlign: 'center', width: '80px' }}>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entradas.map((l) => {
-                          const dataBR = l.data ? l.data.split('-').reverse().join('/') : '-';
-                          return (
-                            <tr key={l.id}>
-                              <td>{dataBR}</td>
-                              <td>{cadastros.local.find((x: any) => x.id === l.localId)?.nome || '-'}</td>
-                              <td>{cadastros.produto.find((x: any) => x.id === l.produtoId)?.nome || '-'}</td>
-                              <td>{cadastros.controle.find((x: any) => x.id === l.controleId)?.cod || '-'}</td>
-                              <td><strong>{l.qtd}</strong> ({l.embalagem})</td>
-                              <td style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                <button className="btn-acao" onClick={() => editarEntradaItem(l)} title="Editar">
-                                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                                </button>
-                                <button className="btn-acao" onClick={() => excluirEntradaItem(l.id)} title="Excluir">
-                                  <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-
-              {tipoAbaDetalhes === 'saida' && (
-                <div className="tabela-wrapper">
-                  {saidas.length === 0 ? (
-                    <p className="vazio">Nenhuma saída cadastrada</p>
-                  ) : (
-                    <table className="tabela">
-                      <thead>
-                        <tr>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Data</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Local</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Produto</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Controle</th>
-                          <th style={{ color: 'white', background: '#1f7294' }}>Qtd</th>
-                          <th style={{ color: 'white', background: '#1f7294', textAlign: 'center', width: '80px' }}>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {saidas.map((l) => {
-                          const dataBR = l.data ? l.data.split('-').reverse().join('/') : '-';
-                          return (
-                            <tr key={l.id}>
-                              <td>{dataBR}</td>
-                              <td>{cadastros.local.find((x: any) => x.id === l.localId)?.nome || '-'}</td>
-                              <td>{cadastros.produto.find((x: any) => x.id === l.produtoId)?.nome || '-'}</td>
-                              <td>{cadastros.controle.find((x: any) => x.id === l.controleId)?.cod || '-'}</td>
-                              <td style={{ color: '#dc3545', fontWeight: 'bold' }}>{l.qtd} ({l.embalagem})</td>
-                              <td style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                <button className="btn-acao" onClick={() => editarSaidaItem(l)} title="Editar">
-                                  <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                                </button>
-                                <button className="btn-acao" onClick={() => excluirSaidaItem(l.id)} title="Excluir">
-                                  <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}

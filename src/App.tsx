@@ -6093,6 +6093,11 @@ export default function App() {
               culturas={culturasData}
               variedades={variedadesData}
               fazendas={fazendasData}
+              pivos={pivosData}
+              glebas={glebasData}
+              colheitaData={colheitaData}
+              plantioData={plantioData}
+              projetosSankhya={projetosSankhyaData}
               motoristas={motoristasData}
               onSaveEstoqueItem={handleSaveEstoqueItem}
               onDeleteEstoqueItem={handleDeleteEstoqueItem}
