@@ -1561,11 +1561,82 @@ table.grid-editing td[contenteditable="true"] {
   user-select: none;
   vertical-align: middle;
   height: 48px;
+  position: relative !important;
 }
 
 #tablePlantio thead th:last-child,
 #tableColheita thead th:last-child {
   border-right: none;
+}
+
+/* REDIMENSIONADORES DE COLUNA E LINHA ESTILO EXCEL */
+.excel-col-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize !important;
+  user-select: none;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.excel-col-resizer::after {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 60%;
+  background-color: rgba(255, 255, 255, 0.35);
+  transition: all 0.15s ease-in-out;
+}
+
+.excel-col-resizer:hover,
+.excel-col-resizer:active {
+  background-color: rgba(250, 204, 21, 0.2);
+}
+
+.excel-col-resizer:hover::after,
+.excel-col-resizer:active::after {
+  background-color: #facc15;
+  width: 3px;
+  height: 100%;
+  box-shadow: 0 0 5px rgba(250, 204, 21, 0.9);
+}
+
+.excel-row-resizer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize !important;
+  user-select: none;
+  z-index: 10;
+  display: block;
+}
+
+.excel-row-resizer::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 1px;
+  background-color: transparent;
+  transition: all 0.15s ease-in-out;
+}
+
+.excel-row-resizer:hover,
+.excel-row-resizer:active {
+  background-color: rgba(37, 99, 235, 0.15);
+}
+
+.excel-row-resizer:hover::after,
+.excel-row-resizer:active::after {
+  background-color: #2563eb;
+  height: 2px;
+  box-shadow: 0 0 4px rgba(37, 99, 235, 0.8);
 }
 
 #tablePlantio .th-excel-content,
@@ -1639,6 +1710,7 @@ table.grid-editing td[contenteditable="true"] {
   font-size: 12px;
   color: #1e293b;
   vertical-align: middle;
+  position: relative !important;
 }
 
 #tablePlantio tbody td:last-child,

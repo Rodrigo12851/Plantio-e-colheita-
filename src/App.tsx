@@ -4,6 +4,8 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { PMSSection, PMSItem, DEFAULT_PMS_DATA, cleanValue, getPmsDocId } from './components/PMSSection';
 import { SankhyaSection, SankhyaProjectItem, DEFAULT_PROJETOS_SANKHYA } from './components/SankhyaSection';
 import { GeneralImportModal, GeneralCategoryKey } from './components/GeneralImportModal';
+import { useTableDimensions } from './lib/useTableDimensions';
+import { ExcelDimensionsControl } from './components/ExcelDimensionsControl';
 import {
   subscribeToCollection,
   saveDocument,
@@ -448,6 +450,22 @@ export default function App() {
       setToast(prev => (prev?.message === message ? null : prev));
     }, onUndo ? 6000 : 3500);
   };
+
+  // Excel Table Dimensions (Column widths and row heights)
+  const {
+    colWidthsColheita,
+    colWidthsPlantio,
+    defaultRowHeight,
+    totalWidthColheita,
+    totalWidthPlantio,
+    getRowHeight,
+    handleColResizeStart,
+    handleColReset,
+    handleRowResizeStart,
+    handleRowReset,
+    handleSetRowHeightPreset,
+    handleResetTableDimensions
+  } = useTableDimensions((msg, type) => showToast(msg, type === 'error' ? 'warning' : type));
 
   // Custom confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -4228,6 +4246,14 @@ export default function App() {
               >
                 <i className="fa-solid fa-xmark"></i> Limpar Filtros
               </button>
+              {(activePage === 'colheita' || activePage === 'plantio') && (
+                <ExcelDimensionsControl
+                  tableType={activePage as 'colheita' | 'plantio'}
+                  defaultRowHeight={defaultRowHeight}
+                  onSetRowHeightPreset={handleSetRowHeightPreset}
+                  onResetDimensions={() => handleResetTableDimensions(activePage as 'colheita' | 'plantio')}
+                />
+              )}
               <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#323130', fontWeight: 500 }}>
                   Todos os Itens <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }}></i>
@@ -4259,27 +4285,11 @@ export default function App() {
           {/* PAGE COLHEITA */}
           <div id="pageColheita" className={`page-section ${activePage === 'colheita' ? 'active' : ''}`}>
             <div className="table-container">
-              <table id="tableColheita" className={isGridEditing ? 'grid-editing' : ''}>
+              <table id="tableColheita" className={isGridEditing ? 'grid-editing' : ''} style={{ minWidth: `${totalWidthColheita}px` }}>
                 <colgroup>
-                  <col style={{ width: '105px' }} />
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '110px' }} />
-                  <col style={{ width: '95px' }} />
-                  <col style={{ width: '160px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '80px' }} />
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '110px' }} />
-                  <col style={{ width: '110px' }} />
-                  <col style={{ width: '115px' }} />
-                  <col style={{ width: '140px' }} />
-                  <col style={{ width: '150px' }} />
-                  <col style={{ width: '140px' }} />
-                  <col style={{ width: '155px' }} />
-                  <col style={{ width: '85px' }} />
-                  <col style={{ width: '75px' }} />
-                  <col style={{ width: '75px' }} />
+                  {colWidthsColheita.map((w, i) => (
+                    <col key={i} style={{ width: `${w}px` }} />
+                  ))}
                 </colgroup>
                 <thead>
                   <tr>
@@ -4294,6 +4304,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(0) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(0) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 0, e)}
+                        onDoubleClick={() => handleColReset('colheita', 0)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Unidade">
                       <div className="th-excel-content">
@@ -4306,6 +4322,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(1) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(1) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 1, e)}
+                        onDoubleClick={() => handleColReset('colheita', 1)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Cultura">
                       <div className="th-excel-content">
@@ -4318,6 +4340,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(2) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(2) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 2, e)}
+                        onDoubleClick={() => handleColReset('colheita', 2)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="C.Custo">
                       <div className="th-excel-content">
@@ -4330,6 +4358,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(3) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(3) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 3, e)}
+                        onDoubleClick={() => handleColReset('colheita', 3)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Fazenda">
                       <div className="th-excel-content">
@@ -4342,6 +4376,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(4) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(4) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 4, e)}
+                        onDoubleClick={() => handleColReset('colheita', 4)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="PIVO">
                       <div className="th-excel-content">
@@ -4354,6 +4394,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(5) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(5) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 5, e)}
+                        onDoubleClick={() => handleColReset('colheita', 5)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Área/há">
                       <div className="th-excel-content">
@@ -4366,6 +4412,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(6) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(6) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 6, e)}
+                        onDoubleClick={() => handleColReset('colheita', 6)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Gleba">
                       <div className="th-excel-content">
@@ -4378,6 +4430,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(7) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(7) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 7, e)}
+                        onDoubleClick={() => handleColReset('colheita', 7)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Variedade">
                       <div className="th-excel-content">
@@ -4390,6 +4448,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(8) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(8) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 8, e)}
+                        onDoubleClick={() => handleColReset('colheita', 8)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Qtd. Colhida">
                       <div className="th-excel-content">
@@ -4402,6 +4466,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(9) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(9) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 9, e)}
+                        onDoubleClick={() => handleColReset('colheita', 9)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Média P/ Há">
                       <div className="th-excel-content">
@@ -4414,6 +4484,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(10) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(10) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 10, e)}
+                        onDoubleClick={() => handleColReset('colheita', 10)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Embalagem">
                       <div className="th-excel-content">
@@ -4426,6 +4502,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(11) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(11) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 11, e)}
+                        onDoubleClick={() => handleColReset('colheita', 11)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Produção Bruta Kg">
                       <div className="th-excel-content">
@@ -4438,6 +4520,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(12) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(12) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 12, e)}
+                        onDoubleClick={() => handleColReset('colheita', 12)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Produtividade Bruta/há">
                       <div className="th-excel-content">
@@ -4450,6 +4538,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(13) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(13) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 13, e)}
+                        onDoubleClick={() => handleColReset('colheita', 13)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Produção Beneficiada">
                       <div className="th-excel-content">
@@ -4462,6 +4556,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(14) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(14) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 14, e)}
+                        onDoubleClick={() => handleColReset('colheita', 14)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Produtividade Líquida/ha">
                       <div className="th-excel-content">
@@ -4474,6 +4574,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(15) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(15) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 15, e)}
+                        onDoubleClick={() => handleColReset('colheita', 15)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="mês">
                       <div className="th-excel-content">
@@ -4486,6 +4592,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(16) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(16) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 16, e)}
+                        onDoubleClick={() => handleColReset('colheita', 16)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Ano">
                       <div className="th-excel-content">
@@ -4498,15 +4610,29 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(17) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(17) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 17, e)}
+                        onDoubleClick={() => handleColReset('colheita', 17)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th style={{ textAlign: 'center', width: '75px' }}>
                       <span className="th-excel-label" style={{ fontSize: '11px' }}>AÇÕES</span>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('colheita', 18, e)}
+                        onDoubleClick={() => handleColReset('colheita', 18)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                   </tr>
                 </thead>
                 <tbody id="tbodyColheita">
                   {getSortedList(colheitaData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
+                    const rowKey = item.id || (item as any).codigo || `colheita_${idx}`;
+                    const rowHeight = getRowHeight('colheita', rowKey);
                     const rowCells = [
                       item.data,
                       item.unidade || item.empresa || selectedUnidade || '-',
@@ -4529,29 +4655,94 @@ export default function App() {
                     ];
                     if (!isRowVisible(rowCells)) return null;
 
+                    const rowResizer = (
+                      <div
+                        className="excel-row-resizer"
+                        contentEditable={false}
+                        onMouseDown={e => handleRowResizeStart('colheita', rowKey, e)}
+                        onDoubleClick={() => handleRowReset('colheita', rowKey)}
+                        title="Arraste para ajustar altura da linha (Shift para todas) | Duplo clique para restaurar"
+                      />
+                    );
+
                     return (
-                      <tr key={idx}>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'data', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.data}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'unidade', e.currentTarget.innerText)}>{item.unidade || item.empresa || selectedUnidade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cultura', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.cultura}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cCusto', e.currentTarget.innerText)}>{item.cCusto || item.os || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'fazenda', e.currentTarget.innerText)}>{item.fazenda}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'pivo', e.currentTarget.innerText)}>{item.pivo || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'areaHa', e.currentTarget.innerText)}>{item.areaHa || item.haDia || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'gleba', e.currentTarget.innerText)}>{item.gleba || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'variedade', e.currentTarget.innerText)}>{item.variedade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'qtdColhida', e.currentTarget.innerText)}>{item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mediaHa', e.currentTarget.innerText)} style={{ fontWeight: 600, color: '#0369a1' }}>{item.mediaHa || calculateMediaHaForColheita(item.qtdColhida || item.qtdColhido || item.caixasCortadas, item.areaHa || item.haDia) || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'embalagem', e.currentTarget.innerText)}>{item.embalagem || item.caixaBinBag || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBrutaKg', e.currentTarget.innerText)}>{item.producaoBrutaKg || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeBrutaHa', e.currentTarget.innerText)}>{item.produtividadeBrutaHa || calculateProdutividade(item.producaoBrutaKg, item.areaHa || item.haDia) || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBeneficiada', e.currentTarget.innerText)}>{item.producaoBeneficiada || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeLiquidaHa', e.currentTarget.innerText)}>{item.produtividadeLiquidaHa || calculateProdutividade(item.producaoBeneficiada, item.areaHa || item.haDia) || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>{item.mes || getMonthNameFromDate(item.data) || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.ano || getYearFromDate(item.data) || '-'}</td>
+                      <tr key={idx} style={{ height: `${rowHeight}px` }}>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'data', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>
+                          {item.data}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'unidade', e.currentTarget.innerText)}>
+                          {item.unidade || item.empresa || selectedUnidade || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cultura', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>
+                          {item.cultura}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cCusto', e.currentTarget.innerText)}>
+                          {item.cCusto || item.os || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'fazenda', e.currentTarget.innerText)}>
+                          {item.fazenda}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'pivo', e.currentTarget.innerText)}>
+                          {item.pivo || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'areaHa', e.currentTarget.innerText)}>
+                          {item.areaHa || item.haDia || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'gleba', e.currentTarget.innerText)}>
+                          {item.gleba || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'variedade', e.currentTarget.innerText)}>
+                          {item.variedade || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'qtdColhida', e.currentTarget.innerText)}>
+                          {item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mediaHa', e.currentTarget.innerText)} style={{ fontWeight: 600, color: '#0369a1' }}>
+                          {item.mediaHa || calculateMediaHaForColheita(item.qtdColhida || item.qtdColhido || item.caixasCortadas, item.areaHa || item.haDia) || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'embalagem', e.currentTarget.innerText)}>
+                          {item.embalagem || item.caixaBinBag || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBrutaKg', e.currentTarget.innerText)}>
+                          {item.producaoBrutaKg || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeBrutaHa', e.currentTarget.innerText)}>
+                          {item.produtividadeBrutaHa || calculateProdutividade(item.producaoBrutaKg, item.areaHa || item.haDia) || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBeneficiada', e.currentTarget.innerText)}>
+                          {item.producaoBeneficiada || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeLiquidaHa', e.currentTarget.innerText)}>
+                          {item.produtividadeLiquidaHa || calculateProdutividade(item.producaoBeneficiada, item.areaHa || item.haDia) || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>
+                          {item.mes || getMonthNameFromDate(item.data) || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>
+                          {item.ano || getYearFromDate(item.data) || '-'}
+                          {rowResizer}
+                        </td>
                         <td className="action-cell">
                           <button className="btn-action-row" onClick={() => openCurrentModal(rowCells, idx)} title="Editar"><i className="fa-solid fa-pen"></i></button>
                           <button className="btn-action-row" onClick={() => deleteRow('colheita', idx)} title="Mover para Lixeira"><i className="fa-solid fa-trash"></i></button>
+                          {rowResizer}
                         </td>
                       </tr>
                     );
@@ -4564,22 +4755,11 @@ export default function App() {
           {/* PAGE PLANTIO */}
           <div id="pagePlantio" className={`page-section ${activePage === 'plantio' ? 'active' : ''}`}>
             <div className="table-container">
-              <table id="tablePlantio" className={isGridEditing ? 'grid-editing' : ''}>
+              <table id="tablePlantio" className={isGridEditing ? 'grid-editing' : ''} style={{ minWidth: `${totalWidthPlantio}px` }}>
                 <colgroup>
-                  <col style={{ width: '105px' }} />
-                  <col style={{ width: '135px' }} />
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '95px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '110px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '130px' }} />
-                  <col style={{ width: '95px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '130px' }} />
-                  <col style={{ width: '125px' }} />
-                  <col style={{ width: '75px' }} />
-                  <col style={{ width: '75px' }} />
+                  {colWidthsPlantio.map((w, i) => (
+                    <col key={i} style={{ width: `${w}px` }} />
+                  ))}
                 </colgroup>
                 <thead>
                   <tr>
@@ -4594,6 +4774,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(0) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(0) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 0, e)}
+                        onDoubleClick={() => handleColReset('plantio', 0)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="UNIDADE">
                       <div className="th-excel-content">
@@ -4606,6 +4792,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(1) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(1) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 1, e)}
+                        onDoubleClick={() => handleColReset('plantio', 1)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Cultura">
                       <div className="th-excel-content">
@@ -4618,6 +4810,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(2) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(2) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 2, e)}
+                        onDoubleClick={() => handleColReset('plantio', 2)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="C.Custo">
                       <div className="th-excel-content">
@@ -4630,6 +4828,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(3) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(3) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 3, e)}
+                        onDoubleClick={() => handleColReset('plantio', 3)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Fazenda">
                       <div className="th-excel-content">
@@ -4642,6 +4846,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(4) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(4) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 4, e)}
+                        onDoubleClick={() => handleColReset('plantio', 4)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="PIVO">
                       <div className="th-excel-content">
@@ -4654,6 +4864,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(5) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(5) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 5, e)}
+                        onDoubleClick={() => handleColReset('plantio', 5)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Gleba">
                       <div className="th-excel-content">
@@ -4666,6 +4882,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(6) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(6) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 6, e)}
+                        onDoubleClick={() => handleColReset('plantio', 6)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Variedade">
                       <div className="th-excel-content">
@@ -4678,6 +4900,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(7) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(7) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 7, e)}
+                        onDoubleClick={() => handleColReset('plantio', 7)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Área/há">
                       <div className="th-excel-content">
@@ -4690,6 +4918,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(8) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(8) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 8, e)}
+                        onDoubleClick={() => handleColReset('plantio', 8)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Mês">
                       <div className="th-excel-content">
@@ -4702,6 +4936,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(9) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(9) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 9, e)}
+                        onDoubleClick={() => handleColReset('plantio', 9)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Obs">
                       <div className="th-excel-content">
@@ -4714,6 +4954,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(10) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(10) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 10, e)}
+                        onDoubleClick={() => handleColReset('plantio', 10)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Area Descartadas">
                       <div className="th-excel-content">
@@ -4726,6 +4972,12 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(11) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(11) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 11, e)}
+                        onDoubleClick={() => handleColReset('plantio', 11)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th title="Ano">
                       <div className="th-excel-content">
@@ -4738,15 +4990,29 @@ export default function App() {
                           <i className={`fa-solid ${isColFiltered(12) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(12) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 12, e)}
+                        onDoubleClick={() => handleColReset('plantio', 12)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                     <th style={{ textAlign: 'center', width: '75px' }}>
                       <span className="th-excel-label" style={{ fontSize: '11px' }}>AÇÕES</span>
+                      <div
+                        className="excel-col-resizer"
+                        onMouseDown={e => handleColResizeStart('plantio', 13, e)}
+                        onDoubleClick={() => handleColReset('plantio', 13)}
+                        title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
+                      />
                     </th>
                   </tr>
                 </thead>
                 <tbody id="tbodyPlantio">
                   {getSortedList(plantioData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
+                    const rowKey = item.id || (item as any).codigo || `plantio_${idx}`;
+                    const rowHeight = getRowHeight('plantio', rowKey);
                     const rowCells = [
                       item.data,
                       item.unidade || item.empresa || selectedUnidade || '-',
@@ -4764,24 +5030,74 @@ export default function App() {
                     ];
                     if (!isRowVisible(rowCells)) return null;
 
+                    const rowResizer = (
+                      <div
+                        className="excel-row-resizer"
+                        contentEditable={false}
+                        onMouseDown={e => handleRowResizeStart('plantio', rowKey, e)}
+                        onDoubleClick={() => handleRowReset('plantio', rowKey)}
+                        title="Arraste para ajustar altura da linha (Shift para todas) | Duplo clique para restaurar"
+                      />
+                    );
+
                     return (
-                      <tr key={idx}>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'data', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.data}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'unidade', e.currentTarget.innerText)}>{item.unidade || item.empresa || selectedUnidade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'cultura', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.cultura}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'cCusto', e.currentTarget.innerText)}>{item.cCusto || item.os || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'fazenda', e.currentTarget.innerText)}>{item.fazenda}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'pivo', e.currentTarget.innerText)}>{item.pivo || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'gleba', e.currentTarget.innerText)}>{item.gleba || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'variedade', e.currentTarget.innerText)}>{item.variedade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'haDia', e.currentTarget.innerText)} style={{ fontWeight: 600, color: '#0369a1' }}>{item.haDia || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'mes', e.currentTarget.innerText)}>{item.mes || getMonthNameFromDate(item.data) || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'obs', e.currentTarget.innerText)}>{item.obs || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'areaDescartadas', e.currentTarget.innerText)}>{item.areaDescartadas || '0,00'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'ano', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.ano || getYearFromDate(item.data) || '-'}</td>
+                      <tr key={idx} style={{ height: `${rowHeight}px` }}>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'data', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>
+                          {item.data}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'unidade', e.currentTarget.innerText)}>
+                          {item.unidade || item.empresa || selectedUnidade || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'cultura', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>
+                          {item.cultura}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'cCusto', e.currentTarget.innerText)}>
+                          {item.cCusto || item.os || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'fazenda', e.currentTarget.innerText)}>
+                          {item.fazenda}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'pivo', e.currentTarget.innerText)}>
+                          {item.pivo || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'gleba', e.currentTarget.innerText)}>
+                          {item.gleba || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'variedade', e.currentTarget.innerText)}>
+                          {item.variedade || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'haDia', e.currentTarget.innerText)} style={{ fontWeight: 600, color: '#0369a1' }}>
+                          {item.haDia || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'mes', e.currentTarget.innerText)}>
+                          {item.mes || getMonthNameFromDate(item.data) || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'obs', e.currentTarget.innerText)}>
+                          {item.obs || '-'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'areaDescartadas', e.currentTarget.innerText)}>
+                          {item.areaDescartadas || '0,00'}
+                          {rowResizer}
+                        </td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('plantio', idx, 'ano', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>
+                          {item.ano || getYearFromDate(item.data) || '-'}
+                          {rowResizer}
+                        </td>
                         <td className="action-cell">
                           <button className="btn-action-row" onClick={() => openCurrentModal(rowCells, idx)} title="Editar"><i className="fa-solid fa-pen"></i></button>
                           <button className="btn-action-row" onClick={() => deleteRow('plantio', idx)} title="Mover para Lixeira"><i className="fa-solid fa-trash"></i></button>
+                          {rowResizer}
                         </td>
                       </tr>
                     );
