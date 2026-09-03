@@ -33,19 +33,24 @@
       "properties": {
         "id": { "type": "string" },
         "data": { "type": "string" },
+        "unidade": { "type": "string" },
         "empresa": { "type": "string" },
         "cultura": { "type": "string" },
+        "cCusto": { "type": "string" },
         "os": { "type": "string" },
         "fazenda": { "type": "string" },
         "pivo": { "type": "string" },
         "gleba": { "type": "string" },
         "variedade": { "type": "string" },
         "haDia": { "type": "string" },
+        "mes": { "type": "string" },
+        "obs": { "type": "string" },
+        "areaDescartadas": { "type": "string" },
+        "ano": { "type": "string" },
+        "haGeral": { "type": "string" },
         "haRestante": { "type": "string" },
         "glebasFinalizada": { "type": "string" },
-        "mediaHa": { "type": "string" },
-        "ano": { "type": "string" },
-        "unidade": { "type": "string" }
+        "mediaHa": { "type": "string" }
       },
       "required": ["data", "cultura", "fazenda"]
     },

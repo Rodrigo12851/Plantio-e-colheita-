@@ -142,18 +142,23 @@ export const CATEGORY_DEFINITIONS: Record<GeneralCategoryKey, CategoryInfo> = {
     icon: 'fa-seedling',
     fields: [
       { key: 'data', label: 'Data', required: true },
-      { key: 'empresa', label: 'Empresa' },
+      { key: 'unidade', label: 'UNIDADE' },
       { key: 'cultura', label: 'Cultura', required: true },
-      { key: 'os', label: 'OS' },
+      { key: 'cCusto', label: 'C.Custo' },
       { key: 'fazenda', label: 'Fazenda', required: true },
-      { key: 'pivo', label: 'Pivô' },
+      { key: 'pivo', label: 'PIVO' },
       { key: 'gleba', label: 'Gleba' },
       { key: 'variedade', label: 'Variedade' },
-      { key: 'haDia', label: 'HA / Dia' },
+      { key: 'haDia', label: 'Área/há' },
+      { key: 'mes', label: 'Mês' },
+      { key: 'obs', label: 'Obs' },
+      { key: 'areaDescartadas', label: 'Area Descartadas' },
+      { key: 'ano', label: 'Ano' },
+      { key: 'empresa', label: 'Empresa' },
+      { key: 'os', label: 'OS' },
       { key: 'haRestante', label: 'HA Restante' },
       { key: 'glebasFinalizada', label: 'Finalizada' },
-      { key: 'mediaHa', label: 'Média HA' },
-      { key: 'ano', label: 'Ano' }
+      { key: 'mediaHa', label: 'Média HA' }
     ]
   },
   colheita: {
@@ -316,7 +321,17 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
         } else if (fieldKey === 'tipo') {
           idx = headers.findIndex(h => normalizeKey(h).includes('tipo') || normalizeKey(h).includes('vinc'));
         } else if (fieldKey === 'haDia') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('hadia') || normalizeKey(h).includes('ha_dia') || normalizeKey(h).includes('hectares'));
+          idx = headers.findIndex(h => normalizeKey(h).includes('hadia') || normalizeKey(h).includes('ha_dia') || normalizeKey(h).includes('hectares') || normalizeKey(h).includes('areaha') || normalizeKey(h).includes('area'));
+        } else if (fieldKey === 'unidade') {
+          idx = headers.findIndex(h => normalizeKey(h).includes('unidade') || normalizeKey(h).includes('empresa'));
+        } else if (fieldKey === 'cCusto') {
+          idx = headers.findIndex(h => normalizeKey(h).includes('ccusto') || normalizeKey(h).includes('c.custo') || normalizeKey(h).includes('custo') || normalizeKey(h).includes('os'));
+        } else if (fieldKey === 'mes') {
+          idx = headers.findIndex(h => normalizeKey(h) === 'mes' || normalizeKey(h).includes('mes'));
+        } else if (fieldKey === 'obs') {
+          idx = headers.findIndex(h => normalizeKey(h).includes('obs') || normalizeKey(h).includes('observ'));
+        } else if (fieldKey === 'areaDescartadas') {
+          idx = headers.findIndex(h => normalizeKey(h).includes('descart') || normalizeKey(h).includes('area descartadas'));
         }
       }
 
@@ -385,6 +400,15 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
       });
 
       if (!hasAnyValue) continue;
+
+      if (catKey === 'plantio') {
+        if (!itemData.unidade && itemData.empresa) itemData.unidade = itemData.empresa;
+        if (!itemData.empresa && itemData.unidade) itemData.empresa = itemData.unidade;
+        if (!itemData.os && itemData.cCusto) itemData.os = itemData.cCusto;
+        if (!itemData.cCusto && itemData.os) itemData.cCusto = itemData.os;
+        if (!itemData.areaDescartadas) itemData.areaDescartadas = '0,00';
+        if (!itemData.obs) itemData.obs = '-';
+      }
 
       // Auto generate sequential code if missing
       if (catInfo.fields.some(f => f.key === 'codigo' || f.key === 'codigoMarca') && !itemData['codigo'] && !itemData['codigoMarca']) {
