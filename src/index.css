@@ -1529,20 +1529,15 @@ table.grid-editing td[contenteditable="true"] {
 /* TABELA ESTILO EXCEL / PLANILHA PARA PLANTIO E COLHEITA */
 #tablePlantio,
 #tableColheita {
-  table-layout: fixed;
-  width: 100%;
+  table-layout: fixed !important;
   border-collapse: collapse;
   font-size: 12px;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
-}
-
-#tablePlantio {
-  min-width: 1540px;
-}
-
-#tableColheita {
-  min-width: 2100px;
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0;
 }
 
 #tablePlantio thead th,
@@ -1555,13 +1550,13 @@ table.grid-editing td[contenteditable="true"] {
   padding: 6px 7px !important;
   border-right: 1px solid rgba(255, 255, 255, 0.25);
   border-bottom: 2px solid #1e3a8a;
-  white-space: normal !important;
-  word-break: normal;
-  overflow-wrap: break-word;
+  white-space: nowrap !important;
+  overflow: hidden !important;
   user-select: none;
   vertical-align: middle;
   height: 48px;
   position: relative !important;
+  box-sizing: border-box !important;
 }
 
 #tablePlantio thead th:last-child,
@@ -1645,20 +1640,23 @@ table.grid-editing td[contenteditable="true"] {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  gap: 4px;
+  gap: 3px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 #tablePlantio .th-excel-label,
 #tableColheita .th-excel-label {
   font-weight: 700;
   color: #ffffff;
-  white-space: normal !important;
-  word-break: normal;
-  overflow-wrap: break-word;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
   line-height: 1.22;
   font-size: 11.5px;
   letter-spacing: 0.1px;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: left;
 }
 

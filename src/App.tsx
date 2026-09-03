@@ -4285,15 +4285,24 @@ export default function App() {
           {/* PAGE COLHEITA */}
           <div id="pageColheita" className={`page-section ${activePage === 'colheita' ? 'active' : ''}`}>
             <div className="table-container">
-              <table id="tableColheita" className={isGridEditing ? 'grid-editing' : ''} style={{ minWidth: `${totalWidthColheita}px` }}>
+              <table
+                id="tableColheita"
+                className={isGridEditing ? 'grid-editing' : ''}
+                style={{
+                  width: `${totalWidthColheita}px`,
+                  minWidth: `${totalWidthColheita}px`,
+                  maxWidth: `${totalWidthColheita}px`,
+                  tableLayout: 'fixed'
+                }}
+              >
                 <colgroup>
                   {colWidthsColheita.map((w, i) => (
-                    <col key={i} style={{ width: `${w}px` }} />
+                    <col key={i} style={{ width: `${w}px`, minWidth: `${w}px`, maxWidth: `${w}px` }} />
                   ))}
                 </colgroup>
                 <thead>
                   <tr>
-                    <th title="DATA">
+                    <th title="DATA" style={{ width: `${colWidthsColheita[0]}px`, minWidth: `${colWidthsColheita[0]}px`, maxWidth: `${colWidthsColheita[0]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">DATA</span>
                         <button
@@ -4311,7 +4320,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Unidade">
+                    <th title="Unidade" style={{ width: `${colWidthsColheita[1]}px`, minWidth: `${colWidthsColheita[1]}px`, maxWidth: `${colWidthsColheita[1]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Unidade</span>
                         <button
@@ -4329,7 +4338,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Cultura">
+                    <th title="Cultura" style={{ width: `${colWidthsColheita[2]}px`, minWidth: `${colWidthsColheita[2]}px`, maxWidth: `${colWidthsColheita[2]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Cultura</span>
                         <button
@@ -4347,7 +4356,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="C.Custo">
+                    <th title="C.Custo" style={{ width: `${colWidthsColheita[3]}px`, minWidth: `${colWidthsColheita[3]}px`, maxWidth: `${colWidthsColheita[3]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">C.Custo</span>
                         <button
@@ -4365,7 +4374,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Fazenda">
+                    <th title="Fazenda" style={{ width: `${colWidthsColheita[4]}px`, minWidth: `${colWidthsColheita[4]}px`, maxWidth: `${colWidthsColheita[4]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Fazenda</span>
                         <button
@@ -4383,7 +4392,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="PIVO">
+                    <th title="PIVO" style={{ width: `${colWidthsColheita[5]}px`, minWidth: `${colWidthsColheita[5]}px`, maxWidth: `${colWidthsColheita[5]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">PIVO</span>
                         <button
@@ -4401,7 +4410,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Área/há">
+                    <th title="Área/há" style={{ width: `${colWidthsColheita[6]}px`, minWidth: `${colWidthsColheita[6]}px`, maxWidth: `${colWidthsColheita[6]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Área/há</span>
                         <button
@@ -4419,7 +4428,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Gleba">
+                    <th title="Gleba" style={{ width: `${colWidthsColheita[7]}px`, minWidth: `${colWidthsColheita[7]}px`, maxWidth: `${colWidthsColheita[7]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Gleba</span>
                         <button
@@ -4437,7 +4446,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Variedade">
+                    <th title="Variedade" style={{ width: `${colWidthsColheita[8]}px`, minWidth: `${colWidthsColheita[8]}px`, maxWidth: `${colWidthsColheita[8]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Variedade</span>
                         <button
@@ -4455,7 +4464,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Qtd. Colhida">
+                    <th title="Qtd. Colhida" style={{ width: `${colWidthsColheita[9]}px`, minWidth: `${colWidthsColheita[9]}px`, maxWidth: `${colWidthsColheita[9]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Qtd. Colhida</span>
                         <button
@@ -4473,7 +4482,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Média P/ Há">
+                    <th title="Média P/ Há" style={{ width: `${colWidthsColheita[10]}px`, minWidth: `${colWidthsColheita[10]}px`, maxWidth: `${colWidthsColheita[10]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Média P/ Há</span>
                         <button
@@ -4491,7 +4500,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Embalagem">
+                    <th title="Embalagem" style={{ width: `${colWidthsColheita[11]}px`, minWidth: `${colWidthsColheita[11]}px`, maxWidth: `${colWidthsColheita[11]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Embalagem</span>
                         <button
@@ -4509,7 +4518,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Produção Bruta Kg">
+                    <th title="Produção Bruta Kg" style={{ width: `${colWidthsColheita[12]}px`, minWidth: `${colWidthsColheita[12]}px`, maxWidth: `${colWidthsColheita[12]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produção Bruta Kg</span>
                         <button
@@ -4527,7 +4536,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Produtividade Bruta/há">
+                    <th title="Produtividade Bruta/há" style={{ width: `${colWidthsColheita[13]}px`, minWidth: `${colWidthsColheita[13]}px`, maxWidth: `${colWidthsColheita[13]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produtividade Bruta/há</span>
                         <button
@@ -4545,7 +4554,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Produção Beneficiada">
+                    <th title="Produção Beneficiada" style={{ width: `${colWidthsColheita[14]}px`, minWidth: `${colWidthsColheita[14]}px`, maxWidth: `${colWidthsColheita[14]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produção Beneficiada</span>
                         <button
@@ -4563,7 +4572,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Produtividade Líquida/ha">
+                    <th title="Produtividade Líquida/ha" style={{ width: `${colWidthsColheita[15]}px`, minWidth: `${colWidthsColheita[15]}px`, maxWidth: `${colWidthsColheita[15]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produtividade Líquida/ha</span>
                         <button
@@ -4581,7 +4590,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="mês">
+                    <th title="mês" style={{ width: `${colWidthsColheita[16]}px`, minWidth: `${colWidthsColheita[16]}px`, maxWidth: `${colWidthsColheita[16]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">mês</span>
                         <button
@@ -4599,7 +4608,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Ano">
+                    <th title="Ano" style={{ width: `${colWidthsColheita[17]}px`, minWidth: `${colWidthsColheita[17]}px`, maxWidth: `${colWidthsColheita[17]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Ano</span>
                         <button
@@ -4617,7 +4626,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th style={{ textAlign: 'center', width: '75px' }}>
+                    <th style={{ textAlign: 'center', width: `${colWidthsColheita[18]}px`, minWidth: `${colWidthsColheita[18]}px`, maxWidth: `${colWidthsColheita[18]}px`, boxSizing: 'border-box' }}>
                       <span className="th-excel-label" style={{ fontSize: '11px' }}>AÇÕES</span>
                       <div
                         className="excel-col-resizer"
@@ -4755,15 +4764,24 @@ export default function App() {
           {/* PAGE PLANTIO */}
           <div id="pagePlantio" className={`page-section ${activePage === 'plantio' ? 'active' : ''}`}>
             <div className="table-container">
-              <table id="tablePlantio" className={isGridEditing ? 'grid-editing' : ''} style={{ minWidth: `${totalWidthPlantio}px` }}>
+              <table
+                id="tablePlantio"
+                className={isGridEditing ? 'grid-editing' : ''}
+                style={{
+                  width: `${totalWidthPlantio}px`,
+                  minWidth: `${totalWidthPlantio}px`,
+                  maxWidth: `${totalWidthPlantio}px`,
+                  tableLayout: 'fixed'
+                }}
+              >
                 <colgroup>
                   {colWidthsPlantio.map((w, i) => (
-                    <col key={i} style={{ width: `${w}px` }} />
+                    <col key={i} style={{ width: `${w}px`, minWidth: `${w}px`, maxWidth: `${w}px` }} />
                   ))}
                 </colgroup>
                 <thead>
                   <tr>
-                    <th title="Data">
+                    <th title="Data" style={{ width: `${colWidthsPlantio[0]}px`, minWidth: `${colWidthsPlantio[0]}px`, maxWidth: `${colWidthsPlantio[0]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Data</span>
                         <button
@@ -4781,7 +4799,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="UNIDADE">
+                    <th title="UNIDADE" style={{ width: `${colWidthsPlantio[1]}px`, minWidth: `${colWidthsPlantio[1]}px`, maxWidth: `${colWidthsPlantio[1]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">UNIDADE</span>
                         <button
@@ -4799,7 +4817,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Cultura">
+                    <th title="Cultura" style={{ width: `${colWidthsPlantio[2]}px`, minWidth: `${colWidthsPlantio[2]}px`, maxWidth: `${colWidthsPlantio[2]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Cultura</span>
                         <button
@@ -4817,7 +4835,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="C.Custo">
+                    <th title="C.Custo" style={{ width: `${colWidthsPlantio[3]}px`, minWidth: `${colWidthsPlantio[3]}px`, maxWidth: `${colWidthsPlantio[3]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">C.Custo</span>
                         <button
@@ -4835,7 +4853,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Fazenda">
+                    <th title="Fazenda" style={{ width: `${colWidthsPlantio[4]}px`, minWidth: `${colWidthsPlantio[4]}px`, maxWidth: `${colWidthsPlantio[4]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Fazenda</span>
                         <button
@@ -4853,7 +4871,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="PIVO">
+                    <th title="PIVO" style={{ width: `${colWidthsPlantio[5]}px`, minWidth: `${colWidthsPlantio[5]}px`, maxWidth: `${colWidthsPlantio[5]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">PIVO</span>
                         <button
@@ -4871,7 +4889,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Gleba">
+                    <th title="Gleba" style={{ width: `${colWidthsPlantio[6]}px`, minWidth: `${colWidthsPlantio[6]}px`, maxWidth: `${colWidthsPlantio[6]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Gleba</span>
                         <button
@@ -4889,7 +4907,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Variedade">
+                    <th title="Variedade" style={{ width: `${colWidthsPlantio[7]}px`, minWidth: `${colWidthsPlantio[7]}px`, maxWidth: `${colWidthsPlantio[7]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Variedade</span>
                         <button
@@ -4907,7 +4925,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Área/há">
+                    <th title="Área/há" style={{ width: `${colWidthsPlantio[8]}px`, minWidth: `${colWidthsPlantio[8]}px`, maxWidth: `${colWidthsPlantio[8]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Área/há</span>
                         <button
@@ -4925,7 +4943,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Mês">
+                    <th title="Mês" style={{ width: `${colWidthsPlantio[9]}px`, minWidth: `${colWidthsPlantio[9]}px`, maxWidth: `${colWidthsPlantio[9]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Mês</span>
                         <button
@@ -4943,7 +4961,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Obs">
+                    <th title="Obs" style={{ width: `${colWidthsPlantio[10]}px`, minWidth: `${colWidthsPlantio[10]}px`, maxWidth: `${colWidthsPlantio[10]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Obs</span>
                         <button
@@ -4961,7 +4979,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Area Descartadas">
+                    <th title="Area Descartadas" style={{ width: `${colWidthsPlantio[11]}px`, minWidth: `${colWidthsPlantio[11]}px`, maxWidth: `${colWidthsPlantio[11]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Area Descartadas</span>
                         <button
@@ -4979,7 +4997,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th title="Ano">
+                    <th title="Ano" style={{ width: `${colWidthsPlantio[12]}px`, minWidth: `${colWidthsPlantio[12]}px`, maxWidth: `${colWidthsPlantio[12]}px`, boxSizing: 'border-box' }}>
                       <div className="th-excel-content">
                         <span className="th-excel-label">Ano</span>
                         <button
@@ -4997,7 +5015,7 @@ export default function App() {
                         title="Arraste para redimensionar a coluna | Duplo clique para restaurar"
                       />
                     </th>
-                    <th style={{ textAlign: 'center', width: '75px' }}>
+                    <th style={{ textAlign: 'center', width: `${colWidthsPlantio[13]}px`, minWidth: `${colWidthsPlantio[13]}px`, maxWidth: `${colWidthsPlantio[13]}px`, boxSizing: 'border-box' }}>
                       <span className="th-excel-label" style={{ fontSize: '11px' }}>AÇÕES</span>
                       <div
                         className="excel-col-resizer"
