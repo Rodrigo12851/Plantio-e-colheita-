@@ -888,45 +888,13 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
         .app-estoque-intacto .linha-planilha { height: 1.5px; background: #107c41; width: 7px; margin-left: 5px; }
       `}</style>
 
-      {/* HEADER PRINCIPAL */}
-      <header>
-        <h1>CONTROLE DE ESTOQUE</h1>
-      </header>
-
       {/* ========================================================================= */}
       {/* 1. PÁGINA INICIAL */}
       {/* ========================================================================= */}
       {paginaAtiva === 'inicial' && (
         <div className="card">
           <div className="top-area">
-            {/* ASSISTENTE IA DO ESTOQUE */}
-            <div className="card" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', marginBottom: '4px', padding: '8px' }}>
-              <label style={{ color: '#1e40af', fontWeight: 'bold', marginTop: 0 }}>🤖 Assistente IA do Estoque</label>
-              <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                <input
-                  type="text"
-                  value={perguntaIA}
-                  onChange={(e) => setPerguntaIA(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') processarPerguntaIA(); }}
-                  placeholder="Ex: 'Qual o saldo total?', 'Resumo de caixas', 'Abrir cadastro'"
-                  style={{ marginBottom: 0, height: '32px' }}
-                />
-                <button
-                  type="button"
-                  onClick={processarPerguntaIA}
-                  style={{ background: '#1e40af', color: 'white', border: 'none', padding: '0 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', height: '32px' }}
-                >
-                  Perguntar
-                </button>
-              </div>
-              {respostaIA && (
-                <div style={{ marginTop: '6px', padding: '6px', background: 'white', borderRadius: '4px', border: '1px solid #dbeafe', fontSize: '12px', color: '#1e3a8a', lineHeight: '1.4' }}>
-                  {respostaIA}
-                </div>
-              )}
-            </div>
-
-            {/* FILTRO GERAL DE PESQUISA */}
+            {/* FILTRO GERAL DE PESQUISA (MANTIDO CONFORME SOLICITADO) */}
             <input
               type="text"
               value={filtroGeral}
@@ -935,22 +903,8 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({ showToast }) => 
               placeholder="Pesquisar no Estoque Ativo..."
             />
 
-            {/* BOTÕES PRINCIPAIS */}
+            {/* BOTÕES ENTRADA E SAÍDA */}
             <div className="botoes-principais">
-              <button className="btn-principal" onClick={() => setPaginaAtiva('cadastro')}>
-                <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', fill: 'currentColor' }}>
-                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z" />
-                </svg>
-                Cadastros
-              </button>
-
-              <button className="btn-principal" onClick={() => setPaginaAtiva('configuracao')}>
-                <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', fill: 'currentColor' }}>
-                  <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18 1.14-.23.41-.12.61l1.92 3.32c1.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0-.44-.17-.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-                </svg>
-                Configurações
-              </button>
-
               <button className="btn-principal" onClick={() => setPaginaAtiva('entrada')}>📥 Entrada</button>
               <button className="btn-principal" onClick={() => setPaginaAtiva('saida')}>📤 Saída</button>
             </div>
