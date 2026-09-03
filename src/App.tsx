@@ -18,24 +18,32 @@ export type SortMode = 'code_asc' | 'code_desc' | 'alpha_asc' | 'alpha_desc';
 interface ColheitaItem {
   id?: string;
   data: string;
+  unidade?: string;
   empresa?: string;
   cultura: string;
-  os: string;
+  cCusto?: string;
+  os?: string;
   fazenda: string;
-  pivo: string;
-  gleba: string;
-  variedade: string;
-  haDia: string;
-  haRestante?: string;
-  qtdColhido?: string;
-  caixasCortadas?: string;
-  caixaBinBag?: string;
-  glebasFinalizada?: string;
-  mediaHa?: string;
   mes?: string;
   ano?: string;
+  pivo: string;
+  areaHa?: string;
+  haDia?: string;
+  gleba: string;
+  variedade: string;
+  qtdColhida?: string;
+  qtdColhido?: string;
+  caixasCortadas?: string;
+  mediaHa?: string;
+  embalagem?: string;
+  caixaBinBag?: string;
+  producaoBrutaKg?: string;
+  produtividadeBrutaHa?: string;
+  producaoBeneficiada?: string;
+  produtividadeLiquidaHa?: string;
+  haRestante?: string;
+  glebasFinalizada?: string;
   haGeral?: string;
-  unidade?: string;
 }
 
 interface PlantioItem {
@@ -268,8 +276,64 @@ const isCadastroPage = (page: PageKey) => {
 };
 
 const DEFAULT_COLHEITA: ColheitaItem[] = [
-  { data: '06/04/26', empresa: 'Agro', cultura: 'milheto', os: 'OS-101', fazenda: 'FAZENDA FRONTEIRA', pivo: 'Sequeiro', gleba: 'C-08', variedade: 'BRS 1502', haDia: '14,50 ha', haGeral: '31,88 ha', haRestante: '17,38 ha', qtdColhido: '250', glebasFinalizada: 'Não', mediaHa: '17,24 /ha', mes: 'Abril', ano: '2026', caixaBinBag: 'Caixas', caixasCortadas: '250', unidade: 'Cristalina' },
-  { data: '28/03/26', empresa: 'Agro', cultura: 'Cenoura', os: 'OS-102', fazenda: 'Fazenda Sul', pivo: 'Pivô 01', gleba: 'Gleba A', variedade: 'Variedade A', haDia: '5,00 ha', haGeral: '15,00 ha', haRestante: '10,00 ha', qtdColhido: '120', glebasFinalizada: 'Não', mediaHa: '24,00 /ha', mes: 'Março', ano: '2026', caixaBinBag: 'Bin', caixasCortadas: '120', unidade: 'Cristalina' }
+  {
+    data: '06/04/26',
+    unidade: 'Cristalina',
+    empresa: 'Agro',
+    cultura: 'milheto',
+    cCusto: '101',
+    os: '101',
+    fazenda: 'FAZENDA FRONTEIRA',
+    mes: 'Abril',
+    ano: '2026',
+    pivo: 'Sequeiro',
+    areaHa: '14,50',
+    haDia: '14,50',
+    gleba: 'C-08',
+    variedade: 'BRS 1502',
+    qtdColhida: '250',
+    qtdColhido: '250',
+    caixasCortadas: '250',
+    mediaHa: '17,24',
+    embalagem: 'Caixas',
+    caixaBinBag: 'Caixas',
+    producaoBrutaKg: '7.500,00',
+    produtividadeBrutaHa: '517,24',
+    producaoBeneficiada: '6.900,00',
+    produtividadeLiquidaHa: '475,86',
+    haGeral: '31,88 ha',
+    haRestante: '17,38 ha',
+    glebasFinalizada: 'Não'
+  },
+  {
+    data: '28/03/26',
+    unidade: 'Cristalina',
+    empresa: 'Agro',
+    cultura: 'Cenoura',
+    cCusto: '102',
+    os: '102',
+    fazenda: 'Fazenda Sul',
+    mes: 'Março',
+    ano: '2026',
+    pivo: 'Pivô 01',
+    areaHa: '5,00',
+    haDia: '5,00',
+    gleba: 'Gleba A',
+    variedade: 'Variedade A',
+    qtdColhida: '120',
+    qtdColhido: '120',
+    caixasCortadas: '120',
+    mediaHa: '24,00',
+    embalagem: 'Bin',
+    caixaBinBag: 'Bin',
+    producaoBrutaKg: '3.600,00',
+    produtividadeBrutaHa: '720,00',
+    producaoBeneficiada: '3.300,00',
+    produtividadeLiquidaHa: '660,00',
+    haGeral: '15,00 ha',
+    haRestante: '10,00 ha',
+    glebasFinalizada: 'Não'
+  }
 ];
 
 const DEFAULT_PLANTIO: PlantioItem[] = [
@@ -1157,6 +1221,14 @@ export default function App() {
     if (qtd <= 0 || haDia <= 0) return '';
     const media = qtd / haDia;
     return `${media.toFixed(2).replace('.', ',')} /ha`;
+  };
+
+  const calculateProdutividade = (prodStr: string | undefined, areaStr: string | undefined): string => {
+    const prod = parseHaValue(prodStr);
+    const area = parseHaValue(areaStr);
+    if (prod <= 0 || area <= 0) return '';
+    const val = prod / area;
+    return `${val.toFixed(2).replace('.', ',')}`;
   };
 
   // Helper to lookup full original total hectares bound in amarracoesData for a selected area
@@ -2318,21 +2390,23 @@ export default function App() {
         const block = `*INFORMAÇÕES DE COLHEITA*\n` +
           `*${(cells[4] || 'FAZENDA').toUpperCase()}*\n\n` +
           `*Data:* ${cells[0] || '-'}\n` +
-          `*Empresa:* ${cells[1] || '-'}\n` +
+          `*Unidade:* ${cells[1] || '-'}\n` +
           `*Cultura:* ${cells[2] || '-'}\n` +
-          `*OS:* ${cells[3] || '-'}\n` +
+          `*C.Custo:* ${cells[3] || '-'}\n` +
           `*Fazenda:* ${cells[4] || '-'}\n` +
-          `*Pivô:* ${cells[5] || '-'}\n` +
-          `*Gleba:* ${cells[6] || '-'}\n` +
-          `*Variedade:* ${cells[7] || '-'}\n` +
-          `*HA/Dia:* ${cells[8] || '-'}\n` +
-          `*HA/Geral:* ${cells[9] || '-'}\n` +
-          `*Ha Restante:* ${cells[10] || '-'}\n` +
-          `*Qtd: Colhido:* ${cells[11] || '-'}\n` +
-          `*Finalizada:* ${cells[12] || '-'}\n` +
-          `*Média/ha:* ${cells[13] || '-'}\n` +
-          `*Mês:* ${cells[14] || '-'}\n` +
-          `*Ano:* ${cells[15] || '-'}`;
+          `*mês:* ${cells[5] || '-'}\n` +
+          `*Ano:* ${cells[6] || '-'}\n` +
+          `*PIVO:* ${cells[7] || '-'}\n` +
+          `*Área/há:* ${cells[8] || '-'}\n` +
+          `*Gleba:* ${cells[9] || '-'}\n` +
+          `*Variedade:* ${cells[10] || '-'}\n` +
+          `*Qtd.Colhida:* ${cells[11] || '-'}\n` +
+          `*Média P/ Há:* ${cells[12] || '-'}\n` +
+          `*Embalagem:* ${cells[13] || '-'}\n` +
+          `*Produção Bruta Kg:* ${cells[14] || '-'}\n` +
+          `*Produtividade Bruta/há:* ${cells[15] || '-'}\n` +
+          `*Produção Beneficiada:* ${cells[16] || '-'}\n` +
+          `*Produtividade Líquida/ha:* ${cells[17] || '-'}`;
         textBlocks.push(block);
       } else if (activePage === 'plantio') {
         const block = `*INFORMAÇÕES DE PLANTIO*\n` +
@@ -2418,9 +2492,28 @@ export default function App() {
     let rows: string[][] = [];
 
     if (activePage === 'colheita') {
-      headers = ['DATA', 'EMPRESA', 'CULTURA', 'OS', 'FAZENDA', 'PIVÔ', 'GLEBA', 'VARIEDADE', 'HA/DIA', 'HA/GERAL', 'HA/RESTA', 'QTD: COLHIDO', 'FINALIZADA', 'MÉDIA/HA', 'MÊS', 'ANO'];
+      headers = ['DATA', 'Unidade', 'Cultura', 'C.Custo', 'Fazenda', 'mês', 'Ano', 'PIVO', 'Área/há', 'Gleba', 'Variedade', 'Qtd.Colhida', 'Média P/ Há', 'Embalagem', 'Produção Bruta Kg', 'Produtividade Bruta/há', 'Produção Beneficiada', 'Produtividade Líquida/ha'];
       rows = colheitaData
-        .map(i => [i.data, i.empresa || '-', i.cultura, i.os || '-', i.fazenda, i.pivo || '-', i.gleba || '-', i.variedade || '-', i.haDia || '-', i.haGeral || '-', i.haRestante || '-', i.qtdColhido || i.caixasCortadas || i.caixaBinBag || '-', i.glebasFinalizada || '-', i.mediaHa || '-', i.mes || '-', i.ano || '-'])
+        .map(i => [
+          i.data,
+          i.unidade || i.empresa || selectedUnidade || '-',
+          i.cultura || '-',
+          i.cCusto || i.os || '-',
+          i.fazenda || '-',
+          i.mes || getMonthNameFromDate(i.data) || '-',
+          i.ano || getYearFromDate(i.data) || '-',
+          i.pivo || '-',
+          i.areaHa || i.haDia || '-',
+          i.gleba || '-',
+          i.variedade || '-',
+          i.qtdColhida || i.qtdColhido || i.caixasCortadas || '-',
+          i.mediaHa || '-',
+          i.embalagem || i.caixaBinBag || '-',
+          i.producaoBrutaKg || '-',
+          i.produtividadeBrutaHa || '-',
+          i.producaoBeneficiada || '-',
+          i.produtividadeLiquidaHa || '-'
+        ])
         .filter(r => isRowVisible(r));
     } else if (activePage === 'plantio') {
       headers = ['Data', 'UNIDADE', 'Cultura', 'C.Custo', 'Fazenda', 'PIVO', 'Gleba', 'Variedade', 'Área/há', 'Mês', 'Obs', 'Area Descartadas', 'Ano'];
@@ -2592,23 +2685,35 @@ export default function App() {
 
     if (activePage === 'colheita') {
       const defaultDate = new Date().toISOString().split('T')[0];
+      const doc = index !== null && colheitaData[index] ? colheitaData[index] : null;
       const selectedDate = editData && editData[0] ? (dateToInputFormat(editData[0]) || editData[0]) : defaultDate;
       initial.cData = selectedDate;
-      initial.cEmpresa = editData && editData[1] && editData[1] !== '-' ? editData[1] : (empresasData.filter(isItemInSelectedUnidade)[0]?.nome || '');
-      initial.cCultura = editData ? editData[2] : '';
-      initial.cOs = editData ? editData[3] : '';
-      initial.cFazenda = editData ? editData[4] : '';
-      initial.cPivo = editData ? editData[5] : '';
-      initial.cGleba = editData ? editData[6] : '';
-      initial.cVariedade = editData ? editData[7] : '';
-      initial.cHaDia = editData ? editData[8] : '';
-      initial.cHaGeral = editData && editData[9] && editData[9] !== '-' ? editData[9] : (lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade) || '');
-      initial.cHaRestante = editData && editData[10] && editData[10] !== '-' ? editData[10] : calculateHaRestanteForColheita(initial.cHaGeral, initial.cHaDia, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
-      initial.cQtdColhido = editData && editData[11] && editData[11] !== '-' ? editData[11] : '';
-      initial.cGlebasFinalizada = editData && editData[12] && editData[12] !== '-' ? editData[12] : 'Não';
-      initial.cMediaHa = editData && editData[13] && editData[13] !== '-' ? editData[13] : calculateMediaHaForColheita(initial.cQtdColhido, initial.cHaDia);
-      initial.cMes = editData && editData[14] && editData[14] !== '-' ? editData[14] : getMonthNameFromDate(selectedDate);
-      initial.cAno = editData && editData[15] && editData[15] !== '-' ? editData[15] : getYearFromDate(selectedDate);
+      initial.cUnidade = editData && editData[1] && editData[1] !== '-' ? editData[1] : (doc?.unidade || doc?.empresa || (empresasData.filter(isItemInSelectedUnidade)[0]?.nome || selectedUnidade));
+      initial.cEmpresa = initial.cUnidade;
+      initial.cCultura = editData ? editData[2] : (doc?.cultura || '');
+      initial.cCCusto = editData ? editData[3] : (doc?.cCusto || doc?.os || '');
+      initial.cOs = initial.cCCusto;
+      initial.cFazenda = editData ? editData[4] : (doc?.fazenda || '');
+      initial.cMes = editData && editData[5] && editData[5] !== '-' ? editData[5] : (doc?.mes || getMonthNameFromDate(selectedDate));
+      initial.cAno = editData && editData[6] && editData[6] !== '-' ? editData[6] : (doc?.ano || getYearFromDate(selectedDate));
+      initial.cPivo = editData ? editData[7] : (doc?.pivo || '');
+      initial.cAreaHa = editData ? editData[8] : (doc?.areaHa || doc?.haDia || '');
+      initial.cHaDia = initial.cAreaHa;
+      initial.cGleba = editData ? editData[9] : (doc?.gleba || '');
+      initial.cVariedade = editData ? editData[10] : (doc?.variedade || '');
+      initial.cQtdColhida = editData && editData[11] && editData[11] !== '-' ? editData[11] : (doc?.qtdColhida || doc?.qtdColhido || doc?.caixasCortadas || '');
+      initial.cQtdColhido = initial.cQtdColhida;
+      initial.cCaixasCortadas = initial.cQtdColhida;
+      initial.cMediaHa = editData && editData[12] && editData[12] !== '-' ? editData[12] : (doc?.mediaHa || calculateMediaHaForColheita(initial.cQtdColhida, initial.cAreaHa));
+      initial.cEmbalagem = editData && editData[13] && editData[13] !== '-' ? editData[13] : (doc?.embalagem || doc?.caixaBinBag || 'Caixas');
+      initial.cCaixaBinBag = initial.cEmbalagem;
+      initial.cProducaoBrutaKg = editData && editData[14] && editData[14] !== '-' ? editData[14] : (doc?.producaoBrutaKg || '');
+      initial.cProdutividadeBrutaHa = editData && editData[15] && editData[15] !== '-' ? editData[15] : (doc?.produtividadeBrutaHa || calculateProdutividade(initial.cProducaoBrutaKg, initial.cAreaHa));
+      initial.cProducaoBeneficiada = editData && editData[16] && editData[16] !== '-' ? editData[16] : (doc?.producaoBeneficiada || '');
+      initial.cProdutividadeLiquidaHa = editData && editData[17] && editData[17] !== '-' ? editData[17] : (doc?.produtividadeLiquidaHa || calculateProdutividade(initial.cProducaoBeneficiada, initial.cAreaHa));
+      initial.cHaGeral = doc?.haGeral || (lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade) || '');
+      initial.cHaRestante = doc?.haRestante || calculateHaRestanteForColheita(initial.cHaGeral, initial.cAreaHa, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
+      initial.cGlebasFinalizada = doc?.glebasFinalizada || 'Não';
     } else if (activePage === 'plantio') {
       const defaultDate = new Date().toISOString().split('T')[0];
       const doc = index !== null && plantioData[index] ? plantioData[index] : null;
@@ -2950,25 +3055,48 @@ export default function App() {
         }
 
         const existingDoc = editingIndex !== null ? colheitaData[editingIndex] : null;
+        const cDate = formData.cData || '';
+        const cMes = formData.cMes || getMonthNameFromDate(cDate) || '-';
+        const cAno = formData.cAno || getYearFromDate(cDate) || '-';
+        const cUnidade = formData.cUnidade || formData.cEmpresa || (existingDoc?.unidade || selectedUnidade);
+        const cCCusto = formData.cCCusto || formData.cOs || '-';
+        const cAreaHa = formData.cAreaHa || formData.cHaDia || '-';
+        const cQtdColhida = formData.cQtdColhida || formData.cQtdColhido || formData.cCaixasCortadas || '-';
+        const cEmbalagem = formData.cEmbalagem || formData.cCaixaBinBag || 'Caixas';
+        const cProducaoBrutaKg = formData.cProducaoBrutaKg || '-';
+        const cProdutividadeBrutaHa = formData.cProdutividadeBrutaHa || calculateProdutividade(cProducaoBrutaKg, cAreaHa) || '-';
+        const cProducaoBeneficiada = formData.cProducaoBeneficiada || '-';
+        const cProdutividadeLiquidaHa = formData.cProdutividadeLiquidaHa || calculateProdutividade(cProducaoBeneficiada, cAreaHa) || '-';
+        const cMediaHa = formData.cMediaHa || calculateMediaHaForColheita(cQtdColhida, cAreaHa) || '-';
+
         const newItem: ColheitaItem = {
-          data: inputToDisplayFormat(formData.cData || ''),
-          empresa: formData.cEmpresa || '-',
+          data: inputToDisplayFormat(cDate),
+          unidade: cUnidade,
+          empresa: cUnidade,
           cultura: formData.cCultura || '',
-          os: formData.cOs || '-',
+          cCusto: cCCusto,
+          os: cCCusto,
           fazenda: formData.cFazenda || '',
+          mes: cMes,
+          ano: cAno,
           pivo: formData.cPivo || '-',
+          areaHa: cAreaHa,
+          haDia: cAreaHa,
           gleba: formData.cGleba || '-',
           variedade: formData.cVariedade || '-',
-          haDia: formData.cHaDia || '-',
-          haGeral: formData.cHaGeral || '-',
-          haRestante: formData.cHaRestante || '-',
-          qtdColhido: formData.cQtdColhido || formData.cCaixasCortadas || '-',
-          glebasFinalizada: formData.cGlebasFinalizada || '-',
-          mediaHa: formData.cMediaHa || '-',
-          mes: formData.cMes || getMonthNameFromDate(formData.cData || '') || '-',
-          ano: formData.cAno || getYearFromDate(formData.cData || '') || '-',
-          caixasCortadas: formData.cQtdColhido || formData.cCaixasCortadas || '-',
-          unidade: editingIndex !== null ? (colheitaData[editingIndex]?.unidade || selectedUnidade) : selectedUnidade
+          qtdColhida: cQtdColhida,
+          qtdColhido: cQtdColhida,
+          caixasCortadas: cQtdColhida,
+          mediaHa: cMediaHa,
+          embalagem: cEmbalagem,
+          caixaBinBag: cEmbalagem,
+          producaoBrutaKg: cProducaoBrutaKg,
+          produtividadeBrutaHa: cProdutividadeBrutaHa,
+          producaoBeneficiada: cProducaoBeneficiada,
+          produtividadeLiquidaHa: cProdutividadeLiquidaHa,
+          haGeral: formData.cHaGeral || (existingDoc?.haGeral || '-'),
+          haRestante: formData.cHaRestante || (existingDoc?.haRestante || '-'),
+          glebasFinalizada: formData.cGlebasFinalizada || (existingDoc?.glebasFinalizada || '-')
         };
 
         await saveDocument(COLLECTIONS.colheita, newItem, existingDoc?.id);
@@ -3178,11 +3306,43 @@ export default function App() {
     if (page === 'colheita') {
       const item = colheitaData[rowIndex];
       if (!item) return;
-      const finalVal = ['haGeral', 'haDia', 'haRestante', 'mediaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
-      const updated = { ...item, [fieldKey]: finalVal };
-      if (fieldKey === 'haDia' || fieldKey === 'qtdColhido' || fieldKey === 'caixasCortadas') {
-        updated.mediaHa = calculateMediaHaForColheita(updated.qtdColhido || updated.caixasCortadas || updated.caixaBinBag, updated.haDia);
+      const finalVal = ['haGeral', 'haDia', 'areaHa', 'haRestante', 'mediaHa', 'producaoBrutaKg', 'produtividadeBrutaHa', 'producaoBeneficiada', 'produtividadeLiquidaHa'].includes(fieldKey) ? sanitizeHectaresInput(value) : value;
+      const updated: any = { ...item, [fieldKey]: finalVal };
+      if (fieldKey === 'areaHa') {
+        updated.haDia = finalVal;
+      } else if (fieldKey === 'haDia') {
+        updated.areaHa = finalVal;
+      } else if (fieldKey === 'cCusto') {
+        updated.os = finalVal;
+      } else if (fieldKey === 'os') {
+        updated.cCusto = finalVal;
+      } else if (fieldKey === 'unidade') {
+        updated.empresa = finalVal;
+      } else if (fieldKey === 'empresa') {
+        updated.unidade = finalVal;
+      } else if (fieldKey === 'qtdColhida') {
+        updated.qtdColhido = finalVal;
+        updated.caixasCortadas = finalVal;
+      } else if (fieldKey === 'qtdColhido' || fieldKey === 'caixasCortadas') {
+        updated.qtdColhida = finalVal;
+      } else if (fieldKey === 'embalagem') {
+        updated.caixaBinBag = finalVal;
+      } else if (fieldKey === 'caixaBinBag') {
+        updated.embalagem = finalVal;
       }
+
+      const area = updated.areaHa || updated.haDia;
+      const qtd = updated.qtdColhida || updated.qtdColhido || updated.caixasCortadas;
+      if (['areaHa', 'haDia', 'qtdColhida', 'qtdColhido', 'caixasCortadas'].includes(fieldKey)) {
+        updated.mediaHa = calculateMediaHaForColheita(qtd, area);
+      }
+      if (['areaHa', 'haDia', 'producaoBrutaKg'].includes(fieldKey)) {
+        updated.produtividadeBrutaHa = calculateProdutividade(updated.producaoBrutaKg, area);
+      }
+      if (['areaHa', 'haDia', 'producaoBeneficiada'].includes(fieldKey)) {
+        updated.produtividadeLiquidaHa = calculateProdutividade(updated.producaoBeneficiada, area);
+      }
+
       await saveDocument(COLLECTIONS.colheita, updated, item.id);
     } else if (page === 'plantio') {
       const item = plantioData[rowIndex];
@@ -4041,52 +4201,296 @@ export default function App() {
           {/* PAGE COLHEITA */}
           <div id="pageColheita" className={`page-section ${activePage === 'colheita' ? 'active' : ''}`}>
             <div className="table-container">
-              <table id="tableColheita" className={`table-large ${isGridEditing ? 'grid-editing' : ''}`}>
+              <table id="tableColheita" className={isGridEditing ? 'grid-editing' : ''}>
+                <colgroup>
+                  <col style={{ width: '105px' }} /> {/* DATA */}
+                  <col style={{ width: '120px' }} /> {/* Unidade */}
+                  <col style={{ width: '110px' }} /> {/* Cultura */}
+                  <col style={{ width: '95px' }} />  {/* C.Custo */}
+                  <col style={{ width: '160px' }} /> {/* Fazenda */}
+                  <col style={{ width: '90px' }} />  {/* mês */}
+                  <col style={{ width: '80px' }} />  {/* Ano */}
+                  <col style={{ width: '105px' }} /> {/* PIVO */}
+                  <col style={{ width: '95px' }} />  {/* Área/há */}
+                  <col style={{ width: '90px' }} />  {/* Gleba */}
+                  <col style={{ width: '125px' }} /> {/* Variedade */}
+                  <col style={{ width: '105px' }} /> {/* Qtd.Colhida */}
+                  <col style={{ width: '110px' }} /> {/* Média P/ Há */}
+                  <col style={{ width: '110px' }} /> {/* Embalagem */}
+                  <col style={{ width: '140px' }} /> {/* Produção Bruta Kg */}
+                  <col style={{ width: '145px' }} /> {/* Produtividade Bruta/há */}
+                  <col style={{ width: '145px' }} /> {/* Produção Beneficiada */}
+                  <col style={{ width: '150px' }} /> {/* Produtividade Líquida/ha */}
+                  <col style={{ width: '75px' }} />  {/* AÇÕES */}
+                </colgroup>
                 <thead>
                   <tr>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>DATA</strong> <button className={`btn-filter-col ${isColFiltered(0) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 0)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>EMPRESA</strong> <button className={`btn-filter-col ${isColFiltered(1) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 1)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>CULTURA</strong> <button className={`btn-filter-col ${isColFiltered(2) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 2)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>OS</strong> <button className={`btn-filter-col ${isColFiltered(3) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 3)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>FAZENDA</strong> <button className={`btn-filter-col ${isColFiltered(4) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 4)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>PIVÔ</strong> <button className={`btn-filter-col ${isColFiltered(5) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 5)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>GLEBA</strong> <button className={`btn-filter-col ${isColFiltered(6) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 6)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>VARIEDADE</strong> <button className={`btn-filter-col ${isColFiltered(7) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 7)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/DIA</strong> <button className={`btn-filter-col ${isColFiltered(8) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 8)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/GERAL</strong> <button className={`btn-filter-col ${isColFiltered(9) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 9)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>HA/RESTA</strong> <button className={`btn-filter-col ${isColFiltered(10) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 10)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>QTD: COLHIDO</strong> <button className={`btn-filter-col ${isColFiltered(11) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 11)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>FINALIZADA</strong> <button className={`btn-filter-col ${isColFiltered(12) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 12)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>MÉDIA/HA</strong> <button className={`btn-filter-col ${isColFiltered(13) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 13)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>MÊS</strong> <button className={`btn-filter-col ${isColFiltered(14) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 14)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th><div className="th-content" style={{ fontWeight: 700, textTransform: 'uppercase' }}><strong>ANO</strong> <button className={`btn-filter-col ${isColFiltered(15) ? 'active-filter' : ''}`} onClick={e => openColumnFilter(e, 15)}><i className="fa-solid fa-filter"></i></button></div></th>
-                    <th style={{ textAlign: 'center', fontWeight: 700, textTransform: 'uppercase' }}><strong>AÇÕES</strong></th>
+                    <th title="DATA">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">DATA</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(0) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 0)}
+                          title="Filtrar por DATA"
+                        >
+                          <i className={`fa-solid ${isColFiltered(0) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(0) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Unidade">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Unidade</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(1) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 1)}
+                          title="Filtrar por Unidade"
+                        >
+                          <i className={`fa-solid ${isColFiltered(1) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(1) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Cultura">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Cultura</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(2) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 2)}
+                          title="Filtrar por Cultura"
+                        >
+                          <i className={`fa-solid ${isColFiltered(2) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(2) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="C.Custo">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">C.Custo</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(3) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 3)}
+                          title="Filtrar por C.Custo"
+                        >
+                          <i className={`fa-solid ${isColFiltered(3) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(3) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Fazenda">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Fazenda</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(4) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 4)}
+                          title="Filtrar por Fazenda"
+                        >
+                          <i className={`fa-solid ${isColFiltered(4) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(4) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="mês">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">mês</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(5) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 5)}
+                          title="Filtrar por mês"
+                        >
+                          <i className={`fa-solid ${isColFiltered(5) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(5) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Ano" className="excel-freeze-split">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Ano</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(6) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 6)}
+                          title="Filtrar por Ano"
+                        >
+                          <i className={`fa-solid ${isColFiltered(6) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(6) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="PIVO">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">PIVO</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(7) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 7)}
+                          title="Filtrar por PIVO"
+                        >
+                          <i className={`fa-solid ${isColFiltered(7) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(7) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Área/há">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Área/há</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(8) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 8)}
+                          title="Filtrar por Área/há"
+                        >
+                          <i className={`fa-solid ${isColFiltered(8) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(8) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Gleba">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Gleba</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(9) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 9)}
+                          title="Filtrar por Gleba"
+                        >
+                          <i className={`fa-solid ${isColFiltered(9) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(9) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Variedade">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Variedade</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(10) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 10)}
+                          title="Filtrar por Variedade"
+                        >
+                          <i className={`fa-solid ${isColFiltered(10) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(10) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Qtd.Colhida">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Qtd.Colhida</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(11) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 11)}
+                          title="Filtrar por Qtd.Colhida"
+                        >
+                          <i className={`fa-solid ${isColFiltered(11) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(11) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Média P/ Há">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Média P/ Há</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(12) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 12)}
+                          title="Filtrar por Média P/ Há"
+                        >
+                          <i className={`fa-solid ${isColFiltered(12) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(12) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Embalagem">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Embalagem</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(13) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 13)}
+                          title="Filtrar por Embalagem"
+                        >
+                          <i className={`fa-solid ${isColFiltered(13) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(13) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Produção Bruta Kg">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Produção Bruta Kg</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(14) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 14)}
+                          title="Filtrar por Produção Bruta Kg"
+                        >
+                          <i className={`fa-solid ${isColFiltered(14) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(14) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Produtividade Bruta/há">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Produtividade Bruta/há</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(15) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 15)}
+                          title="Filtrar por Produtividade Bruta/há"
+                        >
+                          <i className={`fa-solid ${isColFiltered(15) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(15) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Produção Beneficiada">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Produção Beneficiada</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(16) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 16)}
+                          title="Filtrar por Produção Beneficiada"
+                        >
+                          <i className={`fa-solid ${isColFiltered(16) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(16) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Produtividade Líquida/ha">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Produtividade Líquida/ha</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(17) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 17)}
+                          title="Filtrar por Produtividade Líquida/ha"
+                        >
+                          <i className={`fa-solid ${isColFiltered(17) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(17) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th style={{ textAlign: 'center', width: '75px' }}>
+                      <span className="th-excel-label" style={{ fontSize: '11px' }}>AÇÕES</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody id="tbodyColheita">
                   {getSortedList(colheitaData).map(({ item, originalIndex: idx }) => {
                     if (!isItemInSelectedUnidade(item)) return null;
-                    const rowCells = [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-'];
+                    const rowCells = [
+                      item.data,
+                      item.unidade || item.empresa || selectedUnidade || '-',
+                      item.cultura || '-',
+                      item.cCusto || item.os || '-',
+                      item.fazenda || '-',
+                      item.mes || getMonthNameFromDate(item.data) || '-',
+                      item.ano || getYearFromDate(item.data) || '-',
+                      item.pivo || '-',
+                      item.areaHa || item.haDia || '-',
+                      item.gleba || '-',
+                      item.variedade || '-',
+                      item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-',
+                      item.mediaHa || '-',
+                      item.embalagem || item.caixaBinBag || '-',
+                      item.producaoBrutaKg || '-',
+                      item.produtividadeBrutaHa || '-',
+                      item.producaoBeneficiada || '-',
+                      item.produtividadeLiquidaHa || '-'
+                    ];
                     if (!isRowVisible(rowCells)) return null;
 
                     return (
                       <tr key={idx}>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'data', e.currentTarget.innerText)}>{item.data}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'empresa', e.currentTarget.innerText)}>{item.empresa || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'unidade', e.currentTarget.innerText)}>{item.unidade || item.empresa || selectedUnidade || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cultura', e.currentTarget.innerText)}>{item.cultura}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'os', e.currentTarget.innerText)}>{item.os || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cCusto', e.currentTarget.innerText)}>{item.cCusto || item.os || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'fazenda', e.currentTarget.innerText)}>{item.fazenda}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>{item.mes || getMonthNameFromDate(item.data) || '-'}</td>
+                        <td className="excel-freeze-split" contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)}>{item.ano || getYearFromDate(item.data) || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'pivo', e.currentTarget.innerText)}>{item.pivo || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'areaHa', e.currentTarget.innerText)}>{item.areaHa || item.haDia || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'gleba', e.currentTarget.innerText)}>{item.gleba || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'variedade', e.currentTarget.innerText)}>{item.variedade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haDia', e.currentTarget.innerText)}>{item.haDia || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haGeral', e.currentTarget.innerText)}>{item.haGeral || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'haRestante', e.currentTarget.innerText)}>{item.haRestante || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'qtdColhido', e.currentTarget.innerText)}>{item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'glebasFinalizada', e.currentTarget.innerText)}>{item.glebasFinalizada || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'qtdColhida', e.currentTarget.innerText)}>{item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mediaHa', e.currentTarget.innerText)}>{item.mediaHa || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>{item.mes || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)}>{item.ano || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'embalagem', e.currentTarget.innerText)}>{item.embalagem || item.caixaBinBag || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBrutaKg', e.currentTarget.innerText)}>{item.producaoBrutaKg || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeBrutaHa', e.currentTarget.innerText)}>{item.produtividadeBrutaHa || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBeneficiada', e.currentTarget.innerText)}>{item.producaoBeneficiada || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeLiquidaHa', e.currentTarget.innerText)}>{item.produtividadeLiquidaHa || '-'}</td>
                         <td className="action-cell">
                           <button className="btn-action-row" onClick={() => openCurrentModal(rowCells, idx)} title="Editar"><i className="fa-solid fa-pen"></i></button>
                           <button className="btn-action-row" onClick={() => deleteRow('colheita', idx)} title="Mover para Lixeira"><i className="fa-solid fa-trash"></i></button>
@@ -6345,23 +6749,23 @@ export default function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Empresa</label>
+                      <label>Unidade</label>
                       {empresasData.filter(isItemInSelectedUnidade).length > 0 ? (
-                        <select value={formData.cEmpresa || ''} onChange={e => setFormData({ ...formData, cEmpresa: e.target.value })}>
-                          <option value="">Selecione uma empresa com plantio...</option>
-                          {getPlantioEmpresas(formData.cCultura, formData.cFazenda).map((emp, i) => (
+                        <select value={formData.cUnidade || formData.cEmpresa || ''} onChange={e => setFormData({ ...formData, cUnidade: e.target.value, cEmpresa: e.target.value })}>
+                          <option value="">Selecione a unidade...</option>
+                          {empresasData.filter(isItemInSelectedUnidade).map((emp, i) => (
                             <option key={i} value={emp.nome}>{emp.nome}</option>
                           ))}
-                          {editingIndex !== null && formData.cEmpresa && !getPlantioEmpresas(formData.cCultura, formData.cFazenda).some(e => e.nome === formData.cEmpresa) && (
-                            <option value={formData.cEmpresa}>{formData.cEmpresa}</option>
+                          {editingIndex !== null && formData.cUnidade && !empresasData.filter(isItemInSelectedUnidade).some(e => e.nome === formData.cUnidade) && (
+                            <option value={formData.cUnidade}>{formData.cUnidade}</option>
                           )}
                         </select>
                       ) : (
                         <input
                           type="text"
-                          placeholder="Ex: Coopercitrus"
-                          value={formData.cEmpresa || ''}
-                          onChange={e => setFormData({ ...formData, cEmpresa: e.target.value })}
+                          placeholder="Ex: Primavera"
+                          value={formData.cUnidade || formData.cEmpresa || ''}
+                          onChange={e => setFormData({ ...formData, cUnidade: e.target.value, cEmpresa: e.target.value })}
                         />
                       )}
                     </div>
@@ -6375,11 +6779,6 @@ export default function App() {
                           const newFazenda = validFazendas.some(f => f.nome === formData.cFazenda)
                             ? formData.cFazenda
                             : (validFazendas.length === 1 ? validFazendas[0].nome : '');
-
-                          const validEmpresas = getPlantioEmpresas(newCultura, newFazenda);
-                          const newEmpresa = validEmpresas.some(emp => emp.nome === formData.cEmpresa)
-                            ? formData.cEmpresa
-                            : (validEmpresas.length === 1 ? validEmpresas[0].nome : formData.cEmpresa);
 
                           const isSameFazenda = newFazenda && newFazenda === formData.cFazenda;
                           const validPivos = getPlantioPivos(newFazenda, newCultura);
@@ -6398,25 +6797,18 @@ export default function App() {
                             ? formData.cVariedade
                             : (validVars.length === 1 ? validVars[0].nome : '');
 
-                          const ha = lookupPlantedHectaresForSelection(newCultura, newFazenda, newPivo, newGleba, newVar);
-                          const newHaGeral = ha || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, newCultura, newFazenda, newPivo, newGleba, newVar, editingIndex);
-
                           setFormData({
                             ...formData,
                             cCultura: newCultura,
-                            cEmpresa: newEmpresa,
                             cFazenda: newFazenda,
                             cPivo: newPivo,
                             cGleba: newGleba,
-                            cVariedade: newVar,
-                            cHaGeral: newHaGeral,
-                            cHaRestante: newRestante
+                            cVariedade: newVar
                           });
                         }}
                         required
                       >
-                        <option value="">Selecione uma cultura com plantio...</option>
+                        <option value="">Selecione uma cultura...</option>
                         {getPlantioCulturas(formData.cFazenda).map((c, i) => (
                           <option key={i} value={c.nome}>{c.nome}</option>
                         ))}
@@ -6426,14 +6818,12 @@ export default function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>OS (Somente Números)</label>
+                      <label>C.Custo</label>
                       <input
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
                         placeholder="Ex: 101"
-                        value={formData.cOs || ''}
-                        onChange={e => setFormData({ ...formData, cOs: e.target.value.replace(/\D/g, '') })}
+                        value={formData.cCCusto || formData.cOs || ''}
+                        onChange={e => setFormData({ ...formData, cCCusto: e.target.value, cOs: e.target.value })}
                       />
                     </div>
                     <div className="form-group">
@@ -6446,11 +6836,6 @@ export default function App() {
                           const newCultura = validCulturas.some(c => c.nome === formData.cCultura)
                             ? formData.cCultura
                             : (validCulturas.length === 1 ? validCulturas[0].nome : '');
-
-                          const validEmpresas = getPlantioEmpresas(newCultura, newFazenda);
-                          const newEmpresa = validEmpresas.some(emp => emp.nome === formData.cEmpresa)
-                            ? formData.cEmpresa
-                            : (validEmpresas.length === 1 ? validEmpresas[0].nome : formData.cEmpresa);
 
                           const validPivos = getPlantioPivos(newFazenda, newCultura);
                           const newPivo = validPivos.some(p => p.nome === formData.cPivo)
@@ -6467,25 +6852,18 @@ export default function App() {
                             ? formData.cVariedade
                             : (validVars.length === 1 ? validVars[0].nome : '');
 
-                          const ha = lookupPlantedHectaresForSelection(newCultura, newFazenda, newPivo, newGleba, newVar);
-                          const newHaGeral = ha || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, newCultura, newFazenda, newPivo, newGleba, newVar, editingIndex);
-
                           setFormData({
                             ...formData,
                             cFazenda: newFazenda,
                             cCultura: newCultura,
-                            cEmpresa: newEmpresa,
                             cPivo: newPivo,
                             cGleba: newGleba,
-                            cVariedade: newVar,
-                            cHaGeral: newHaGeral,
-                            cHaRestante: newRestante
+                            cVariedade: newVar
                           });
                         }}
                         required
                       >
-                        <option value="">Selecione uma fazenda com plantio...</option>
+                        <option value="">Selecione uma fazenda...</option>
                         {getPlantioFazendas(formData.cCultura).map((f, i) => (
                           <option key={i} value={f.nome}>{f.nome}</option>
                         ))}
@@ -6493,172 +6871,6 @@ export default function App() {
                           <option value={formData.cFazenda}>{formData.cFazenda}</option>
                         )}
                       </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Pivô (do Plantio)</label>
-                      <select
-                        value={formData.cPivo || ''}
-                        onChange={e => {
-                          const newPivo = e.target.value;
-                          const validGlebas = getPlantioGlebas(newPivo, formData.cFazenda, formData.cCultura);
-                          const newGleba = validGlebas.length === 1 ? validGlebas[0].nome : '';
-                          const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, newPivo, newGleba);
-                          const newVar = validVars.length === 1 ? validVars[0].nome : '';
-
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, newPivo, newGleba, newVar);
-                          const newHaGeral = ha || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, newPivo, newGleba, newVar, editingIndex);
-
-                          setFormData({
-                            ...formData,
-                            cPivo: newPivo,
-                            cGleba: newGleba,
-                            cVariedade: newVar,
-                            cHaGeral: newHaGeral,
-                            cHaRestante: newRestante
-                          });
-                        }}
-                      >
-                        <option value="">Selecione um pivô com plantio...</option>
-                        {getPlantioPivos(formData.cFazenda, formData.cCultura).map((p, i) => (
-                          <option key={i} value={p.nome}>{p.nome}</option>
-                        ))}
-                        {editingIndex !== null && formData.cPivo && formData.cPivo !== '-' && !getPlantioPivos(formData.cFazenda, formData.cCultura).some(p => p.nome === formData.cPivo) && (
-                          <option value={formData.cPivo}>{formData.cPivo}</option>
-                        )}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Gleba (do Plantio)</label>
-                      <select
-                        value={formData.cGleba || ''}
-                        onChange={e => {
-                          const newGleba = e.target.value;
-                          const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba);
-                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
-                            ? formData.cVariedade
-                            : (validVars.length === 1 ? validVars[0].nome : '');
-
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, newVar);
-                          const newHaGeral = ha || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, newGleba, newVar, editingIndex);
-
-                          setFormData({
-                            ...formData,
-                            cGleba: newGleba,
-                            cVariedade: newVar,
-                            cHaGeral: newHaGeral,
-                            cHaRestante: newRestante
-                          });
-                        }}
-                      >
-                        <option value="">Selecione uma gleba com plantio...</option>
-                        {getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).map((g, i) => (
-                          <option key={i} value={g.nome}>{g.nome}</option>
-                        ))}
-                        {editingIndex !== null && formData.cGleba && formData.cGleba !== '-' && !getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).some(g => g.nome === formData.cGleba) && (
-                          <option value={formData.cGleba}>{formData.cGleba}</option>
-                        )}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Variedade (do Plantio)</label>
-                      <select
-                        value={formData.cVariedade || ''}
-                        onChange={e => {
-                          const newVar = e.target.value;
-                          const ha = lookupPlantedHectaresForSelection(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, newVar);
-                          const newHaGeral = ha || '';
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, newVar, editingIndex);
-
-                          setFormData({
-                            ...formData,
-                            cVariedade: newVar,
-                            cHaGeral: newHaGeral,
-                            cHaRestante: newRestante
-                          });
-                        }}
-                      >
-                        <option value="">Selecione uma variedade com plantio...</option>
-                        {getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).map((v, i) => (
-                          <option key={i} value={v.nome}>{v.nome}</option>
-                        ))}
-                        {editingIndex !== null && formData.cVariedade && formData.cVariedade !== '-' && !getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).some(v => v.nome === formData.cVariedade) && (
-                          <option value={formData.cVariedade}>{formData.cVariedade}</option>
-                        )}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Área Colhida no Dia (ha/dia)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ex: 14,50"
-                        value={formData.cHaDia || ''}
-                        onChange={e => {
-                          const newHaDia = sanitizeHectaresInput(e.target.value);
-                          const newRestante = calculateHaRestanteForColheita(formData.cHaGeral, newHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
-                          const newMedia = calculateMediaHaForColheita(formData.cQtdColhido || formData.cCaixasCortadas, newHaDia);
-                          setFormData({ ...formData, cHaDia: newHaDia, cHaRestante: newRestante, cMediaHa: newMedia });
-                        }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>HA/GERAL (Área Total Plantada)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ex: 100,00 ha"
-                        value={formData.cHaGeral || ''}
-                        onChange={e => {
-                          const newHaGeral = sanitizeHectaresInput(e.target.value);
-                          const newRestante = calculateHaRestanteForColheita(newHaGeral, formData.cHaDia, formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba, formData.cVariedade, editingIndex);
-                          setFormData({ ...formData, cHaGeral: newHaGeral, cHaRestante: newRestante });
-                        }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Hectare Restante (ha/resta - Cálculo Automático)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Calculado automaticamente..."
-                        value={formData.cHaRestante || ''}
-                        onChange={e => setFormData({ ...formData, cHaRestante: sanitizeHectaresInput(e.target.value) })}
-                        style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Qtd: Colhido</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Ex: 250"
-                        value={formData.cQtdColhido || formData.cCaixasCortadas || ''}
-                        onChange={e => {
-                          const newQtd = e.target.value;
-                          const newMedia = calculateMediaHaForColheita(newQtd, formData.cHaDia);
-                          setFormData({ ...formData, cQtdColhido: newQtd, cCaixasCortadas: newQtd, cMediaHa: newMedia });
-                        }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Finalizada</label>
-                      <select value={formData.cGlebasFinalizada || 'Não'} onChange={e => setFormData({ ...formData, cGlebasFinalizada: e.target.value })}>
-                        <option value="Não">Não</option>
-                        <option value="Sim">Sim</option>
-                        <option value="Parcial">Parcial</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Média/ha (Cálculo Automático)</label>
-                      <input
-                        type="text"
-                        placeholder="Calculado automaticamente ex: 17,24 /ha"
-                        value={formData.cMediaHa || ''}
-                        onChange={e => setFormData({ ...formData, cMediaHa: e.target.value })}
-                        style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
-                      />
                     </div>
                     <div className="form-group">
                       <label>Mês</label>
@@ -6680,6 +6892,186 @@ export default function App() {
                           <option value={formData.cAno}>{formData.cAno}</option>
                         )}
                       </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Pivô</label>
+                      <select
+                        value={formData.cPivo || ''}
+                        onChange={e => {
+                          const newPivo = e.target.value;
+                          const validGlebas = getPlantioGlebas(newPivo, formData.cFazenda, formData.cCultura);
+                          const newGleba = validGlebas.length === 1 ? validGlebas[0].nome : '';
+                          const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, newPivo, newGleba);
+                          const newVar = validVars.length === 1 ? validVars[0].nome : '';
+
+                          setFormData({
+                            ...formData,
+                            cPivo: newPivo,
+                            cGleba: newGleba,
+                            cVariedade: newVar
+                          });
+                        }}
+                      >
+                        <option value="">Selecione um pivô...</option>
+                        {getPlantioPivos(formData.cFazenda, formData.cCultura).map((p, i) => (
+                          <option key={i} value={p.nome}>{p.nome}</option>
+                        ))}
+                        {editingIndex !== null && formData.cPivo && formData.cPivo !== '-' && !getPlantioPivos(formData.cFazenda, formData.cCultura).some(p => p.nome === formData.cPivo) && (
+                          <option value={formData.cPivo}>{formData.cPivo}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Área/há</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 14,50"
+                        value={formData.cAreaHa || formData.cHaDia || ''}
+                        onChange={e => {
+                          const newArea = sanitizeHectaresInput(e.target.value);
+                          const newMedia = calculateMediaHaForColheita(formData.cQtdColhida, newArea);
+                          const newProdBruta = calculateProdutividade(formData.cProducaoBrutaKg, newArea);
+                          const newProdLiq = calculateProdutividade(formData.cProducaoBeneficiada, newArea);
+                          setFormData({
+                            ...formData,
+                            cAreaHa: newArea,
+                            cHaDia: newArea,
+                            cMediaHa: newMedia,
+                            cProdutividadeBrutaHa: newProdBruta,
+                            cProdutividadeLiquidaHa: newProdLiq
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Gleba</label>
+                      <select
+                        value={formData.cGleba || ''}
+                        onChange={e => {
+                          const newGleba = e.target.value;
+                          const validVars = getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, newGleba);
+                          const newVar = validVars.some(v => v.nome === formData.cVariedade)
+                            ? formData.cVariedade
+                            : (validVars.length === 1 ? validVars[0].nome : '');
+
+                          setFormData({
+                            ...formData,
+                            cGleba: newGleba,
+                            cVariedade: newVar
+                          });
+                        }}
+                      >
+                        <option value="">Selecione uma gleba...</option>
+                        {getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).map((g, i) => (
+                          <option key={i} value={g.nome}>{g.nome}</option>
+                        ))}
+                        {editingIndex !== null && formData.cGleba && formData.cGleba !== '-' && !getPlantioGlebas(formData.cPivo, formData.cFazenda, formData.cCultura).some(g => g.nome === formData.cGleba) && (
+                          <option value={formData.cGleba}>{formData.cGleba}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Variedade</label>
+                      <select
+                        value={formData.cVariedade || ''}
+                        onChange={e => setFormData({ ...formData, cVariedade: e.target.value })}
+                      >
+                        <option value="">Selecione uma variedade...</option>
+                        {getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).map((v, i) => (
+                          <option key={i} value={v.nome}>{v.nome}</option>
+                        ))}
+                        {editingIndex !== null && formData.cVariedade && formData.cVariedade !== '-' && !getPlantioVariedades(formData.cCultura, formData.cFazenda, formData.cPivo, formData.cGleba).some(v => v.nome === formData.cVariedade) && (
+                          <option value={formData.cVariedade}>{formData.cVariedade}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Qtd.Colhida</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Ex: 250"
+                        value={formData.cQtdColhida || formData.cQtdColhido || ''}
+                        onChange={e => {
+                          const newQtd = e.target.value;
+                          const newMedia = calculateMediaHaForColheita(newQtd, formData.cAreaHa || formData.cHaDia);
+                          setFormData({
+                            ...formData,
+                            cQtdColhida: newQtd,
+                            cQtdColhido: newQtd,
+                            cCaixasCortadas: newQtd,
+                            cMediaHa: newMedia
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Média P/ Há (Cálculo Automático)</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 17,24"
+                        value={formData.cMediaHa || ''}
+                        onChange={e => setFormData({ ...formData, cMediaHa: e.target.value })}
+                        style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Embalagem</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Caixas, Bin, Bag"
+                        value={formData.cEmbalagem || formData.cCaixaBinBag || ''}
+                        onChange={e => setFormData({ ...formData, cEmbalagem: e.target.value, cCaixaBinBag: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Produção Bruta Kg</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 5000"
+                        value={formData.cProducaoBrutaKg || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const newProd = calculateProdutividade(val, formData.cAreaHa || formData.cHaDia);
+                          setFormData({ ...formData, cProducaoBrutaKg: val, cProdutividadeBrutaHa: newProd });
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Produtividade Bruta/há (Cálculo Automático)</label>
+                      <input
+                        type="text"
+                        placeholder="Calculado automaticamente..."
+                        value={formData.cProdutividadeBrutaHa || ''}
+                        onChange={e => setFormData({ ...formData, cProdutividadeBrutaHa: e.target.value })}
+                        style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Produção Beneficiada</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex: 4800"
+                        value={formData.cProducaoBeneficiada || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const newProd = calculateProdutividade(val, formData.cAreaHa || formData.cHaDia);
+                          setFormData({ ...formData, cProducaoBeneficiada: val, cProdutividadeLiquidaHa: newProd });
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Produtividade Líquida/ha (Cálculo Automático)</label>
+                      <input
+                        type="text"
+                        placeholder="Calculado automaticamente..."
+                        value={formData.cProdutividadeLiquidaHa || ''}
+                        onChange={e => setFormData({ ...formData, cProdutividadeLiquidaHa: e.target.value })}
+                        style={{ fontWeight: 700, backgroundColor: '#f3f2f1' }}
+                      />
                     </div>
                   </>
                 )}

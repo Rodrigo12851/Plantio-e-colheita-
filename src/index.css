@@ -1526,8 +1526,9 @@ table.grid-editing td[contenteditable="true"] {
   }
 }
 
-/* TABELA ESTILO EXCEL / PLANILHA PARA PLANTIO */
-#tablePlantio {
+/* TABELA ESTILO EXCEL / PLANILHA PARA PLANTIO E COLHEITA */
+#tablePlantio,
+#tableColheita {
   table-layout: fixed;
   width: 100%;
   min-width: 1445px;
@@ -1537,7 +1538,12 @@ table.grid-editing td[contenteditable="true"] {
   border: 1px solid #cbd5e1;
 }
 
-#tablePlantio thead th {
+#tableColheita {
+  min-width: 2060px;
+}
+
+#tablePlantio thead th,
+#tableColheita thead th {
   background-color: #356bb7 !important;
   color: #ffffff !important;
   font-weight: 700;
@@ -1553,11 +1559,13 @@ table.grid-editing td[contenteditable="true"] {
   vertical-align: middle;
 }
 
-#tablePlantio thead th:last-child {
+#tablePlantio thead th:last-child,
+#tableColheita thead th:last-child {
   border-right: none;
 }
 
-#tablePlantio .th-excel-content {
+#tablePlantio .th-excel-content,
+#tableColheita .th-excel-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1565,7 +1573,8 @@ table.grid-editing td[contenteditable="true"] {
   gap: 4px;
 }
 
-#tablePlantio .th-excel-label {
+#tablePlantio .th-excel-label,
+#tableColheita .th-excel-label {
   font-weight: 700;
   color: #ffffff;
   white-space: nowrap;
@@ -1575,7 +1584,8 @@ table.grid-editing td[contenteditable="true"] {
   letter-spacing: 0.2px;
 }
 
-#tablePlantio .excel-filter-box {
+#tablePlantio .excel-filter-box,
+#tableColheita .excel-filter-box {
   width: 17px;
   height: 17px;
   min-width: 17px;
@@ -1595,20 +1605,23 @@ table.grid-editing td[contenteditable="true"] {
   line-height: 1;
 }
 
-#tablePlantio .excel-filter-box:hover {
+#tablePlantio .excel-filter-box:hover,
+#tableColheita .excel-filter-box:hover {
   background-color: #f1f5f9;
   border-color: #1e293b;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
 }
 
-#tablePlantio .excel-filter-box.filtered {
+#tablePlantio .excel-filter-box.filtered,
+#tableColheita .excel-filter-box.filtered {
   background-color: #fef08a !important;
   border-color: #ca8a04 !important;
   color: #854d0e !important;
   font-weight: bold;
 }
 
-#tablePlantio tbody td {
+#tablePlantio tbody td,
+#tableColheita tbody td {
   padding: 5px 8px !important;
   border-right: 1px solid #e2e8f0;
   border-bottom: 1px solid #e2e8f0;
@@ -1620,19 +1633,29 @@ table.grid-editing td[contenteditable="true"] {
   vertical-align: middle;
 }
 
-#tablePlantio tbody td:last-child {
+#tablePlantio tbody td:last-child,
+#tableColheita tbody td:last-child {
   border-right: none;
 }
 
-#tablePlantio tbody tr:hover td {
+/* Divisor de congelamento de painéis estilo Excel (linha entre Ano e PIVO) */
+#tableColheita thead th.excel-freeze-split,
+#tableColheita tbody td.excel-freeze-split {
+  border-right: 2px solid #0f172a !important;
+}
+
+#tablePlantio tbody tr:hover td,
+#tableColheita tbody tr:hover td {
   background-color: #eff6ff !important;
 }
 
-#tablePlantio tbody tr:nth-child(even) td {
+#tablePlantio tbody tr:nth-child(even) td,
+#tableColheita tbody tr:nth-child(even) td {
   background-color: #f8fafc;
 }
 
-#tablePlantio tbody tr:nth-child(even):hover td {
+#tablePlantio tbody tr:nth-child(even):hover td,
+#tableColheita tbody tr:nth-child(even):hover td {
   background-color: #eff6ff !important;
 }
 
