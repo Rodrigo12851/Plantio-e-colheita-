@@ -464,7 +464,9 @@ export default function App() {
     handleRowResizeStart,
     handleRowReset,
     handleSetRowHeightPreset,
-    handleResetTableDimensions
+    handleResetTableDimensions,
+    wrapText,
+    toggleWrapText
   } = useTableDimensions((msg, type) => showToast(msg, type === 'error' ? 'warning' : type));
 
   // Custom confirmation modal state
@@ -4247,12 +4249,36 @@ export default function App() {
                 <i className="fa-solid fa-xmark"></i> Limpar Filtros
               </button>
               {(activePage === 'colheita' || activePage === 'plantio') && (
-                <ExcelDimensionsControl
-                  tableType={activePage as 'colheita' | 'plantio'}
-                  defaultRowHeight={defaultRowHeight}
-                  onSetRowHeightPreset={handleSetRowHeightPreset}
-                  onResetDimensions={() => handleResetTableDimensions(activePage as 'colheita' | 'plantio')}
-                />
+                <>
+                  <ExcelDimensionsControl
+                    tableType={activePage as 'colheita' | 'plantio'}
+                    defaultRowHeight={defaultRowHeight}
+                    onSetRowHeightPreset={handleSetRowHeightPreset}
+                    onResetDimensions={() => handleResetTableDimensions(activePage as 'colheita' | 'plantio')}
+                    wrapText={wrapText}
+                    onToggleWrapText={toggleWrapText}
+                  />
+                  <button
+                    type="button"
+                    id="btnWrapText"
+                    className="excel-wrap-btn inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded border transition-all"
+                    style={{
+                      backgroundColor: wrapText ? '#e0edfa' : '#ffffff',
+                      borderColor: wrapText ? '#0078d4' : '#d1d5db',
+                      color: wrapText ? '#005a9e' : '#1f2937',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                    onClick={toggleWrapText}
+                    title={wrapText ? "Quebrar Texto Automaticamente: ATIVADO (Clique para desativar)" : "Quebrar Texto Automaticamente: DESATIVADO (Clique para ativar)"}
+                  >
+                    <i className="fa-solid fa-arrow-turn-down text-[10px]" style={{ transform: 'rotate(90deg)', color: wrapText ? '#0078d4' : '#64748b' }}></i>
+                    <span>Quebrar Texto</span>
+                    <span
+                      className={`w-2 h-2 rounded-full ${wrapText ? 'bg-[#0078d4]' : 'bg-gray-300'}`}
+                      style={{ transition: 'background-color 0.2s' }}
+                    />
+                  </button>
+                </>
               )}
               <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#323130', fontWeight: 500 }}>
@@ -4287,7 +4313,7 @@ export default function App() {
             <div className="table-container">
               <table
                 id="tableColheita"
-                className={isGridEditing ? 'grid-editing' : ''}
+                className={`${isGridEditing ? 'grid-editing' : ''} ${wrapText ? 'table-wrap-text' : 'table-nowrap'}`}
                 style={{
                   width: `${totalWidthColheita}px`,
                   minWidth: `${totalWidthColheita}px`,
@@ -4766,7 +4792,7 @@ export default function App() {
             <div className="table-container">
               <table
                 id="tablePlantio"
-                className={isGridEditing ? 'grid-editing' : ''}
+                className={`${isGridEditing ? 'grid-editing' : ''} ${wrapText ? 'table-wrap-text' : 'table-nowrap'}`}
                 style={{
                   width: `${totalWidthPlantio}px`,
                   minWidth: `${totalWidthPlantio}px`,

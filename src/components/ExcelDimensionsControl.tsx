@@ -5,13 +5,17 @@ interface ExcelDimensionsControlProps {
   defaultRowHeight: number;
   onSetRowHeightPreset: (height: number) => void;
   onResetDimensions: () => void;
+  wrapText?: boolean;
+  onToggleWrapText?: () => void;
 }
 
 export const ExcelDimensionsControl: React.FC<ExcelDimensionsControlProps> = ({
   tableType,
   defaultRowHeight,
   onSetRowHeightPreset,
-  onResetDimensions
+  onResetDimensions,
+  wrapText = true,
+  onToggleWrapText
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -81,6 +85,36 @@ export const ExcelDimensionsControl: React.FC<ExcelDimensionsControlProps> = ({
               <i className="fa-solid fa-xmark text-xs"></i>
             </button>
           </div>
+
+          {/* Quebrar Texto Section (Excel-style Wrap Text) */}
+          {onToggleWrapText && (
+            <div className="mt-2.5 pb-2.5 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-gray-700">
+                  <i className="fa-solid fa-arrow-turn-down text-[#0078d4] text-[11px]" style={{ transform: 'rotate(90deg)' }}></i>
+                  <span>Quebrar Texto:</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onToggleWrapText}
+                  className={`px-2.5 py-1 rounded text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    wrapText
+                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title={wrapText ? 'Desativar quebra de texto' : 'Ativar quebra de texto'}
+                >
+                  <span className={`w-2 h-2 rounded-full ${wrapText ? 'bg-blue-600 animate-pulse' : 'bg-gray-300'}`}></span>
+                  <span>{wrapText ? 'Ativado' : 'Desativado'}</span>
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1 leading-tight">
+                {wrapText
+                  ? 'Texto quebra em múltiplas linhas para caber na largura da coluna sem cortar palavras.'
+                  : 'Texto fica em linha única e trunca com reticências (...) se a coluna for pequena.'}
+              </p>
+            </div>
+          )}
 
           {/* Row Height Section */}
           <div className="mt-3">

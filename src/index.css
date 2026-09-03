@@ -1550,13 +1550,58 @@ table.grid-editing td[contenteditable="true"] {
   padding: 6px 7px !important;
   border-right: 1px solid rgba(255, 255, 255, 0.25);
   border-bottom: 2px solid #1e3a8a;
-  white-space: nowrap !important;
-  overflow: hidden !important;
   user-select: none;
   vertical-align: middle;
-  height: 48px;
+  min-height: 48px;
   position: relative !important;
   box-sizing: border-box !important;
+}
+
+/* Modo Quebra de Texto Ativada (Padrão Excel) */
+#tablePlantio.table-wrap-text thead th,
+#tableColheita.table-wrap-text thead th {
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+#tablePlantio.table-wrap-text .th-excel-label,
+#tableColheita.table-wrap-text .th-excel-label {
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-overflow: clip !important;
+  line-height: 1.25;
+}
+
+#tablePlantio.table-wrap-text tbody td,
+#tableColheita.table-wrap-text tbody td {
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+  text-overflow: clip !important;
+}
+
+/* Modo Quebra de Texto Desativada (Linha única com reticências) */
+#tablePlantio.table-nowrap thead th,
+#tableColheita.table-nowrap thead th {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+}
+
+#tablePlantio.table-nowrap .th-excel-label,
+#tableColheita.table-nowrap .th-excel-label {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#tablePlantio.table-nowrap tbody td,
+#tableColheita.table-nowrap tbody td {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 #tablePlantio thead th:last-child,
@@ -1649,9 +1694,6 @@ table.grid-editing td[contenteditable="true"] {
 #tableColheita .th-excel-label {
   font-weight: 700;
   color: #ffffff;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
   line-height: 1.22;
   font-size: 11.5px;
   letter-spacing: 0.1px;
@@ -1702,13 +1744,11 @@ table.grid-editing td[contenteditable="true"] {
   padding: 5px 8px !important;
   border-right: 1px solid #e2e8f0;
   border-bottom: 1px solid #e2e8f0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-size: 12px;
   color: #1e293b;
   vertical-align: middle;
   position: relative !important;
+  box-sizing: border-box !important;
 }
 
 #tablePlantio tbody td:last-child,

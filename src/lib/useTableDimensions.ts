@@ -42,6 +42,31 @@ export const DEFAULT_COL_WIDTHS_PLANTIO = [
 export const DEFAULT_ROW_HEIGHT = 34;
 
 export function useTableDimensions(showToast?: (msg: string, type: 'success' | 'error' | 'info') => void) {
+  // Wrap Text State (Excel-style Wrap Text / Quebrar Texto)
+  const [wrapText, setWrapText] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('cristalina_table_wrap_text');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {
+      console.warn('Erro ao carregar preferência de quebra de texto:', e);
+    }
+    return true; // Padrão: quebra de texto ativada
+  });
+
+  const toggleWrapText = useCallback(() => {
+    setWrapText(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('cristalina_table_wrap_text', String(next));
+      } catch (err) {}
+      showToast?.(
+        next ? 'Quebra de texto ativada (estilo Excel)' : 'Quebra de texto desativada (linha única)',
+        'info'
+      );
+      return next;
+    });
+  }, [showToast]);
+
   // Column Widths for Colheita
   const [colWidthsColheita, setColWidthsColheita] = useState<number[]>(() => {
     try {
@@ -360,6 +385,8 @@ export function useTableDimensions(showToast?: (msg: string, type: 'success' | '
     handleRowResizeStart,
     handleRowReset,
     handleSetRowHeightPreset,
-    handleResetTableDimensions
+    handleResetTableDimensions,
+    wrapText,
+    toggleWrapText
   };
 }
