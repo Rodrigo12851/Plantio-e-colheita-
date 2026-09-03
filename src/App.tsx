@@ -1098,12 +1098,29 @@ export default function App() {
   const [tieHectares, setTieHectares] = useState('');
   const [tieObservacao, setTieObservacao] = useState('');
 
-  // Helper to parse numeric hectares from a text string (e.g. "115,00 ha" -> 115)
-  const parseHaValue = (valStr: string | undefined): number => {
+  // Helper to parse numeric hectares and quantities from Brazilian formatted strings (e.g. "3.342" -> 3342, "3,34" -> 3.34)
+  const parsePtBrNumber = (valStr: string | undefined): number => {
     if (!valStr) return 0;
-    const clean = valStr.replace(',', '.').replace(/[^0-9.]/g, '');
+    let s = valStr.trim();
+    if (s.includes('.') && s.includes(',')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (s.includes(',')) {
+      s = s.replace(',', '.');
+    } else if (s.includes('.')) {
+      const parts = s.split('.');
+      if (parts.length > 2) {
+        s = s.replace(/\./g, '');
+      } else if (parts[1] && parts[1].length === 3 && parseInt(parts[0], 10) > 0) {
+        s = s.replace('.', '');
+      }
+    }
+    const clean = s.replace(/[^0-9.-]/g, '');
     const num = parseFloat(clean);
     return isNaN(num) ? 0 : num;
+  };
+
+  const parseHaValue = (valStr: string | undefined): number => {
+    return parsePtBrNumber(valStr);
   };
 
   // Helpers to calculate already planted/harvested hectares and HA Restante
@@ -1216,19 +1233,19 @@ export default function App() {
   };
 
   const calculateMediaHaForColheita = (qtdColhidoStr: string | undefined, haDiaStr: string | undefined): string => {
-    const qtd = parseHaValue(qtdColhidoStr);
-    const haDia = parseHaValue(haDiaStr);
+    const qtd = parsePtBrNumber(qtdColhidoStr);
+    const haDia = parsePtBrNumber(haDiaStr);
     if (qtd <= 0 || haDia <= 0) return '';
-    const media = qtd / haDia;
-    return `${media.toFixed(2).replace('.', ',')} /ha`;
+    const media = Math.round(qtd / haDia);
+    return media.toLocaleString('pt-BR');
   };
 
   const calculateProdutividade = (prodStr: string | undefined, areaStr: string | undefined): string => {
-    const prod = parseHaValue(prodStr);
-    const area = parseHaValue(areaStr);
+    const prod = parsePtBrNumber(prodStr);
+    const area = parsePtBrNumber(areaStr);
     if (prod <= 0 || area <= 0) return '';
     const val = prod / area;
-    return `${val.toFixed(2).replace('.', ',')}`;
+    return val % 1 === 0 ? Math.round(val).toLocaleString('pt-BR') : val.toFixed(2).replace('.', ',');
   };
 
   // Helper to lookup full original total hectares bound in amarracoesData for a selected area
@@ -2206,7 +2223,26 @@ export default function App() {
   const getActiveVisibleRows = (): string[][] => {
     if (activePage === 'colheita') {
       return colheitaData
-        .map(item => [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-'])
+        .map(item => [
+          item.data,
+          item.unidade || item.empresa || selectedUnidade || '-',
+          item.cultura || '-',
+          item.cCusto || item.os || '-',
+          item.fazenda || '-',
+          item.pivo || '-',
+          item.areaHa || item.haDia || '-',
+          item.gleba || '-',
+          item.variedade || '-',
+          item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-',
+          item.mediaHa || calculateMediaHaForColheita(item.qtdColhida || item.qtdColhido || item.caixasCortadas, item.areaHa || item.haDia) || '-',
+          item.embalagem || item.caixaBinBag || '-',
+          item.producaoBrutaKg || '-',
+          item.produtividadeBrutaHa || calculateProdutividade(item.producaoBrutaKg, item.areaHa || item.haDia) || '-',
+          item.producaoBeneficiada || '-',
+          item.produtividadeLiquidaHa || calculateProdutividade(item.producaoBeneficiada, item.areaHa || item.haDia) || '-',
+          item.mes || getMonthNameFromDate(item.data) || '-',
+          item.ano || getYearFromDate(item.data) || '-'
+        ])
         .filter(row => isRowVisible(row));
     } else if (activePage === 'plantio') {
       return plantioData
@@ -2274,7 +2310,26 @@ export default function App() {
 
     let allRows: string[][] = [];
     if (activePage === 'colheita') {
-      allRows = colheitaData.map(item => [item.data, item.empresa || '-', item.cultura, item.os || '-', item.fazenda, item.pivo || '-', item.gleba || '-', item.variedade || '-', item.haDia || '-', item.haGeral || '-', item.haRestante || '-', item.qtdColhido || item.caixasCortadas || item.caixaBinBag || '-', item.glebasFinalizada || '-', item.mediaHa || '-', item.mes || '-', item.ano || '-']);
+      allRows = colheitaData.map(item => [
+        item.data,
+        item.unidade || item.empresa || selectedUnidade || '-',
+        item.cultura || '-',
+        item.cCusto || item.os || '-',
+        item.fazenda || '-',
+        item.pivo || '-',
+        item.areaHa || item.haDia || '-',
+        item.gleba || '-',
+        item.variedade || '-',
+        item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-',
+        item.mediaHa || calculateMediaHaForColheita(item.qtdColhida || item.qtdColhido || item.caixasCortadas, item.areaHa || item.haDia) || '-',
+        item.embalagem || item.caixaBinBag || '-',
+        item.producaoBrutaKg || '-',
+        item.produtividadeBrutaHa || calculateProdutividade(item.producaoBrutaKg, item.areaHa || item.haDia) || '-',
+        item.producaoBeneficiada || '-',
+        item.produtividadeLiquidaHa || calculateProdutividade(item.producaoBeneficiada, item.areaHa || item.haDia) || '-',
+        item.mes || getMonthNameFromDate(item.data) || '-',
+        item.ano || getYearFromDate(item.data) || '-'
+      ]);
     } else if (activePage === 'plantio') {
       allRows = plantioData.map(item => [
         item.data,
@@ -2389,24 +2444,24 @@ export default function App() {
       if (activePage === 'colheita') {
         const block = `*INFORMAÇÕES DE COLHEITA*\n` +
           `*${(cells[4] || 'FAZENDA').toUpperCase()}*\n\n` +
-          `*Data:* ${cells[0] || '-'}\n` +
+          `*DATA:* ${cells[0] || '-'}\n` +
           `*Unidade:* ${cells[1] || '-'}\n` +
           `*Cultura:* ${cells[2] || '-'}\n` +
           `*C.Custo:* ${cells[3] || '-'}\n` +
           `*Fazenda:* ${cells[4] || '-'}\n` +
-          `*mês:* ${cells[5] || '-'}\n` +
-          `*Ano:* ${cells[6] || '-'}\n` +
-          `*PIVO:* ${cells[7] || '-'}\n` +
-          `*Área/há:* ${cells[8] || '-'}\n` +
-          `*Gleba:* ${cells[9] || '-'}\n` +
-          `*Variedade:* ${cells[10] || '-'}\n` +
-          `*Qtd.Colhida:* ${cells[11] || '-'}\n` +
-          `*Média P/ Há:* ${cells[12] || '-'}\n` +
-          `*Embalagem:* ${cells[13] || '-'}\n` +
-          `*Produção Bruta Kg:* ${cells[14] || '-'}\n` +
-          `*Produtividade Bruta/há:* ${cells[15] || '-'}\n` +
-          `*Produção Beneficiada:* ${cells[16] || '-'}\n` +
-          `*Produtividade Líquida/ha:* ${cells[17] || '-'}`;
+          `*PIVO:* ${cells[5] || '-'}\n` +
+          `*Área/há:* ${cells[6] || '-'}\n` +
+          `*Gleba:* ${cells[7] || '-'}\n` +
+          `*Variedade:* ${cells[8] || '-'}\n` +
+          `*Qtd.Colhida:* ${cells[9] || '-'}\n` +
+          `*Média P/ Há:* ${cells[10] || '-'}\n` +
+          `*Embalagem:* ${cells[11] || '-'}\n` +
+          `*Produção Bruta Kg:* ${cells[12] || '-'}\n` +
+          `*Produtividade Bruta/há:* ${cells[13] || '-'}\n` +
+          `*Produção Beneficiada:* ${cells[14] || '-'}\n` +
+          `*Produtividade Líquida/ha:* ${cells[15] || '-'}\n` +
+          `*mês:* ${cells[16] || '-'}\n` +
+          `*Ano:* ${cells[17] || '-'}`;
         textBlocks.push(block);
       } else if (activePage === 'plantio') {
         const block = `*INFORMAÇÕES DE PLANTIO*\n` +
@@ -2492,7 +2547,7 @@ export default function App() {
     let rows: string[][] = [];
 
     if (activePage === 'colheita') {
-      headers = ['DATA', 'Unidade', 'Cultura', 'C.Custo', 'Fazenda', 'mês', 'Ano', 'PIVO', 'Área/há', 'Gleba', 'Variedade', 'Qtd.Colhida', 'Média P/ Há', 'Embalagem', 'Produção Bruta Kg', 'Produtividade Bruta/há', 'Produção Beneficiada', 'Produtividade Líquida/ha'];
+      headers = ['DATA', 'Unidade', 'Cultura', 'C.Custo', 'Fazenda', 'PIVO', 'Área/há', 'Gleba', 'Variedade', 'Qtd.Colhida', 'Média P/ Há', 'Embalagem', 'Produção Bruta Kg', 'Produtividade Bruta/há', 'Produção Beneficiada', 'Produtividade Líquida/ha', 'mês', 'Ano'];
       rows = colheitaData
         .map(i => [
           i.data,
@@ -2500,19 +2555,19 @@ export default function App() {
           i.cultura || '-',
           i.cCusto || i.os || '-',
           i.fazenda || '-',
-          i.mes || getMonthNameFromDate(i.data) || '-',
-          i.ano || getYearFromDate(i.data) || '-',
           i.pivo || '-',
           i.areaHa || i.haDia || '-',
           i.gleba || '-',
           i.variedade || '-',
           i.qtdColhida || i.qtdColhido || i.caixasCortadas || '-',
-          i.mediaHa || '-',
+          i.mediaHa || calculateMediaHaForColheita(i.qtdColhida || i.qtdColhido || i.caixasCortadas, i.areaHa || i.haDia) || '-',
           i.embalagem || i.caixaBinBag || '-',
           i.producaoBrutaKg || '-',
-          i.produtividadeBrutaHa || '-',
+          i.produtividadeBrutaHa || calculateProdutividade(i.producaoBrutaKg, i.areaHa || i.haDia) || '-',
           i.producaoBeneficiada || '-',
-          i.produtividadeLiquidaHa || '-'
+          i.produtividadeLiquidaHa || calculateProdutividade(i.producaoBeneficiada, i.areaHa || i.haDia) || '-',
+          i.mes || getMonthNameFromDate(i.data) || '-',
+          i.ano || getYearFromDate(i.data) || '-'
         ])
         .filter(r => isRowVisible(r));
     } else if (activePage === 'plantio') {
@@ -2662,7 +2717,7 @@ export default function App() {
     const parts = yyyymmdd.split('-');
     if (parts.length === 3) {
       const monthNum = parseInt(parts[1], 10);
-      const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
       return months[monthNum - 1] || '';
     }
     return '';
@@ -2694,23 +2749,23 @@ export default function App() {
       initial.cCCusto = editData ? editData[3] : (doc?.cCusto || doc?.os || '');
       initial.cOs = initial.cCCusto;
       initial.cFazenda = editData ? editData[4] : (doc?.fazenda || '');
-      initial.cMes = editData && editData[5] && editData[5] !== '-' ? editData[5] : (doc?.mes || getMonthNameFromDate(selectedDate));
-      initial.cAno = editData && editData[6] && editData[6] !== '-' ? editData[6] : (doc?.ano || getYearFromDate(selectedDate));
-      initial.cPivo = editData ? editData[7] : (doc?.pivo || '');
-      initial.cAreaHa = editData ? editData[8] : (doc?.areaHa || doc?.haDia || '');
+      initial.cPivo = editData ? editData[5] : (doc?.pivo || '');
+      initial.cAreaHa = editData ? editData[6] : (doc?.areaHa || doc?.haDia || '');
       initial.cHaDia = initial.cAreaHa;
-      initial.cGleba = editData ? editData[9] : (doc?.gleba || '');
-      initial.cVariedade = editData ? editData[10] : (doc?.variedade || '');
-      initial.cQtdColhida = editData && editData[11] && editData[11] !== '-' ? editData[11] : (doc?.qtdColhida || doc?.qtdColhido || doc?.caixasCortadas || '');
+      initial.cGleba = editData ? editData[7] : (doc?.gleba || '');
+      initial.cVariedade = editData ? editData[8] : (doc?.variedade || '');
+      initial.cQtdColhida = editData && editData[9] && editData[9] !== '-' ? editData[9] : (doc?.qtdColhida || doc?.qtdColhido || doc?.caixasCortadas || '');
       initial.cQtdColhido = initial.cQtdColhida;
       initial.cCaixasCortadas = initial.cQtdColhida;
-      initial.cMediaHa = editData && editData[12] && editData[12] !== '-' ? editData[12] : (doc?.mediaHa || calculateMediaHaForColheita(initial.cQtdColhida, initial.cAreaHa));
-      initial.cEmbalagem = editData && editData[13] && editData[13] !== '-' ? editData[13] : (doc?.embalagem || doc?.caixaBinBag || 'Caixas');
+      initial.cMediaHa = editData && editData[10] && editData[10] !== '-' ? editData[10] : (doc?.mediaHa || calculateMediaHaForColheita(initial.cQtdColhida, initial.cAreaHa));
+      initial.cEmbalagem = editData && editData[11] && editData[11] !== '-' ? editData[11] : (doc?.embalagem || doc?.caixaBinBag || 'Caixas');
       initial.cCaixaBinBag = initial.cEmbalagem;
-      initial.cProducaoBrutaKg = editData && editData[14] && editData[14] !== '-' ? editData[14] : (doc?.producaoBrutaKg || '');
-      initial.cProdutividadeBrutaHa = editData && editData[15] && editData[15] !== '-' ? editData[15] : (doc?.produtividadeBrutaHa || calculateProdutividade(initial.cProducaoBrutaKg, initial.cAreaHa));
-      initial.cProducaoBeneficiada = editData && editData[16] && editData[16] !== '-' ? editData[16] : (doc?.producaoBeneficiada || '');
-      initial.cProdutividadeLiquidaHa = editData && editData[17] && editData[17] !== '-' ? editData[17] : (doc?.produtividadeLiquidaHa || calculateProdutividade(initial.cProducaoBeneficiada, initial.cAreaHa));
+      initial.cProducaoBrutaKg = editData && editData[12] && editData[12] !== '-' ? editData[12] : (doc?.producaoBrutaKg || '');
+      initial.cProdutividadeBrutaHa = editData && editData[13] && editData[13] !== '-' ? editData[13] : (doc?.produtividadeBrutaHa || calculateProdutividade(initial.cProducaoBrutaKg, initial.cAreaHa));
+      initial.cProducaoBeneficiada = editData && editData[14] && editData[14] !== '-' ? editData[14] : (doc?.producaoBeneficiada || '');
+      initial.cProdutividadeLiquidaHa = editData && editData[15] && editData[15] !== '-' ? editData[15] : (doc?.produtividadeLiquidaHa || calculateProdutividade(initial.cProducaoBeneficiada, initial.cAreaHa));
+      initial.cMes = editData && editData[16] && editData[16] !== '-' ? editData[16] : (doc?.mes || getMonthNameFromDate(selectedDate));
+      initial.cAno = editData && editData[17] && editData[17] !== '-' ? editData[17] : (doc?.ano || getYearFromDate(selectedDate));
       initial.cHaGeral = doc?.haGeral || (lookupPlantedHectaresForSelection(initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade) || '');
       initial.cHaRestante = doc?.haRestante || calculateHaRestanteForColheita(initial.cHaGeral, initial.cAreaHa, initial.cCultura, initial.cFazenda, initial.cPivo, initial.cGleba, initial.cVariedade, index);
       initial.cGlebasFinalizada = doc?.glebasFinalizada || 'Não';
@@ -4203,25 +4258,25 @@ export default function App() {
             <div className="table-container">
               <table id="tableColheita" className={isGridEditing ? 'grid-editing' : ''}>
                 <colgroup>
-                  <col style={{ width: '105px' }} /> {/* DATA */}
-                  <col style={{ width: '120px' }} /> {/* Unidade */}
-                  <col style={{ width: '110px' }} /> {/* Cultura */}
-                  <col style={{ width: '95px' }} />  {/* C.Custo */}
-                  <col style={{ width: '160px' }} /> {/* Fazenda */}
-                  <col style={{ width: '90px' }} />  {/* mês */}
-                  <col style={{ width: '80px' }} />  {/* Ano */}
-                  <col style={{ width: '105px' }} /> {/* PIVO */}
-                  <col style={{ width: '95px' }} />  {/* Área/há */}
-                  <col style={{ width: '90px' }} />  {/* Gleba */}
-                  <col style={{ width: '125px' }} /> {/* Variedade */}
-                  <col style={{ width: '105px' }} /> {/* Qtd.Colhida */}
-                  <col style={{ width: '110px' }} /> {/* Média P/ Há */}
-                  <col style={{ width: '110px' }} /> {/* Embalagem */}
-                  <col style={{ width: '140px' }} /> {/* Produção Bruta Kg */}
-                  <col style={{ width: '145px' }} /> {/* Produtividade Bruta/há */}
-                  <col style={{ width: '145px' }} /> {/* Produção Beneficiada */}
-                  <col style={{ width: '150px' }} /> {/* Produtividade Líquida/ha */}
-                  <col style={{ width: '75px' }} />  {/* AÇÕES */}
+                  <col style={{ width: '105px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '95px' }} />
+                  <col style={{ width: '160px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '80px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '115px' }} />
+                  <col style={{ width: '140px' }} />
+                  <col style={{ width: '150px' }} />
+                  <col style={{ width: '140px' }} />
+                  <col style={{ width: '155px' }} />
+                  <col style={{ width: '85px' }} />
+                  <col style={{ width: '75px' }} />
+                  <col style={{ width: '75px' }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -4285,39 +4340,15 @@ export default function App() {
                         </button>
                       </div>
                     </th>
-                    <th title="mês">
-                      <div className="th-excel-content">
-                        <span className="th-excel-label">mês</span>
-                        <button
-                          className={`excel-filter-box ${isColFiltered(5) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 5)}
-                          title="Filtrar por mês"
-                        >
-                          <i className={`fa-solid ${isColFiltered(5) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(5) ? '8px' : '9px' }}></i>
-                        </button>
-                      </div>
-                    </th>
-                    <th title="Ano" className="excel-freeze-split">
-                      <div className="th-excel-content">
-                        <span className="th-excel-label">Ano</span>
-                        <button
-                          className={`excel-filter-box ${isColFiltered(6) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 6)}
-                          title="Filtrar por Ano"
-                        >
-                          <i className={`fa-solid ${isColFiltered(6) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(6) ? '8px' : '9px' }}></i>
-                        </button>
-                      </div>
-                    </th>
                     <th title="PIVO">
                       <div className="th-excel-content">
                         <span className="th-excel-label">PIVO</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(7) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 7)}
+                          className={`excel-filter-box ${isColFiltered(5) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 5)}
                           title="Filtrar por PIVO"
                         >
-                          <i className={`fa-solid ${isColFiltered(7) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(7) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(5) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(5) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4325,11 +4356,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Área/há</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(8) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 8)}
+                          className={`excel-filter-box ${isColFiltered(6) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 6)}
                           title="Filtrar por Área/há"
                         >
-                          <i className={`fa-solid ${isColFiltered(8) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(8) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(6) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(6) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4337,11 +4368,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Gleba</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(9) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 9)}
+                          className={`excel-filter-box ${isColFiltered(7) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 7)}
                           title="Filtrar por Gleba"
                         >
-                          <i className={`fa-solid ${isColFiltered(9) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(9) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(7) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(7) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4349,23 +4380,23 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Variedade</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(10) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 10)}
+                          className={`excel-filter-box ${isColFiltered(8) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 8)}
                           title="Filtrar por Variedade"
                         >
-                          <i className={`fa-solid ${isColFiltered(10) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(10) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(8) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(8) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
-                    <th title="Qtd.Colhida">
+                    <th title="Qtd. Colhida">
                       <div className="th-excel-content">
-                        <span className="th-excel-label">Qtd.Colhida</span>
+                        <span className="th-excel-label">Qtd. Colhida</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(11) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 11)}
-                          title="Filtrar por Qtd.Colhida"
+                          className={`excel-filter-box ${isColFiltered(9) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 9)}
+                          title="Filtrar por Qtd. Colhida"
                         >
-                          <i className={`fa-solid ${isColFiltered(11) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(11) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(9) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(9) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4373,11 +4404,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Média P/ Há</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(12) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 12)}
+                          className={`excel-filter-box ${isColFiltered(10) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 10)}
                           title="Filtrar por Média P/ Há"
                         >
-                          <i className={`fa-solid ${isColFiltered(12) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(12) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(10) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(10) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4385,11 +4416,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Embalagem</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(13) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 13)}
+                          className={`excel-filter-box ${isColFiltered(11) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 11)}
                           title="Filtrar por Embalagem"
                         >
-                          <i className={`fa-solid ${isColFiltered(13) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(13) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(11) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(11) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4397,11 +4428,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produção Bruta Kg</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(14) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 14)}
+                          className={`excel-filter-box ${isColFiltered(12) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 12)}
                           title="Filtrar por Produção Bruta Kg"
                         >
-                          <i className={`fa-solid ${isColFiltered(14) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(14) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(12) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(12) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4409,11 +4440,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produtividade Bruta/há</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(15) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 15)}
+                          className={`excel-filter-box ${isColFiltered(13) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 13)}
                           title="Filtrar por Produtividade Bruta/há"
                         >
-                          <i className={`fa-solid ${isColFiltered(15) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(15) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(13) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(13) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4421,11 +4452,11 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produção Beneficiada</span>
                         <button
-                          className={`excel-filter-box ${isColFiltered(16) ? 'filtered' : ''}`}
-                          onClick={e => openColumnFilter(e, 16)}
+                          className={`excel-filter-box ${isColFiltered(14) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 14)}
                           title="Filtrar por Produção Beneficiada"
                         >
-                          <i className={`fa-solid ${isColFiltered(16) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(16) ? '8px' : '9px' }}></i>
+                          <i className={`fa-solid ${isColFiltered(14) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(14) ? '8px' : '9px' }}></i>
                         </button>
                       </div>
                     </th>
@@ -4433,9 +4464,33 @@ export default function App() {
                       <div className="th-excel-content">
                         <span className="th-excel-label">Produtividade Líquida/ha</span>
                         <button
+                          className={`excel-filter-box ${isColFiltered(15) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 15)}
+                          title="Filtrar por Produtividade Líquida/ha"
+                        >
+                          <i className={`fa-solid ${isColFiltered(15) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(15) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="mês">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">mês</span>
+                        <button
+                          className={`excel-filter-box ${isColFiltered(16) ? 'filtered' : ''}`}
+                          onClick={e => openColumnFilter(e, 16)}
+                          title="Filtrar por mês"
+                        >
+                          <i className={`fa-solid ${isColFiltered(16) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(16) ? '8px' : '9px' }}></i>
+                        </button>
+                      </div>
+                    </th>
+                    <th title="Ano">
+                      <div className="th-excel-content">
+                        <span className="th-excel-label">Ano</span>
+                        <button
                           className={`excel-filter-box ${isColFiltered(17) ? 'filtered' : ''}`}
                           onClick={e => openColumnFilter(e, 17)}
-                          title="Filtrar por Produtividade Líquida/ha"
+                          title="Filtrar por Ano"
                         >
                           <i className={`fa-solid ${isColFiltered(17) ? 'fa-filter' : 'fa-caret-down'}`} style={{ fontSize: isColFiltered(17) ? '8px' : '9px' }}></i>
                         </button>
@@ -4455,42 +4510,42 @@ export default function App() {
                       item.cultura || '-',
                       item.cCusto || item.os || '-',
                       item.fazenda || '-',
-                      item.mes || getMonthNameFromDate(item.data) || '-',
-                      item.ano || getYearFromDate(item.data) || '-',
                       item.pivo || '-',
                       item.areaHa || item.haDia || '-',
                       item.gleba || '-',
                       item.variedade || '-',
                       item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-',
-                      item.mediaHa || '-',
+                      item.mediaHa || calculateMediaHaForColheita(item.qtdColhida || item.qtdColhido || item.caixasCortadas, item.areaHa || item.haDia) || '-',
                       item.embalagem || item.caixaBinBag || '-',
                       item.producaoBrutaKg || '-',
-                      item.produtividadeBrutaHa || '-',
+                      item.produtividadeBrutaHa || calculateProdutividade(item.producaoBrutaKg, item.areaHa || item.haDia) || '-',
                       item.producaoBeneficiada || '-',
-                      item.produtividadeLiquidaHa || '-'
+                      item.produtividadeLiquidaHa || calculateProdutividade(item.producaoBeneficiada, item.areaHa || item.haDia) || '-',
+                      item.mes || getMonthNameFromDate(item.data) || '-',
+                      item.ano || getYearFromDate(item.data) || '-'
                     ];
                     if (!isRowVisible(rowCells)) return null;
 
                     return (
                       <tr key={idx}>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'data', e.currentTarget.innerText)}>{item.data}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'data', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.data}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'unidade', e.currentTarget.innerText)}>{item.unidade || item.empresa || selectedUnidade || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cultura', e.currentTarget.innerText)}>{item.cultura}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cultura', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.cultura}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'cCusto', e.currentTarget.innerText)}>{item.cCusto || item.os || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'fazenda', e.currentTarget.innerText)}>{item.fazenda}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>{item.mes || getMonthNameFromDate(item.data) || '-'}</td>
-                        <td className="excel-freeze-split" contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)}>{item.ano || getYearFromDate(item.data) || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'pivo', e.currentTarget.innerText)}>{item.pivo || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'areaHa', e.currentTarget.innerText)}>{item.areaHa || item.haDia || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'gleba', e.currentTarget.innerText)}>{item.gleba || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'variedade', e.currentTarget.innerText)}>{item.variedade || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'qtdColhida', e.currentTarget.innerText)}>{item.qtdColhida || item.qtdColhido || item.caixasCortadas || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mediaHa', e.currentTarget.innerText)}>{item.mediaHa || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mediaHa', e.currentTarget.innerText)} style={{ fontWeight: 600, color: '#0369a1' }}>{item.mediaHa || calculateMediaHaForColheita(item.qtdColhida || item.qtdColhido || item.caixasCortadas, item.areaHa || item.haDia) || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'embalagem', e.currentTarget.innerText)}>{item.embalagem || item.caixaBinBag || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBrutaKg', e.currentTarget.innerText)}>{item.producaoBrutaKg || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeBrutaHa', e.currentTarget.innerText)}>{item.produtividadeBrutaHa || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeBrutaHa', e.currentTarget.innerText)}>{item.produtividadeBrutaHa || calculateProdutividade(item.producaoBrutaKg, item.areaHa || item.haDia) || '-'}</td>
                         <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'producaoBeneficiada', e.currentTarget.innerText)}>{item.producaoBeneficiada || '-'}</td>
-                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeLiquidaHa', e.currentTarget.innerText)}>{item.produtividadeLiquidaHa || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'produtividadeLiquidaHa', e.currentTarget.innerText)}>{item.produtividadeLiquidaHa || calculateProdutividade(item.producaoBeneficiada, item.areaHa || item.haDia) || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'mes', e.currentTarget.innerText)}>{item.mes || getMonthNameFromDate(item.data) || '-'}</td>
+                        <td contentEditable={isGridEditing} suppressContentEditableWarning onBlur={e => updateGridCell('colheita', idx, 'ano', e.currentTarget.innerText)} style={{ fontWeight: 600 }}>{item.ano || getYearFromDate(item.data) || '-'}</td>
                         <td className="action-cell">
                           <button className="btn-action-row" onClick={() => openCurrentModal(rowCells, idx)} title="Editar"><i className="fa-solid fa-pen"></i></button>
                           <button className="btn-action-row" onClick={() => deleteRow('colheita', idx)} title="Mover para Lixeira"><i className="fa-solid fa-trash"></i></button>
@@ -4508,20 +4563,20 @@ export default function App() {
             <div className="table-container">
               <table id="tablePlantio" className={isGridEditing ? 'grid-editing' : ''}>
                 <colgroup>
-                  <col style={{ width: '105px' }} /> {/* Data */}
-                  <col style={{ width: '135px' }} /> {/* UNIDADE */}
-                  <col style={{ width: '120px' }} /> {/* Cultura */}
-                  <col style={{ width: '95px' }} />  {/* C.Custo */}
-                  <col style={{ width: '180px' }} /> {/* Fazenda */}
-                  <col style={{ width: '110px' }} /> {/* PIVO */}
-                  <col style={{ width: '90px' }} />  {/* Gleba */}
-                  <col style={{ width: '130px' }} /> {/* Variedade */}
-                  <col style={{ width: '95px' }} />  {/* Área/há */}
-                  <col style={{ width: '90px' }} />  {/* Mês */}
-                  <col style={{ width: '130px' }} /> {/* Obs */}
-                  <col style={{ width: '125px' }} /> {/* Area Descartadas */}
-                  <col style={{ width: '75px' }} />  {/* Ano */}
-                  <col style={{ width: '75px' }} />  {/* Ações */}
+                  <col style={{ width: '105px' }} />
+                  <col style={{ width: '135px' }} />
+                  <col style={{ width: '120px' }} />
+                  <col style={{ width: '95px' }} />
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '95px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '125px' }} />
+                  <col style={{ width: '75px' }} />
+                  <col style={{ width: '75px' }} />
                 </colgroup>
                 <thead>
                   <tr>

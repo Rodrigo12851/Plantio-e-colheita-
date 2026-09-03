@@ -1531,15 +1531,18 @@ table.grid-editing td[contenteditable="true"] {
 #tableColheita {
   table-layout: fixed;
   width: 100%;
-  min-width: 1445px;
   border-collapse: collapse;
   font-size: 12px;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
 }
 
+#tablePlantio {
+  min-width: 1540px;
+}
+
 #tableColheita {
-  min-width: 2060px;
+  min-width: 2100px;
 }
 
 #tablePlantio thead th,
@@ -1549,14 +1552,15 @@ table.grid-editing td[contenteditable="true"] {
   font-weight: 700;
   font-size: 12px;
   text-transform: none !important;
-  padding: 6px 8px !important;
+  padding: 6px 7px !important;
   border-right: 1px solid rgba(255, 255, 255, 0.25);
   border-bottom: 2px solid #1e3a8a;
-  white-space: nowrap;
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: break-word;
   user-select: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
   vertical-align: middle;
+  height: 48px;
 }
 
 #tablePlantio thead th:last-child,
@@ -1577,11 +1581,14 @@ table.grid-editing td[contenteditable="true"] {
 #tableColheita .th-excel-label {
   font-weight: 700;
   color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  letter-spacing: 0.2px;
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.22;
+  font-size: 11.5px;
+  letter-spacing: 0.1px;
+  flex: 1;
+  text-align: left;
 }
 
 #tablePlantio .excel-filter-box,
@@ -1598,11 +1605,12 @@ table.grid-editing td[contenteditable="true"] {
   color: #1e293b;
   cursor: pointer;
   padding: 0;
-  margin-left: 4px;
+  margin-left: 2px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: all 0.15s ease-in-out;
   flex-shrink: 0;
   line-height: 1;
+  align-self: center;
 }
 
 #tablePlantio .excel-filter-box:hover,
@@ -1636,12 +1644,6 @@ table.grid-editing td[contenteditable="true"] {
 #tablePlantio tbody td:last-child,
 #tableColheita tbody td:last-child {
   border-right: none;
-}
-
-/* Divisor de congelamento de painéis estilo Excel (linha entre Ano e PIVO) */
-#tableColheita thead th.excel-freeze-split,
-#tableColheita tbody td.excel-freeze-split {
-  border-right: 2px solid #0f172a !important;
 }
 
 #tablePlantio tbody tr:hover td,
