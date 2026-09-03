@@ -387,6 +387,51 @@ export async function saveDocument<T extends Record<string, any>>(
   return targetId;
 }
 
+// Save or Update multiple items in Firestore (via batch) & Local Storage in a single shot
+export async function saveDocumentsBatch<T extends Record<string, any>>(
+  collectionName: string,
+  items: { item: T; id?: string }[]
+) {
+  if (!items || items.length === 0) return;
+
+  const currentItems = getLocalCache<T>(collectionName);
+  const itemsMap = new Map<string, T>();
+  currentItems.forEach(i => {
+    if ((i as any).id) itemsMap.set((i as any).id, i);
+  });
+
+  const prepared: { id: string; dataToSave: any }[] = [];
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const entry = items[idx];
+    const targetId = entry.id || (entry.item as any).id || `loc_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+    const rawDataToSave = { ...entry.item, id: targetId, updatedAt: new Date().toISOString() };
+    const dataToSave = sanitizeForFirestore(rawDataToSave);
+    itemsMap.set(targetId, dataToSave as unknown as T);
+    prepared.push({ id: targetId, dataToSave });
+  }
+
+  const updatedItems = Array.from(itemsMap.values());
+  setLocalCache(collectionName, updatedItems);
+  notifySubscribers(collectionName, updatedItems);
+
+  // Background Firestore persistence using writeBatch
+  try {
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
+      const chunk = prepared.slice(i, i + BATCH_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach(p => {
+        const docRef = doc(db, collectionName, p.id);
+        batch.set(docRef, p.dataToSave, { merge: true });
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    console.warn(`[Firebase] Gravação em lote salva em cache offline para ${collectionName}:`, err);
+  }
+}
+
 // Delete item from Firestore & Local Storage
 export async function removeDocument(collectionName: string, docId: string) {
   if (!docId) return;

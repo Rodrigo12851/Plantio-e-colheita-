@@ -205,6 +205,9 @@ export const CATEGORY_DEFINITIONS: Record<GeneralCategoryKey, CategoryInfo> = {
 
 export const cleanText = (val: any): string => {
   if (val === undefined || val === null) return '';
+  if (typeof val === 'number') {
+    return Number.isInteger(val) ? String(val) : String(val).replace('.', ',');
+  }
   const s = String(val).trim();
   if (s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
   return s;
@@ -262,6 +265,7 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
   const [filterTab, setFilterTab] = useState<'ALL' | 'CHANGES' | 'IDENTICAL'>('ALL');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [activeColMapping, setActiveColMapping] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync category when targetCategory prop changes
@@ -271,6 +275,7 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
       setFileName('');
       setRawRows([]);
       setParsedItems([]);
+      setActiveColMapping({});
       setFilterTab('ALL');
     }
   }, [isOpen, targetCategory]);
@@ -281,58 +286,147 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
   const parseRowsForCategory = (rows: any[][], catKey: GeneralCategoryKey) => {
     if (!rows || rows.length < 2) {
       setParsedItems([]);
+      setActiveColMapping({});
       return;
     }
 
     const catInfo = CATEGORY_DEFINITIONS[catKey];
     if (!catInfo) return;
 
-    const headers = rows[0].map(h => cleanText(h).toLowerCase());
+    const rawHeaderRow = rows[0] || [];
+    const headers = rawHeaderRow.map(h => cleanText(h).toLowerCase());
     const existingList = existingData[catKey] || [];
 
-    // Helper to find column index for field
+    // Helper to find column index for field with exhaustive, collision-safe matching
     const findColIdx = (fieldKey: string, fieldLabel: string) => {
       const normField = normalizeKey(fieldKey);
       const normLabel = normalizeKey(fieldLabel);
 
+      // 1. Exact normalized match
       let idx = headers.findIndex(h => {
         const normH = normalizeKey(h);
-        return normH === normField || normH === normLabel || normH.includes(normField) || normField.includes(normH);
+        return normH === normField || normH === normLabel;
       });
+      if (idx !== -1) return idx;
 
-      // Special aliases
-      if (idx === -1) {
-        if (fieldKey === 'nome') {
-          idx = headers.findIndex(h => {
-            const nh = normalizeKey(h);
-            return nh.includes('nome') || nh.includes('descricao') || nh.includes('placa') || nh.includes('titulo');
-          });
-        } else if (fieldKey === 'codigo') {
-          idx = headers.findIndex(h => {
-            const nh = normalizeKey(h);
-            return nh.includes('cod') || nh.includes('matricula') || nh.includes('capa') || nh.includes('id');
-          });
-        } else if (fieldKey === 'cultura') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('cultura'));
-        } else if (fieldKey === 'variedade') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('variedade'));
-        } else if (fieldKey === 'fazenda') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('fazenda'));
-        } else if (fieldKey === 'tipo') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('tipo') || normalizeKey(h).includes('vinc'));
-        } else if (fieldKey === 'haDia') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('hadia') || normalizeKey(h).includes('ha_dia') || normalizeKey(h).includes('hectares') || normalizeKey(h).includes('areaha') || normalizeKey(h).includes('area'));
-        } else if (fieldKey === 'unidade') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('unidade') || normalizeKey(h).includes('empresa'));
-        } else if (fieldKey === 'cCusto') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('ccusto') || normalizeKey(h).includes('c.custo') || normalizeKey(h).includes('custo') || normalizeKey(h).includes('os'));
-        } else if (fieldKey === 'mes') {
-          idx = headers.findIndex(h => normalizeKey(h) === 'mes' || normalizeKey(h).includes('mes'));
-        } else if (fieldKey === 'obs') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('obs') || normalizeKey(h).includes('observ'));
-        } else if (fieldKey === 'areaDescartadas') {
-          idx = headers.findIndex(h => normalizeKey(h).includes('descart') || normalizeKey(h).includes('area descartadas'));
-        }
+      // 2. Specific aliases and field patterns
+      if (fieldKey === 'data') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'data' || nh.includes('data') || nh === 'dt';
+        });
+      } else if (fieldKey === 'unidade' || fieldKey === 'empresa') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'unidade' || nh.includes('unidade') || nh === 'empresa' || nh.includes('empresa') || nh === 'filial';
+        });
+      } else if (fieldKey === 'cultura') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'cultura' || nh.includes('cultura');
+        });
+      } else if (fieldKey === 'cCusto' || fieldKey === 'os') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'ccusto' || nh.includes('ccusto') || nh.includes('custo') || nh === 'os' || nh.includes('ordem');
+        });
+      } else if (fieldKey === 'fazenda') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'fazenda' || nh.includes('fazenda') || nh === 'propriedade';
+        });
+      } else if (fieldKey === 'pivo') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'pivo' || nh.includes('pivo');
+        });
+      } else if (fieldKey === 'gleba') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'gleba' || nh.includes('gleba') || nh === 'talhao' || nh.includes('talhao');
+        });
+      } else if (fieldKey === 'variedade') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'variedade' || nh.includes('variedade') || nh === 'cultivar';
+        });
+      } else if (fieldKey === 'haDia' || fieldKey === 'areaHa' || fieldKey === 'haGeral') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          if (nh.includes('descart') || nh.includes('restante')) return false;
+          return nh === 'areaha' || nh === 'hadia' || nh.includes('hadia') || nh.includes('ha_dia') || nh.includes('hectares') || nh === 'area' || nh.includes('areaha') || nh.startsWith('area');
+        });
+      } else if (fieldKey === 'areaDescartadas') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('descart') || nh.includes('perda') || nh.includes('areadescart');
+        });
+      } else if (fieldKey === 'mes') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'mes' || nh.includes('mes');
+        });
+      } else if (fieldKey === 'ano') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'ano' || nh === 'safra' || nh.includes('safra');
+        });
+      } else if (fieldKey === 'obs') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'obs' || nh.includes('obs') || nh.includes('observ');
+        });
+      } else if (fieldKey === 'haRestante') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('restante') || nh.includes('harestante');
+        });
+      } else if (fieldKey === 'glebasFinalizada') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('finaliz') || nh.includes('concluid');
+        });
+      } else if (fieldKey === 'mediaHa') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('media') || nh.includes('mediaha');
+        });
+      } else if (fieldKey === 'qtdColhida' || fieldKey === 'qtdColhido') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('colhid') || nh.includes('qtd') || nh.includes('quantidade');
+        });
+      } else if (fieldKey === 'caixasCortadas') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('caixa') || nh.includes('cortad');
+        });
+      } else if (fieldKey === 'embalagem') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh.includes('embalag') || nh.includes('bin') || nh.includes('bag');
+        });
+      } else if (fieldKey === 'nome') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'nome' || nh.includes('nome') || nh.includes('descricao') || nh.includes('placa') || nh.includes('titulo');
+        });
+      } else if (fieldKey === 'codigo' || fieldKey === 'codigoMarca') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'codigo' || nh === 'cod' || nh.includes('cod') || nh.includes('matricula') || nh.includes('capa') || nh.includes('id');
+        });
+      } else if (fieldKey === 'tipo') {
+        idx = headers.findIndex(h => {
+          const nh = normalizeKey(h);
+          return nh === 'tipo' || nh.includes('tipo') || nh.includes('vinc');
+        });
+      } else {
+        // General fuzzy substring match
+        idx = headers.findIndex(h => {
+          const normH = normalizeKey(h);
+          return normH.includes(normField) || normField.includes(normH);
+        });
       }
 
       return idx;
@@ -344,8 +438,8 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
       colMapping[f.key] = findColIdx(f.key, f.label);
     });
 
-    // Fallback if no specific column mapped for primary field: use col 0 or 1
-    if (colMapping['nome'] === -1 && colMapping['codigo'] === -1) {
+    // Fallback if no specific column mapped for primary field in lookup tables
+    if (colMapping['nome'] === -1 && colMapping['codigo'] === -1 && !['plantio', 'colheita', 'amarracoes'].includes(catKey)) {
       if (rows[0].length > 1) {
         colMapping['codigo'] = 0;
         colMapping['nome'] = 1;
@@ -354,6 +448,8 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
       }
     }
 
+    setActiveColMapping(colMapping);
+
     const results: ParsedGenericItem[] = [];
     const seenMap = new Map<string, number>();
 
@@ -361,32 +457,48 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
       const row = rows[r];
       if (!row || row.length === 0) continue;
 
+      // Skip row if completely empty
+      const hasAnyNonEmpty = row.some(cell => cleanText(cell) !== '');
+      if (!hasAnyNonEmpty) continue;
+
       const itemData: Record<string, any> = {
         unidade: selectedUnidade
       };
 
-      let hasAnyValue = false;
-      catInfo.fields.forEach((f, fIdx) => {
+      catInfo.fields.forEach((f) => {
         const colIdx = colMapping[f.key];
         let val = '';
         if (colIdx !== undefined && colIdx !== -1 && row[colIdx] !== undefined) {
-          val = cleanText(row[colIdx]);
-        } else if (fIdx < row.length && (colIdx === undefined || colIdx === -1)) {
-          // If unmapped, pick row[fIdx] as soft fallback
-          val = cleanText(row[fIdx]);
-        }
+          const rawVal = row[colIdx];
 
-        // Format dates if plantio or colheita
-        if (f.key === 'data' && val) {
-          if (typeof val === 'number') {
-            // Excel serial date number
-            const dateObj = new Date((val - (25567 + 2)) * 86400 * 1000);
-            if (!isNaN(dateObj.getTime())) {
-              const dd = String(dateObj.getDate()).padStart(2, '0');
-              const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-              const yy = String(dateObj.getFullYear()).slice(-2);
-              val = `${dd}/${mm}/${yy}`;
+          // Format dates if plantio or colheita or general date field
+          if (f.key === 'data') {
+            if (typeof rawVal === 'number' && rawVal > 20000 && rawVal < 65000) {
+              // Excel serial date number
+              const dateObj = new Date(Math.round((rawVal - 25569) * 86400 * 1000));
+              if (!isNaN(dateObj.getTime())) {
+                const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+                const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                const yyyy = String(dateObj.getUTCFullYear());
+                val = `${dd}/${mm}/${yyyy}`;
+              }
+            } else if (rawVal instanceof Date) {
+              const dd = String(rawVal.getDate()).padStart(2, '0');
+              const mm = String(rawVal.getMonth() + 1).padStart(2, '0');
+              const yyyy = String(rawVal.getFullYear());
+              val = `${dd}/${mm}/${yyyy}`;
+            } else {
+              val = cleanText(rawVal);
+              if (/^\d{4}-\d{2}-\d{2}/.test(val)) {
+                const [yyyy, mm, dd] = val.split('T')[0].split('-');
+                val = `${dd}/${mm}/${yyyy}`;
+              } else if (/^\d{2}\/\d{2}\/\d{2}$/.test(val)) {
+                const parts = val.split('/');
+                val = `${parts[0]}/${parts[1]}/20${parts[2]}`;
+              }
             }
+          } else {
+            val = cleanText(rawVal);
           }
         }
 
@@ -396,21 +508,50 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
         }
 
         itemData[f.key] = val;
-        if (val) hasAnyValue = true;
       });
 
-      if (!hasAnyValue) continue;
-
+      // Post-process domain fields for plantio & colheita
       if (catKey === 'plantio') {
         if (!itemData.unidade && itemData.empresa) itemData.unidade = itemData.empresa;
         if (!itemData.empresa && itemData.unidade) itemData.empresa = itemData.unidade;
+        if (!itemData.unidade) itemData.unidade = selectedUnidade;
+        if (!itemData.empresa) itemData.empresa = selectedUnidade;
         if (!itemData.os && itemData.cCusto) itemData.os = itemData.cCusto;
         if (!itemData.cCusto && itemData.os) itemData.cCusto = itemData.os;
         if (!itemData.areaDescartadas) itemData.areaDescartadas = '0,00';
         if (!itemData.obs) itemData.obs = '-';
+        if (itemData.data) {
+          const parts = itemData.data.split('/');
+          if (parts.length === 3) {
+            if (!itemData.ano) itemData.ano = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+            if (!itemData.mes) {
+              const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+              const mNum = parseInt(parts[1], 10);
+              if (mNum >= 1 && mNum <= 12) itemData.mes = monthNames[mNum - 1];
+            }
+          }
+        }
+      } else if (catKey === 'colheita') {
+        if (!itemData.unidade && itemData.empresa) itemData.unidade = itemData.empresa;
+        if (!itemData.empresa && itemData.unidade) itemData.empresa = itemData.unidade;
+        if (!itemData.unidade) itemData.unidade = selectedUnidade;
+        if (!itemData.empresa) itemData.empresa = selectedUnidade;
+        if (!itemData.os && itemData.cCusto) itemData.os = itemData.cCusto;
+        if (!itemData.cCusto && itemData.os) itemData.cCusto = itemData.os;
+        if (itemData.data) {
+          const parts = itemData.data.split('/');
+          if (parts.length === 3) {
+            if (!itemData.ano) itemData.ano = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+            if (!itemData.mes) {
+              const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+              const mNum = parseInt(parts[1], 10);
+              if (mNum >= 1 && mNum <= 12) itemData.mes = monthNames[mNum - 1];
+            }
+          }
+        }
       }
 
-      // Auto generate sequential code if missing
+      // Auto generate sequential code if missing in lookup tables
       if (catInfo.fields.some(f => f.key === 'codigo' || f.key === 'codigoMarca') && !itemData['codigo'] && !itemData['codigoMarca']) {
         let maxCod = 0;
         for (const ex of existingList) {
@@ -431,9 +572,60 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
         }
       }
 
-      // Identify matching existing item
+      // Safe deduplication inside the spreadsheet itself
+      let dedupeKey = '';
+      if (catKey === 'plantio') {
+        dedupeKey = `${cleanText(itemData.data)}_${normalizeKey(itemData.fazenda)}_${normalizeKey(itemData.pivo)}_${normalizeKey(itemData.gleba)}_${normalizeKey(itemData.variedade)}_${normalizeKey(itemData.cultura)}_${cleanText(itemData.haDia)}`;
+      } else if (catKey === 'colheita') {
+        dedupeKey = `${cleanText(itemData.data)}_${normalizeKey(itemData.fazenda)}_${normalizeKey(itemData.pivo)}_${normalizeKey(itemData.gleba)}_${normalizeKey(itemData.variedade)}_${normalizeKey(itemData.cultura)}_${cleanText(itemData.haDia || itemData.haGeral || itemData.qtdColhido || itemData.qtdColhida)}`;
+      } else if (catKey === 'variedades') {
+        dedupeKey = `${normalizeKey(itemData.codigo)}_${normalizeKey(itemData.nome)}_${normalizeKey(itemData.cultura)}`;
+      } else if (catKey === 'amarracoes') {
+        dedupeKey = `${normalizeKey(itemData.categoria)}_${normalizeKey(itemData.origem)}_${normalizeKey(itemData.destino)}`;
+      } else {
+        dedupeKey = `${normalizeKey(itemData.codigo)}_${normalizeKey(itemData.nome)}`;
+      }
+
+      if (dedupeKey && seenMap.has(dedupeKey)) {
+        continue;
+      }
+      if (dedupeKey) {
+        seenMap.set(dedupeKey, r);
+      }
+
+      // Identify matching existing item in database
       let matchedExisting: any = null;
-      if (catKey === 'variedades') {
+      if (catKey === 'plantio') {
+        const d = cleanText(itemData.data);
+        const c = normalizeKey(itemData.cultura);
+        const f = normalizeKey(itemData.fazenda);
+        const p = normalizeKey(itemData.pivo);
+        const g = normalizeKey(itemData.gleba);
+        const v = normalizeKey(itemData.variedade);
+        matchedExisting = existingList.find(e => {
+          return cleanText(e.data) === d &&
+                 normalizeKey(e.cultura) === c &&
+                 normalizeKey(e.fazenda) === f &&
+                 (!p || normalizeKey(e.pivo) === p) &&
+                 (!g || normalizeKey(e.gleba) === g) &&
+                 (!v || normalizeKey(e.variedade) === v);
+        });
+      } else if (catKey === 'colheita') {
+        const d = cleanText(itemData.data);
+        const c = normalizeKey(itemData.cultura);
+        const f = normalizeKey(itemData.fazenda);
+        const p = normalizeKey(itemData.pivo);
+        const g = normalizeKey(itemData.gleba);
+        const v = normalizeKey(itemData.variedade);
+        matchedExisting = existingList.find(e => {
+          return cleanText(e.data) === d &&
+                 normalizeKey(e.cultura) === c &&
+                 normalizeKey(e.fazenda) === f &&
+                 (!p || normalizeKey(e.pivo) === p) &&
+                 (!g || normalizeKey(e.gleba) === g) &&
+                 (!v || normalizeKey(e.variedade) === v);
+        });
+      } else if (catKey === 'variedades') {
         const normName = normalizeKey(itemData.nome);
         const normCult = normalizeKey(itemData.cultura);
         matchedExisting = existingList.find(e => {
@@ -459,19 +651,6 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
         const normPlaca = normalizeKey(itemData.nome);
         const normCod = cleanText(itemData.codigo);
         matchedExisting = existingList.find(e => (normCod && cleanText(e.codigo) === normCod) || normalizeKey(e.nome) === normPlaca);
-      } else if (catKey === 'plantio' || catKey === 'colheita') {
-        const d = cleanText(itemData.data);
-        const c = normalizeKey(itemData.cultura);
-        const f = normalizeKey(itemData.fazenda);
-        const p = normalizeKey(itemData.pivo);
-        const v = normalizeKey(itemData.variedade);
-        matchedExisting = existingList.find(e => {
-          return cleanText(e.data) === d &&
-                 normalizeKey(e.cultura) === c &&
-                 normalizeKey(e.fazenda) === f &&
-                 (!p || normalizeKey(e.pivo) === p) &&
-                 (!v || normalizeKey(e.variedade) === v);
-        });
       } else {
         // Simple items (culturas, empresas, anos, fazendas, pivos, glebas)
         const normName = normalizeKey(itemData.nome);
@@ -481,7 +660,7 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
         });
       }
 
-      // Check diffs
+      // Check diffs against existing record
       const diffs: FieldDiff[] = [];
       let importStatus: 'identical' | 'update' | 'new' = 'new';
       let existingId: string | undefined = undefined;
@@ -491,6 +670,10 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
         let isIdentical = true;
 
         catInfo.fields.forEach(f => {
+          const colIdx = colMapping[f.key];
+          // Only compare fields that exist in the spreadsheet
+          if (colIdx === undefined || colIdx === -1) return;
+
           const oldVal = cleanText(matchedExisting[f.key]);
           const newVal = cleanText(itemData[f.key]);
 
@@ -506,22 +689,10 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
           }
         });
 
-        if (isIdentical) {
-          importStatus = 'identical';
-        } else {
-          importStatus = 'update';
-        }
+        importStatus = isIdentical ? 'identical' : 'update';
       } else {
         importStatus = 'new';
       }
-
-      // Deduplicate inside spreadsheet itself
-      const dedupeKey = `${normalizeKey(itemData.nome || itemData.data || '')}_${normalizeKey(itemData.cultura || itemData.codigo || '')}`;
-      if (seenMap.has(dedupeKey)) {
-        // Already processed earlier in spreadsheet
-        continue;
-      }
-      seenMap.set(dedupeKey, r);
 
       results.push({
         data: itemData,
@@ -543,7 +714,7 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
     }
   };
 
-  // File processing via XLSX
+  // File processing via XLSX with intelligent scoring category detection
   const handleFileSelect = (file: File) => {
     setFileName(file.name);
     setIsProcessing(true);
@@ -565,39 +736,107 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
 
         setRawRows(jsonData);
 
-        // Try to auto-guess category based on sheet name or headers
-        let guessedCategory = activeCategory;
-        const sheetLower = firstSheet.toLowerCase();
-        const headersStr = (jsonData[0] || []).join(' ').toLowerCase();
+        // Intelligent category detection
+        const fileLower = (file.name || '').toLowerCase();
+        const sheetLower = (firstSheet || '').toLowerCase();
+        const nameAndSheet = `${fileLower} ${sheetLower}`;
 
-        if (sheetLower.includes('cultura') || headersStr.includes('cultura')) {
-          if (headersStr.includes('variedade') && !headersStr.includes('hortifruti')) {
-            guessedCategory = 'variedades';
-          } else {
-            guessedCategory = 'culturas';
+        const rawHeaderRow = jsonData[0] || [];
+        const headersNorm = rawHeaderRow.map(h => normalizeKey(h));
+        const headersJoined = rawHeaderRow.map(h => cleanText(h).toLowerCase()).join(' ');
+
+        // Check if current activeCategory already matches this spreadsheet well
+        const currentDef = CATEGORY_DEFINITIONS[activeCategory];
+        let currentMatchScore = 0;
+        if (currentDef) {
+          currentDef.fields.forEach(f => {
+            const nf = normalizeKey(f.key);
+            const nl = normalizeKey(f.label);
+            if (headersNorm.some(hn => hn === nf || hn === nl || (hn.length > 2 && (nl.includes(hn) || hn.includes(nl))))) {
+              currentMatchScore++;
+            }
+          });
+        }
+
+        const scores: Record<GeneralCategoryKey, number> = {
+          plantio: 0,
+          colheita: 0,
+          variedades: 0,
+          culturas: 0,
+          fazendas: 0,
+          pivos: 0,
+          glebas: 0,
+          empresas: 0,
+          anos: 0,
+          colaboradores: 0,
+          motoristas: 0,
+          onibus: 0,
+          amarracoes: 0
+        };
+
+        // File & sheet name bonuses
+        if (nameAndSheet.includes('plantio')) scores.plantio += 25;
+        if (nameAndSheet.includes('colheita')) scores.colheita += 25;
+        if (nameAndSheet.includes('amarr') || nameAndSheet.includes('marca')) scores.amarracoes += 25;
+        if (nameAndSheet.includes('colaborador') || nameAndSheet.includes('funciona')) scores.colaboradores += 25;
+        if (nameAndSheet.includes('motorista')) scores.motoristas += 25;
+        if (nameAndSheet.includes('onibus') || nameAndSheet.includes('ônibus')) scores.onibus += 25;
+        if (nameAndSheet.includes('fazenda')) scores.fazendas += 15;
+        if (nameAndSheet.includes('pivo') || nameAndSheet.includes('pivô')) scores.pivos += 15;
+        if (nameAndSheet.includes('gleba')) scores.glebas += 15;
+        if (nameAndSheet.includes('empresa') || nameAndSheet.includes('filial')) scores.empresas += 15;
+        if (nameAndSheet.includes('safra') || nameAndSheet.includes('ano')) scores.anos += 15;
+        if (nameAndSheet.includes('variedade')) scores.variedades += 15;
+        if (nameAndSheet.includes('cultura')) scores.culturas += 10;
+
+        // Specific distinguishing header patterns
+        const hasDate = headersNorm.some(h => h.includes('data') || h === 'dt');
+        const hasFarm = headersNorm.some(h => h.includes('fazenda') || h === 'faz');
+        const hasPivotOrGleba = headersNorm.some(h => h.includes('pivo') || h.includes('gleba') || h.includes('talhao'));
+        const hasCrop = headersNorm.some(h => h.includes('cultura'));
+        const hasVariety = headersNorm.some(h => h.includes('variedade') || h === 'cultivar');
+        const hasAreaHa = headersNorm.some(h => !h.includes('descart') && (h.includes('hadia') || h.includes('areaha') || h === 'area'));
+        const hasAreaDescart = headersNorm.some(h => h.includes('descart'));
+        const hasColheitaQtd = headersNorm.some(h => h.includes('qtd') || h.includes('colhid') || h.includes('caixa') || h.includes('producao') || h.includes('produtiv'));
+        const hasApontador = headersNorm.some(h => h.includes('apontador') || h.includes('matricula'));
+        const hasPlaca = headersNorm.some(h => h.includes('placa') || h.includes('cooperado'));
+        const hasAbreviacao = headersNorm.some(h => h.includes('abrevia'));
+        const hasMarcaCodigo = headersJoined.includes('codigomarca') || (headersJoined.includes('origem') && headersJoined.includes('destino'));
+
+        if (hasColheitaQtd) {
+          scores.colheita += 20;
+        }
+        if (hasDate && hasFarm && (hasAreaHa || hasAreaDescart || hasPivotOrGleba) && !hasColheitaQtd) {
+          scores.plantio += 22;
+        }
+        if (hasDate && hasFarm && hasColheitaQtd) {
+          scores.colheita += 22;
+        }
+        if (hasMarcaCodigo) scores.amarracoes += 25;
+        if (hasApontador) scores.colaboradores += 20;
+        if (hasPlaca) scores.onibus += 20;
+        if (hasAbreviacao) scores.motoristas += 20;
+
+        if (rawHeaderRow.length <= 4 && !hasDate && !hasFarm) {
+          if (hasVariety) scores.variedades += 15;
+          if (hasCrop && !hasVariety) scores.culturas += 15;
+        }
+
+        let bestCat = activeCategory;
+        let highestScore = 0;
+        (Object.keys(scores) as GeneralCategoryKey[]).forEach(k => {
+          if (scores[k] > highestScore) {
+            highestScore = scores[k];
+            bestCat = k;
           }
-        } else if (sheetLower.includes('variedad') || headersStr.includes('variedade')) {
-          guessedCategory = 'variedades';
-        } else if (sheetLower.includes('empresa') || headersStr.includes('empresa')) {
-          guessedCategory = 'empresas';
-        } else if (sheetLower.includes('safra') || sheetLower.includes('ano') || headersStr.includes('safra')) {
-          guessedCategory = 'anos';
-        } else if (sheetLower.includes('fazenda') || headersStr.includes('fazenda')) {
-          guessedCategory = 'fazendas';
-        } else if (sheetLower.includes('pivo') || headersStr.includes('pivô') || headersStr.includes('pivo')) {
-          guessedCategory = 'pivos';
-        } else if (sheetLower.includes('gleba') || headersStr.includes('gleba')) {
-          guessedCategory = 'glebas';
-        } else if (sheetLower.includes('colaborador') || headersStr.includes('matricula') || headersStr.includes('apontador')) {
-          guessedCategory = 'colaboradores';
-        } else if (sheetLower.includes('motorista') || headersStr.includes('abreviação') || headersStr.includes('capa')) {
-          guessedCategory = 'motoristas';
-        } else if (sheetLower.includes('onibus') || sheetLower.includes('ônibus') || headersStr.includes('placa')) {
-          guessedCategory = 'onibus';
-        } else if (sheetLower.includes('plantio') || headersStr.includes('plantio')) {
-          guessedCategory = 'plantio';
-        } else if (sheetLower.includes('colheita') || headersStr.includes('colheita')) {
-          guessedCategory = 'colheita';
+        });
+
+        let guessedCategory = activeCategory;
+        // Keep activeCategory if it already matches well or if detected score isn't overwhelmingly different
+        if (currentMatchScore >= 3 && scores[activeCategory] >= 10) {
+          guessedCategory = activeCategory;
+        } else if (highestScore >= 15) {
+          guessedCategory = bestCat;
         }
 
         setActiveCategory(guessedCategory);
@@ -630,6 +869,16 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
     }
     return parsedItems;
   }, [parsedItems, filterTab]);
+
+  const previewFields = useMemo(() => {
+    const fieldsWithData = categoryDef.fields.filter(f => {
+      if (f.required) return true;
+      const colIdx = activeColMapping[f.key];
+      if (colIdx !== undefined && colIdx !== -1) return true;
+      return parsedItems.some(item => cleanText(item.data[f.key]) !== '');
+    });
+    return fieldsWithData.length > 0 ? fieldsWithData : categoryDef.fields;
+  }, [categoryDef, parsedItems, activeColMapping]);
 
   const handleConfirmImport = async () => {
     if (counts.actionable === 0) {
@@ -958,29 +1207,30 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
 
               {/* PREVIEW TABLE */}
               <div style={{
-                maxHeight: '340px',
+                maxHeight: '380px',
                 overflowY: 'auto',
+                overflowX: 'auto',
                 border: '1px solid #edebe9',
                 borderRadius: '4px'
               }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <table style={{ width: '100%', minWidth: 'max-content', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead style={{ backgroundColor: '#f3f2f1', position: 'sticky', top: 0, zIndex: 2 }}>
                     <tr>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid #d2d0ce' }}>Linha</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid #d2d0ce' }}>Status</th>
-                      {categoryDef.fields.map(f => (
-                        <th key={f.key} style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid #d2d0ce' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #d2d0ce', whiteSpace: 'nowrap' }}>Linha</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #d2d0ce', whiteSpace: 'nowrap' }}>Status</th>
+                      {previewFields.map(f => (
+                        <th key={f.key} style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #d2d0ce', whiteSpace: 'nowrap' }}>
                           {f.label}
                         </th>
                       ))}
-                      <th style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid #d2d0ce' }}>Detalhes da Comparação</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #d2d0ce', whiteSpace: 'nowrap' }}>Detalhes da Comparação</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPreview.map((item, idx) => {
                       let rowBg = '#ffffff';
                       let statusBadge = (
-                        <span style={{ backgroundColor: '#e6f4ea', color: '#137333', padding: '2px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '11px' }}>
+                        <span style={{ backgroundColor: '#e6f4ea', color: '#137333', padding: '2px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '11px', whiteSpace: 'nowrap' }}>
                           🟢 Novo
                         </span>
                       );
@@ -988,14 +1238,14 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
                       if (item.importStatus === 'update') {
                         rowBg = '#f6faff';
                         statusBadge = (
-                          <span style={{ backgroundColor: '#eff6fc', color: '#0078d4', padding: '2px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '11px' }}>
+                          <span style={{ backgroundColor: '#eff6fc', color: '#0078d4', padding: '2px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '11px', whiteSpace: 'nowrap' }}>
                             🔵 Atualizar
                           </span>
                         );
                       } else if (item.importStatus === 'identical') {
                         rowBg = '#fcfcfc';
                         statusBadge = (
-                          <span style={{ backgroundColor: '#f3f2f1', color: '#605e5c', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '11px' }}>
+                          <span style={{ backgroundColor: '#f3f2f1', color: '#605e5c', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>
                             ⚪ Idêntico
                           </span>
                         );
@@ -1003,14 +1253,14 @@ export const GeneralImportModal: React.FC<GeneralImportModalProps> = ({
 
                       return (
                         <tr key={idx} style={{ backgroundColor: rowBg, borderBottom: '1px solid #edebe9' }}>
-                          <td style={{ padding: '8px 10px', color: '#605e5c', fontWeight: 600 }}>{item.rowIndex}</td>
-                          <td style={{ padding: '8px 10px' }}>{statusBadge}</td>
-                          {categoryDef.fields.map(f => (
-                            <td key={f.key} style={{ padding: '8px 10px', color: '#323130' }}>
+                          <td style={{ padding: '8px 12px', color: '#605e5c', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.rowIndex}</td>
+                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{statusBadge}</td>
+                          {previewFields.map(f => (
+                            <td key={f.key} style={{ padding: '8px 12px', color: '#323130', whiteSpace: 'nowrap' }}>
                               {item.data[f.key] || '-'}
                             </td>
                           ))}
-                          <td style={{ padding: '8px 10px', fontSize: '11px' }}>
+                          <td style={{ padding: '8px 12px', fontSize: '11px' }}>
                             {item.importStatus === 'new' && (
                               <span style={{ color: '#137333', fontWeight: 600 }}>Novo registro no banco de dados</span>
                             )}

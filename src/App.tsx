@@ -7,6 +7,7 @@ import { GeneralImportModal, GeneralCategoryKey } from './components/GeneralImpo
 import {
   subscribeToCollection,
   saveDocument,
+  saveDocumentsBatch,
   removeDocument,
   COLLECTIONS,
   CollectionKey
@@ -2096,15 +2097,17 @@ export default function App() {
     const colName = COLLECTIONS[category as CollectionKey];
     if (!colName) return;
 
-    for (const entry of items) {
+    const preparedItems = items.map(entry => {
       const cleanObj: Record<string, any> = {};
       Object.keys(entry.item).forEach(key => {
         const val = entry.item[key];
         cleanObj[key] = (val === undefined || val === null) ? '' : String(val).trim();
       });
       cleanObj.unidade = cleanObj.unidade || selectedUnidade;
-      await saveDocument(colName, cleanObj, entry.id);
-    }
+      return { item: cleanObj, id: entry.id };
+    });
+
+    await saveDocumentsBatch(colName, preparedItems);
   };
 
   // Share Modal State
