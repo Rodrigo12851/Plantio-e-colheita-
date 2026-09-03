@@ -3,6 +3,7 @@ import { PWAInstallModal } from './components/PWAInstallModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { PMSSection, PMSItem, DEFAULT_PMS_DATA, cleanValue, getPmsDocId } from './components/PMSSection';
 import { SankhyaSection, SankhyaProjectItem, DEFAULT_PROJETOS_SANKHYA } from './components/SankhyaSection';
+import { EstoqueSection, EstoqueItem, RomaneioItem, EstoqueMovimentacao } from './components/EstoqueSection';
 import { GeneralImportModal, GeneralCategoryKey } from './components/GeneralImportModal';
 import { useTableDimensions } from './lib/useTableDimensions';
 import { ExcelDimensionsControl } from './components/ExcelDimensionsControl';
@@ -134,7 +135,7 @@ export interface AmarracaoItem {
   unidade?: string;
 }
 
-type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes' | 'cadastro_geral' | 'controle' | 'projetos_sankhya';
+type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes' | 'cadastro_geral' | 'controle' | 'projetos_sankhya' | 'estoque';
 
 export interface TrashItem {
   id?: string;
@@ -174,6 +175,7 @@ export function sanitizeHectaresInput(val: string): string {
 const mainCategories: { key: PageKey; label: string }[] = [
   { key: 'plantio', label: 'BdPlantio' },
   { key: 'colheita', label: 'BdColheita' },
+  { key: 'estoque', label: 'Estoque' },
   { key: 'cadastro_geral', label: 'Cadastro_Geral' },
   { key: 'controle', label: 'PMS' },
   { key: 'projetos_sankhya', label: 'Projetos Sankhya' }
@@ -226,6 +228,7 @@ const ALL_PERMISSION_CATEGORIES: PermissionCategory[] = [
   { key: 'amarracoes', label: 'Marcações e Amarrações', icon: 'fa-grip-vertical', group: 'Operacional & Lançamentos' },
   { key: 'plantio', label: 'BdPlantio', icon: 'fa-seedling', group: 'Operacional & Lançamentos' },
   { key: 'colheita', label: 'BdColheita', icon: 'fa-wheat-awn', group: 'Operacional & Lançamentos' },
+  { key: 'estoque', label: 'Estoque', icon: 'fa-boxes-stacked', group: 'Operacional & Lançamentos' },
   { key: 'documentos', label: 'Documentos', icon: 'fa-file-lines', group: 'Operacional & Lançamentos' },
   { key: 'ciclos_cultivo', label: 'Ciclos_Cultivo', icon: 'fa-arrows-spin', group: 'Operacional & Lançamentos' },
   { key: 'frentes_trabalho', label: 'TbFrentesTrabalho_APS', icon: 'fa-users-gear', group: 'Operacional & Lançamentos' },
@@ -265,7 +268,7 @@ const DEFAULT_USER_ACCOUNTS: UserAccount[] = [
     id: 'USR-002',
     nome: 'Mudar@123',
     senha: 'Mudar@123',
-    permissoes: ['colheita', 'plantio', 'documentos'],
+    permissoes: ['colheita', 'plantio', 'estoque', 'documentos'],
     empresasPermitidas: ['Cristalina', 'São Gabriel'],
     createdAt: '01/01/2026'
   }
@@ -423,6 +426,173 @@ const DEFAULT_UNIDADES = [
   { nome: 'Cristalina' },
   { nome: 'São Gabriel' },
   { nome: 'Uberlândia' }
+];
+
+const DEFAULT_ESTOQUE: EstoqueItem[] = [
+  {
+    id: 'est-1',
+    codigo: 'EST-001',
+    cultura: 'Batata',
+    variedade: 'Agata',
+    classificacao: 'Especial Lavada',
+    tipoEmbalagem: 'Caixas (25kg)',
+    pesoUnitarioKg: 25,
+    localArmazenamento: 'Galpão Packing House',
+    quantidade: 480,
+    pesoTotalKg: 12000,
+    estoqueMinimo: 100,
+    loteSafra: 'SAF-2026/L01',
+    fazendaOrigem: 'Fazenda Cristalina',
+    unidade: 'Cristalina',
+    status: 'Disponível',
+    updatedAt: '03/09/2026'
+  },
+  {
+    id: 'est-2',
+    codigo: 'EST-002',
+    cultura: 'Alho',
+    variedade: 'Roxo Nobre',
+    classificacao: 'Tipo 5 Graúdo',
+    tipoEmbalagem: 'Sacas (10kg)',
+    pesoUnitarioKg: 10,
+    localArmazenamento: 'Câmara Fria 01',
+    quantidade: 350,
+    pesoTotalKg: 3500,
+    estoqueMinimo: 80,
+    loteSafra: 'SAF-2026/AL02',
+    fazendaOrigem: 'Fazenda Cristalina',
+    unidade: 'Cristalina',
+    status: 'Disponível',
+    updatedAt: '03/09/2026'
+  },
+  {
+    id: 'est-3',
+    codigo: 'EST-003',
+    cultura: 'Cebola',
+    variedade: 'Baia Periforme',
+    classificacao: 'Média Padrão',
+    tipoEmbalagem: 'Sacas (20kg)',
+    pesoUnitarioKg: 20,
+    localArmazenamento: 'Galpão 02',
+    quantidade: 620,
+    pesoTotalKg: 12400,
+    estoqueMinimo: 150,
+    loteSafra: 'SAF-2026/CB01',
+    fazendaOrigem: 'Fazenda Cristalina',
+    unidade: 'Cristalina',
+    status: 'Disponível',
+    updatedAt: '03/09/2026'
+  },
+  {
+    id: 'est-4',
+    codigo: 'EST-004',
+    cultura: 'Soja',
+    variedade: 'CZ48B321 IPRO',
+    classificacao: 'Padrão Exportação',
+    tipoEmbalagem: 'Sacas (60kg)',
+    pesoUnitarioKg: 60,
+    localArmazenamento: 'Silo Graneleiro 01',
+    quantidade: 850,
+    pesoTotalKg: 51000,
+    estoqueMinimo: 200,
+    loteSafra: 'SAF-2026/SJ01',
+    fazendaOrigem: 'Fazenda Cristalina',
+    unidade: 'Cristalina',
+    status: 'Disponível',
+    updatedAt: '03/09/2026'
+  },
+  {
+    id: 'est-5',
+    codigo: 'EST-005',
+    cultura: 'Feijão Carioca',
+    variedade: 'Carioca Dama',
+    classificacao: 'Tipo 1 Extra',
+    tipoEmbalagem: 'Sacas (60kg)',
+    pesoUnitarioKg: 60,
+    localArmazenamento: 'Silo Secador 02',
+    quantidade: 400,
+    pesoTotalKg: 24000,
+    estoqueMinimo: 100,
+    loteSafra: 'SAF-2026/FJ01',
+    fazendaOrigem: 'Fazenda Cristalina',
+    unidade: 'Cristalina',
+    status: 'Disponível',
+    updatedAt: '03/09/2026'
+  }
+];
+
+const DEFAULT_ROMANEIOS: RomaneioItem[] = [
+  {
+    id: 'rom-1',
+    numeroRomaneio: 'ROM-2026/0001',
+    tipoRomaneio: 'Saída / Expedição',
+    dataEmissao: '03/09/2026',
+    horaEmissao: '09:30',
+    status: 'Finalizado',
+    remetenteNome: 'CRISTALINA AGROINDUSTRIAL LTDA',
+    remetenteFazendaLocal: 'Fazenda Cristalina',
+    destinatarioNome: 'CEASA DISTRIBUIDORA DE HORTIFRUTI LTDA',
+    destinatarioCnpjCpf: '12.345.678/0001-90',
+    destinatarioCidadeUf: 'Brasília - DF',
+    notaFiscalNumero: 'NF-e 88314',
+    motoristaNome: 'Valter Silva',
+    veiculoPlaca: 'BRA-2E19',
+    veiculoUf: 'GO',
+    transportadora: 'Expresso Cristalina',
+    pesoBrutoKg: 28500,
+    taraVeiculoKg: 14500,
+    pesoLiquidoKg: 14000,
+    totalVolumes: 400,
+    conferenteNome: 'Rodrigo Souza',
+    observacoes: 'Carga conferida e lacrada. Lacre nº 004921',
+    unidade: 'Cristalina',
+    createdAt: '2026-09-03T09:30:00.000Z',
+    itens: [
+      {
+        id: 'item-1',
+        estoqueId: 'est-1',
+        cultura: 'Batata',
+        variedade: 'Agata',
+        classificacao: 'Especial Lavada',
+        embalagem: 'Caixas (25kg)',
+        quantidade: 400,
+        pesoUnitarioKg: 25,
+        pesoTotalKg: 10000,
+        lote: 'SAF-2026/L01'
+      }
+    ]
+  }
+];
+
+const DEFAULT_MOVIMENTACOES: EstoqueMovimentacao[] = [
+  {
+    id: 'mov-1',
+    tipo: 'Entrada',
+    estoqueId: 'est-1',
+    produtoNome: 'Batata - Agata',
+    quantidade: 880,
+    tipoEmbalagem: 'Caixas (25kg)',
+    pesoKg: 22000,
+    documentoRef: 'COLH-2026/0401',
+    dataHora: '02/09/2026 14:00',
+    responsavel: 'Rodrigo Souza',
+    motivo: 'Entrada Colheita Gleba C-08',
+    unidade: 'Cristalina'
+  },
+  {
+    id: 'mov-2',
+    tipo: 'Saída (Romaneio)',
+    estoqueId: 'est-1',
+    produtoNome: 'Batata - Agata',
+    quantidade: 400,
+    tipoEmbalagem: 'Caixas (25kg)',
+    pesoKg: 10000,
+    documentoRef: 'ROM-2026/0001',
+    dataHora: '03/09/2026 09:30',
+    responsavel: 'Rodrigo Souza',
+    motivo: 'Emissão de Romaneio para CEASA DISTRIBUIDORA',
+    unidade: 'Cristalina'
+  }
 ];
 
 export default function App() {
@@ -1042,6 +1212,9 @@ export default function App() {
   const [amarracoesData, setAmarracoesData] = useState<AmarracaoItem[]>([]);
   const [pmsData, setPmsData] = useState<PMSItem[]>([]);
   const [projetosSankhyaData, setProjetosSankhyaData] = useState<SankhyaProjectItem[]>([]);
+  const [estoqueData, setEstoqueData] = useState<EstoqueItem[]>([]);
+  const [romaneiosData, setRomaneiosData] = useState<RomaneioItem[]>([]);
+  const [estoqueMovimentacoesData, setEstoqueMovimentacoesData] = useState<EstoqueMovimentacao[]>([]);
 
   // Subscribe to Firebase Firestore collections in real-time
   useEffect(() => {
@@ -1060,6 +1233,9 @@ export default function App() {
     const unsubAmarracoes = subscribeToCollection<AmarracaoItem>(COLLECTIONS.amarracoes, setAmarracoesData, DEFAULT_AMARRACOES);
     const unsubPMS = subscribeToCollection<PMSItem>(COLLECTIONS.pms, setPmsData, DEFAULT_PMS_DATA);
     const unsubSankhya = subscribeToCollection<SankhyaProjectItem>(COLLECTIONS.projetos_sankhya, setProjetosSankhyaData, DEFAULT_PROJETOS_SANKHYA);
+    const unsubEstoque = subscribeToCollection<EstoqueItem>(COLLECTIONS.estoque_itens, setEstoqueData, DEFAULT_ESTOQUE);
+    const unsubRomaneios = subscribeToCollection<RomaneioItem>(COLLECTIONS.romaneios, setRomaneiosData, DEFAULT_ROMANEIOS);
+    const unsubMovimentacoes = subscribeToCollection<EstoqueMovimentacao>(COLLECTIONS.estoque_movimentacoes, setEstoqueMovimentacoesData, DEFAULT_MOVIMENTACOES);
     const unsubUnidades = subscribeToCollection<{ id?: string; nome: string }>(COLLECTIONS.unidades, (docs) => {
       setUnidadesDocs(docs);
       setUnidadesList(docs.map(d => d.nome));
@@ -1091,6 +1267,9 @@ export default function App() {
       unsubAmarracoes();
       unsubPMS();
       unsubSankhya();
+      unsubEstoque();
+      unsubRomaneios();
+      unsubMovimentacoes();
       unsubUnidades();
       unsubTrash();
       unsubUsuarios();
@@ -2097,6 +2276,79 @@ export default function App() {
     }
   };
 
+  // Estoque & Emissor de Romaneio Handlers
+  const handleSaveEstoqueItem = async (item: EstoqueItem) => {
+    const targetId = item.id || `est-${Date.now()}`;
+    const cleanItem = { ...item, id: targetId };
+    await saveDocument(COLLECTIONS.estoque_itens, cleanItem, targetId);
+    showToast('Item de estoque salvo com sucesso.', 'success');
+  };
+
+  const handleDeleteEstoqueItem = async (id: string) => {
+    if (id) {
+      await removeDocument(COLLECTIONS.estoque_itens, id);
+      showToast('Item removido do estoque.', 'info');
+    }
+  };
+
+  const handleSaveRomaneio = async (romaneio: RomaneioItem, baixarEstoque: boolean) => {
+    const targetId = romaneio.id || `rom-${Date.now()}`;
+    const cleanRomaneio = { ...romaneio, id: targetId };
+    await saveDocument(COLLECTIONS.romaneios, cleanRomaneio, targetId);
+
+    // Se solicitado a baixa automática do estoque
+    if (baixarEstoque && romaneio.itens && romaneio.itens.length > 0) {
+      for (const p of romaneio.itens) {
+        if (p.estoqueId) {
+          const currentEst = estoqueData.find(e => e.id === p.estoqueId);
+          if (currentEst) {
+            const novaQtd = Math.max(0, currentEst.quantidade - p.quantidade);
+            const novoPesoTotal = Math.max(0, currentEst.pesoTotalKg - p.pesoTotalKg);
+            const updatedEst: EstoqueItem = {
+              ...currentEst,
+              quantidade: novaQtd,
+              pesoTotalKg: novoPesoTotal,
+              status: novaQtd === 0 ? 'Esgotado' : currentEst.status,
+              updatedAt: new Date().toLocaleDateString('pt-BR')
+            };
+            await saveDocument(COLLECTIONS.estoque_itens, updatedEst, currentEst.id);
+
+            // Registra Kardex de movimentação
+            const mov: EstoqueMovimentacao = {
+              id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              tipo: 'Saída (Romaneio)',
+              estoqueId: currentEst.id,
+              produtoNome: `${currentEst.cultura} - ${currentEst.variedade}`,
+              quantidade: p.quantidade,
+              tipoEmbalagem: p.embalagem || currentEst.tipoEmbalagem,
+              pesoKg: p.pesoTotalKg,
+              documentoRef: romaneio.numeroRomaneio || targetId,
+              dataHora: new Date().toLocaleString('pt-BR'),
+              responsavel: currentUser?.nome || 'Sistema',
+              motivo: `Emissão de Romaneio para ${romaneio.destinatarioNome}`,
+              unidade: romaneio.unidade || selectedUnidade
+            };
+            await saveDocument(COLLECTIONS.estoque_movimentacoes, mov, mov.id);
+          }
+        }
+      }
+    }
+    showToast(`Romaneio ${romaneio.numeroRomaneio} emitido com sucesso!`, 'success');
+  };
+
+  const handleDeleteRomaneio = async (id: string) => {
+    if (id) {
+      await removeDocument(COLLECTIONS.romaneios, id);
+      showToast('Romaneio cancelado/excluído com sucesso.', 'info');
+    }
+  };
+
+  const handleSaveMovimentacao = async (mov: EstoqueMovimentacao) => {
+    const targetId = mov.id || `mov-${Date.now()}`;
+    await saveDocument(COLLECTIONS.estoque_movimentacoes, { ...mov, id: targetId }, targetId);
+    showToast('Movimentação registrada com sucesso.', 'success');
+  };
+
   // General Import Modal State & Handlers
   const [isGeneralImportOpen, setIsGeneralImportOpen] = useState(false);
   const [generalImportTargetCategory, setGeneralImportTargetCategory] = useState<GeneralCategoryKey>('culturas');
@@ -2159,7 +2411,8 @@ export default function App() {
     amarracoes: 'Marcações e Amarrações',
     cadastro_geral: 'Cadastro Geral',
     controle: 'PMS',
-    projetos_sankhya: 'Projetos Sankhya'
+    projetos_sankhya: 'Projetos Sankhya',
+    estoque: 'Estoque'
   };
 
   // Modal entity name map
@@ -2180,7 +2433,8 @@ export default function App() {
     amarracoes: 'Marcação',
     cadastro_geral: 'Cadastro',
     controle: 'PMS',
-    projetos_sankhya: 'Projeto Sankhya'
+    projetos_sankhya: 'Projeto Sankhya',
+    estoque: 'Estoque / Romaneio'
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -2204,7 +2458,7 @@ export default function App() {
       setActivePage(allowedSub);
       setLixeiraCategory(allowedSub);
     } else {
-      if (page !== 'lixeira' && page !== 'amarracoes') {
+      if (page !== 'lixeira' && page !== 'amarracoes' && page !== 'controle' && page !== 'projetos_sankhya' && page !== 'estoque') {
         setLixeiraCategory(page as MainCategoryKey);
         if (isCadastroPage(page)) {
           setCadastroSubPage(page as MainCategoryKey);
@@ -3929,6 +4183,21 @@ export default function App() {
           {hasPermission('colheita') && (
             <div className={`sidebar-item ${activePage === 'colheita' ? 'active' : ''}`} onClick={() => switchPage('colheita')}>BdColheita</div>
           )}
+          {hasPermission('estoque') && (
+            <div
+              className={`sidebar-item ${activePage === 'estoque' ? 'active' : ''}`}
+              onClick={() => switchPage('estoque')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: activePage === 'estoque' ? 600 : 400
+              }}
+            >
+              <i className="fa-solid fa-boxes-stacked" style={{ color: activePage === 'estoque' ? '#0078d4' : '#605e5c', width: '14px', textAlign: 'center' }}></i>
+              <span>Estoque</span>
+            </div>
+          )}
           
           {/* GRUPO CADASTRO GERAL */}
           {hasPermission('cadastro_geral') && (
@@ -4206,107 +4475,111 @@ export default function App() {
             </div>
           )}
 
-          <div className="command-bar">
-            <button className="btn-add-item" onClick={() => openCurrentModal()} style={{ display: activePage === 'lixeira' ? 'none' : 'inline-flex' }}>
-              <i className="fa-solid fa-plus"></i> Adicionar novo item
-            </button>
+          {!['controle', 'projetos_sankhya', 'estoque'].includes(activePage) && (
+            <>
+              <div className="command-bar">
+                <button className="btn-add-item" onClick={() => openCurrentModal()} style={{ display: activePage === 'lixeira' ? 'none' : 'inline-flex' }}>
+                  <i className="fa-solid fa-plus"></i> Adicionar novo item
+                </button>
 
-            <button className={`cmd-btn ${isGridEditing ? 'active-mode' : ''}`} id="btnGridMode" onClick={toggleGridMode}>
-              <i className="fa-solid fa-table-cells"></i> <span id="gridBtnText">{isGridEditing ? 'Sair da Grade' : 'Modo grade'}</span>
-            </button>
+                <button className={`cmd-btn ${isGridEditing ? 'active-mode' : ''}`} id="btnGridMode" onClick={toggleGridMode}>
+                  <i className="fa-solid fa-table-cells"></i> <span id="gridBtnText">{isGridEditing ? 'Sair da Grade' : 'Modo grade'}</span>
+                </button>
 
-            <button
-              className="cmd-btn"
-              onClick={openGeneralImportModal}
-              style={{ display: activePage === 'lixeira' ? 'none' : 'inline-flex' }}
-              title="Importar planilha Excel ou CSV (.xlsx, .xls, .csv)"
-            >
-              <i className="fa-solid fa-file-import" style={{ color: '#107c41' }}></i> Importar
-            </button>
-
-            <button className="cmd-btn" onClick={openShareOptions}>
-              <i className="fa-solid fa-share-nodes"></i> Compartilhar
-            </button>
-
-            <button className="cmd-btn" onClick={exportToCSV}>
-              <i className="fa-solid fa-file-export"></i> Exportar
-            </button>
-
-            <button className="cmd-btn" onClick={() => window.print()}>
-              <i className="fa-solid fa-print"></i> Imprimir
-            </button>
-          </div>
-
-          <div className="sub-bar">
-            <div className="sub-title" id="pageSubTitle">{titleMap[activePage]}</div>
-            <div className="sub-controls">
-              <button
-                className="btn-clear-filters"
-                id="btnClearFilters"
-                style={{ display: hasActiveFilters ? 'inline-block' : 'none' }}
-                onClick={resetPageFilters}
-              >
-                <i className="fa-solid fa-xmark"></i> Limpar Filtros
-              </button>
-              {(activePage === 'colheita' || activePage === 'plantio') && (
-                <>
-                  <ExcelDimensionsControl
-                    tableType={activePage as 'colheita' | 'plantio'}
-                    defaultRowHeight={defaultRowHeight}
-                    onSetRowHeightPreset={handleSetRowHeightPreset}
-                    onResetDimensions={() => handleResetTableDimensions(activePage as 'colheita' | 'plantio')}
-                    wrapText={wrapText}
-                    onToggleWrapText={toggleWrapText}
-                  />
-                  <button
-                    type="button"
-                    id="btnWrapText"
-                    className="excel-wrap-btn inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded border transition-all"
-                    style={{
-                      backgroundColor: wrapText ? '#e0edfa' : '#ffffff',
-                      borderColor: wrapText ? '#0078d4' : '#d1d5db',
-                      color: wrapText ? '#005a9e' : '#1f2937',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                    }}
-                    onClick={toggleWrapText}
-                    title={wrapText ? "Quebrar Texto Automaticamente: ATIVADO (Clique para desativar)" : "Quebrar Texto Automaticamente: DESATIVADO (Clique para ativar)"}
-                  >
-                    <i className="fa-solid fa-arrow-turn-down text-[10px]" style={{ transform: 'rotate(90deg)', color: wrapText ? '#0078d4' : '#64748b' }}></i>
-                    <span>Quebrar Texto</span>
-                    <span
-                      className={`w-2 h-2 rounded-full ${wrapText ? 'bg-[#0078d4]' : 'bg-gray-300'}`}
-                      style={{ transition: 'background-color 0.2s' }}
-                    />
-                  </button>
-                </>
-              )}
-              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#323130', fontWeight: 500 }}>
-                  Todos os Itens <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }}></i>
-                </span>
-                <select
-                  id="selectSortMode"
-                  value={sortMode}
-                  onChange={e => setSortMode(e.target.value as SortMode)}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    cursor: 'pointer'
-                  }}
-                  title="Ordenar Todos os Itens"
+                <button
+                  className="cmd-btn"
+                  onClick={openGeneralImportModal}
+                  style={{ display: activePage === 'lixeira' ? 'none' : 'inline-flex' }}
+                  title="Importar planilha Excel ou CSV (.xlsx, .xls, .csv)"
                 >
-                  <option value="code_asc">Código: Menor ➔ Maior (Padrão)</option>
-                  <option value="code_desc">Código: Maior ➔ Menor</option>
-                  <option value="alpha_asc">De A a Z</option>
-                  <option value="alpha_desc">De Z a A</option>
-                </select>
+                  <i className="fa-solid fa-file-import" style={{ color: '#107c41' }}></i> Importar
+                </button>
+
+                <button className="cmd-btn" onClick={openShareOptions}>
+                  <i className="fa-solid fa-share-nodes"></i> Compartilhar
+                </button>
+
+                <button className="cmd-btn" onClick={exportToCSV}>
+                  <i className="fa-solid fa-file-export"></i> Exportar
+                </button>
+
+                <button className="cmd-btn" onClick={() => window.print()}>
+                  <i className="fa-solid fa-print"></i> Imprimir
+                </button>
               </div>
-            </div>
-          </div>
+
+              <div className="sub-bar">
+                <div className="sub-title" id="pageSubTitle">{titleMap[activePage]}</div>
+                <div className="sub-controls">
+                  <button
+                    className="btn-clear-filters"
+                    id="btnClearFilters"
+                    style={{ display: hasActiveFilters ? 'inline-block' : 'none' }}
+                    onClick={resetPageFilters}
+                  >
+                    <i className="fa-solid fa-xmark"></i> Limpar Filtros
+                  </button>
+                  {(activePage === 'colheita' || activePage === 'plantio') && (
+                    <>
+                      <ExcelDimensionsControl
+                        tableType={activePage as 'colheita' | 'plantio'}
+                        defaultRowHeight={defaultRowHeight}
+                        onSetRowHeightPreset={handleSetRowHeightPreset}
+                        onResetDimensions={() => handleResetTableDimensions(activePage as 'colheita' | 'plantio')}
+                        wrapText={wrapText}
+                        onToggleWrapText={toggleWrapText}
+                      />
+                      <button
+                        type="button"
+                        id="btnWrapText"
+                        className="excel-wrap-btn inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded border transition-all"
+                        style={{
+                          backgroundColor: wrapText ? '#e0edfa' : '#ffffff',
+                          borderColor: wrapText ? '#0078d4' : '#d1d5db',
+                          color: wrapText ? '#005a9e' : '#1f2937',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                        }}
+                        onClick={toggleWrapText}
+                        title={wrapText ? "Quebrar Texto Automaticamente: ATIVADO (Clique para desativar)" : "Quebrar Texto Automaticamente: DESATIVADO (Clique para ativar)"}
+                      >
+                        <i className="fa-solid fa-arrow-turn-down text-[10px]" style={{ transform: 'rotate(90deg)', color: wrapText ? '#0078d4' : '#64748b' }}></i>
+                        <span>Quebrar Texto</span>
+                        <span
+                          className={`w-2 h-2 rounded-full ${wrapText ? 'bg-[#0078d4]' : 'bg-gray-300'}`}
+                          style={{ transition: 'background-color 0.2s' }}
+                        />
+                      </button>
+                    </>
+                  )}
+                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#323130', fontWeight: 500 }}>
+                      Todos os Itens <i className="fa-solid fa-chevron-down" style={{ fontSize: '10px' }}></i>
+                    </span>
+                    <select
+                      id="selectSortMode"
+                      value={sortMode}
+                      onChange={e => setSortMode(e.target.value as SortMode)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer'
+                      }}
+                      title="Ordenar Todos os Itens"
+                    >
+                      <option value="code_asc">Código: Menor ➔ Maior (Padrão)</option>
+                      <option value="code_desc">Código: Maior ➔ Menor</option>
+                      <option value="alpha_asc">De A a Z</option>
+                      <option value="alpha_desc">De Z a A</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* PAGE COLHEITA */}
           <div id="pageColheita" className={`page-section ${activePage === 'colheita' ? 'active' : ''}`}>
@@ -5808,6 +6081,26 @@ export default function App() {
               );
             })()}
 
+          </div>
+
+          {/* PAGE ESTOQUE & EMISSOR DE ROMANEIO */}
+          <div id="pageEstoque" className={`page-section ${activePage === 'estoque' ? 'active' : ''}`}>
+            <EstoqueSection
+              items={estoqueData}
+              romaneios={romaneiosData}
+              movimentacoes={estoqueMovimentacoesData}
+              selectedUnidade={selectedUnidade}
+              culturas={culturasData}
+              variedades={variedadesData}
+              fazendas={fazendasData}
+              motoristas={motoristasData}
+              onSaveEstoqueItem={handleSaveEstoqueItem}
+              onDeleteEstoqueItem={handleDeleteEstoqueItem}
+              onSaveRomaneio={handleSaveRomaneio}
+              onDeleteRomaneio={handleDeleteRomaneio}
+              onSaveMovimentacao={handleSaveMovimentacao}
+              showToast={showToast}
+            />
           </div>
 
           {/* PAGE PMS */}

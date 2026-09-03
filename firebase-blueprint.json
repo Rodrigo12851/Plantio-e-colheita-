@@ -231,6 +231,74 @@
         "itemData": { "type": "object" }
       },
       "required": ["category", "titulo"]
+    },
+    "estoque_itens": {
+      "title": "Itens de Estoque",
+      "description": "Saldo e controle de produtos estocados",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "cultura": { "type": "string" },
+        "variedade": { "type": "string" },
+        "classificacao": { "type": "string" },
+        "tipoEmbalagem": { "type": "string" },
+        "pesoUnitarioKg": { "type": "number" },
+        "localArmazenamento": { "type": "string" },
+        "quantidade": { "type": "number" },
+        "pesoTotalKg": { "type": "number" },
+        "estoqueMinimo": { "type": "number" },
+        "loteSafra": { "type": "string" },
+        "fazendaOrigem": { "type": "string" },
+        "unidade": { "type": "string" },
+        "status": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["cultura", "quantidade", "unidade"]
+    },
+    "romaneios": {
+      "title": "Romaneios",
+      "description": "Emissão de romaneios de carga, expedição e transporte",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "numeroRomaneio": { "type": "string" },
+        "tipoRomaneio": { "type": "string" },
+        "dataEmissao": { "type": "string" },
+        "horaEmissao": { "type": "string" },
+        "status": { "type": "string" },
+        "remetenteNome": { "type": "string" },
+        "destinatarioNome": { "type": "string" },
+        "motoristaNome": { "type": "string" },
+        "veiculoPlaca": { "type": "string" },
+        "pesoBrutoKg": { "type": "number" },
+        "taraVeiculoKg": { "type": "number" },
+        "pesoLiquidoKg": { "type": "number" },
+        "itens": { "type": "array" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["numeroRomaneio", "tipoRomaneio", "dataEmissao"]
+    },
+    "estoque_movimentacoes": {
+      "title": "Movimentações de Estoque",
+      "description": "Kardex e histórico de entradas e saídas do estoque",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tipo": { "type": "string" },
+        "estoqueId": { "type": "string" },
+        "produtoNome": { "type": "string" },
+        "quantidade": { "type": "number" },
+        "tipoEmbalagem": { "type": "string" },
+        "pesoKg": { "type": "number" },
+        "dataHora": { "type": "string" },
+        "documentoOrigem": { "type": "string" },
+        "romaneioId": { "type": "string" },
+        "responsavel": { "type": "string" },
+        "motivoObservacao": { "type": "string" },
+        "unidade": { "type": "string" }
+      },
+      "required": ["tipo", "quantidade", "dataHora"]
     }
   }
 }

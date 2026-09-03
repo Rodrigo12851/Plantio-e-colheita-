@@ -69,7 +69,10 @@ export const COLLECTIONS = {
   lixeira: 'lixeira',
   usuarios: 'usuarios',
   pms: 'pms',
-  projetos_sankhya: 'projetos_sankhya'
+  projetos_sankhya: 'projetos_sankhya',
+  estoque_itens: 'estoque_itens',
+  romaneios: 'romaneios',
+  estoque_movimentacoes: 'estoque_movimentacoes'
 } as const;
 
 export type CollectionKey = keyof typeof COLLECTIONS;
