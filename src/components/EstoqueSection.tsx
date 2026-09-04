@@ -1,5 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { matchSankhyaProjectForTie, isCulturaHortifruti } from '../lib/sankhyaMatcher';
+import {
+  matchSankhyaProjectForTie,
+  isCulturaHortifruti,
+  matchAno,
+  matchFazenda,
+  matchCultura,
+  matchPivo
+} from '../lib/sankhyaMatcher';
 
 // Interfaces exported for compatibility with App.tsx
 export interface EstoqueItem {
@@ -509,6 +516,191 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
   const amarracaoIsHorti = useMemo(() => {
     return isCulturaHortifruti(formAmarracao.cultura, culturas);
   }, [formAmarracao.cultura, culturas]);
+
+  // Estados para controlar expansão opcional de todas as glebas/variedades do sistema caso o usuário queira
+  const [mostrarTodasGlebas, setMostrarTodasGlebas] = useState(false);
+  const [mostrarTodasVariedades, setMostrarTodasVariedades] = useState(false);
+
+  // Cruzamento com a Central de Amarrações por Ano Safra + Cultura + Fazenda + Pivô
+  const vinculoCentralAmarracao = useMemo(() => {
+    if (!formAmarracao.ano || !formAmarracao.cultura || !formAmarracao.fazenda || !formAmarracao.pivo) {
+      return {
+        encontrado: false,
+        amarracoesEncontradas: [] as any[],
+        glebasVinculadas: [] as string[],
+        variedadesVinculadas: [] as string[],
+        hectaresVinculado: '',
+        origemInfo: ''
+      };
+    }
+
+    // 1. Busca na Central de Amarrações (todasAmarracoes)
+    const matchesAmarracoes = (todasAmarracoes || []).filter(a => {
+      if (formAmarracao.id && a.id === formAmarracao.id) return false;
+      return (
+        matchAno(formAmarracao.ano, a.ano) &&
+        matchCultura(formAmarracao.cultura, a.cultura) &&
+        matchFazenda(formAmarracao.fazenda, a.fazenda) &&
+        matchPivo(formAmarracao.pivo, a.pivo)
+      );
+    });
+
+    const glebaSet = new Set<string>();
+    const varSet = new Set<string>();
+    let hect = '';
+
+    matchesAmarracoes.forEach(m => {
+      // Extrai glebas
+      if (m.glebas) {
+        if (Array.isArray(m.glebas)) {
+          m.glebas.forEach((g: any) => g && glebaSet.add(String(g).trim()));
+        } else if (typeof m.glebas === 'string') {
+          m.glebas.split(/[,;\n]+/).forEach((g: string) => g.trim() && glebaSet.add(g.trim()));
+        }
+      }
+      if (m.gleba && typeof m.gleba === 'string') {
+        m.gleba.split(/[,;\n]+/).forEach((g: string) => g.trim() && glebaSet.add(g.trim()));
+      }
+      if (m.titulo) {
+        const matchG = m.titulo.match(/Gleba:\s*([^➔\n\r,]+)/i);
+        if (matchG && matchG[1]) glebaSet.add(matchG[1].trim());
+      }
+
+      // Extrai variedades
+      if (m.variedades) {
+        if (Array.isArray(m.variedades)) {
+          m.variedades.forEach((v: any) => v && varSet.add(String(v).trim()));
+        } else if (typeof m.variedades === 'string') {
+          m.variedades.split(/[,;\n]+/).forEach((v: string) => v.trim() && varSet.add(v.trim()));
+        }
+      }
+      if (m.variedade && typeof m.variedade === 'string') {
+        m.variedade.split(/[,;\n]+/).forEach((v: string) => v.trim() && varSet.add(v.trim()));
+      }
+      if (m.destino && !['Estoque', 'Geral', 'Venda'].includes(m.destino.trim())) {
+        varSet.add(m.destino.trim());
+      }
+      if (m.titulo) {
+        const matchV = m.titulo.match(/Variedade:\s*([^➔\n\r,]+)/i);
+        if (matchV && matchV[1]) varSet.add(matchV[1].trim());
+      }
+
+      if (!hect && m.hectares) {
+        hect = String(m.hectares).trim();
+      }
+    });
+
+    let origem = matchesAmarracoes.length > 0 ? 'Central de Amarrações' : '';
+
+    // 2. Se não encontrou na Central de Amarrações, busca também em plantioData e colheitaData
+    if (matchesAmarracoes.length === 0) {
+      const matchesPlantio = (plantioData || []).filter(p =>
+        matchAno(formAmarracao.ano, p.ano) &&
+        matchCultura(formAmarracao.cultura, p.cultura) &&
+        matchFazenda(formAmarracao.fazenda, p.fazenda) &&
+        matchPivo(formAmarracao.pivo, p.pivo)
+      );
+      matchesPlantio.forEach(p => {
+        if (p.gleba) glebaSet.add(String(p.gleba).trim());
+        if (p.variedade) varSet.add(String(p.variedade).trim());
+        if (!hect && (p.area || p.hectares || p.ha)) hect = String(p.area || p.hectares || p.ha).trim();
+      });
+
+      const matchesColheita = (colheitaData || []).filter(c =>
+        matchAno(formAmarracao.ano, c.ano) &&
+        matchCultura(formAmarracao.cultura, c.cultura) &&
+        matchFazenda(formAmarracao.fazenda, c.fazenda) &&
+        matchPivo(formAmarracao.pivo, c.pivo)
+      );
+      matchesColheita.forEach(c => {
+        if (c.gleba) glebaSet.add(String(c.gleba).trim());
+        if (c.variedade) varSet.add(String(c.variedade).trim());
+        if (!hect && (c.area || c.hectares || c.ha)) hect = String(c.area || c.hectares || c.ha).trim();
+      });
+
+      if (matchesPlantio.length > 0) origem = 'Apontamentos de Plantio';
+      else if (matchesColheita.length > 0) origem = 'Apontamentos de Colheita';
+    }
+
+    const glebasList = Array.from(glebaSet).filter(Boolean);
+    const varList = Array.from(varSet).filter(Boolean);
+
+    return {
+      encontrado: matchesAmarracoes.length > 0 || glebasList.length > 0 || varList.length > 0,
+      amarracoesEncontradas: matchesAmarracoes,
+      glebasVinculadas: glebasList,
+      variedadesVinculadas: varList,
+      hectaresVinculado: hect,
+      origemInfo: origem
+    };
+  }, [formAmarracao.ano, formAmarracao.cultura, formAmarracao.fazenda, formAmarracao.pivo, formAmarracao.id, todasAmarracoes, plantioData, colheitaData]);
+
+  // Auto-seleciona e preenche glebas e variedades vinculadas quando localizadas na Central
+  useEffect(() => {
+    if (vinculoCentralAmarracao.encontrado) {
+      setFormAmarracao(prev => {
+        let changed = false;
+        let newGlebas = [...prev.glebas];
+        let newVars = [...prev.variedades];
+        let newHect = prev.hectares;
+
+        if (vinculoCentralAmarracao.glebasVinculadas.length > 0) {
+          const merged = Array.from(new Set([...prev.glebas, ...vinculoCentralAmarracao.glebasVinculadas]));
+          if (merged.length !== prev.glebas.length) {
+            newGlebas = merged;
+            changed = true;
+          }
+        }
+
+        if (vinculoCentralAmarracao.variedadesVinculadas.length > 0) {
+          const merged = Array.from(new Set([...prev.variedades, ...vinculoCentralAmarracao.variedadesVinculadas]));
+          if (merged.length !== prev.variedades.length) {
+            newVars = merged;
+            changed = true;
+          }
+        }
+
+        if (!prev.hectares && vinculoCentralAmarracao.hectaresVinculado) {
+          const cleanHect = vinculoCentralAmarracao.hectaresVinculado.replace(/[^\d.,]/g, '').replace(',', '.');
+          if (cleanHect) {
+            newHect = cleanHect;
+            changed = true;
+          }
+        }
+
+        if (!changed) return prev;
+        return {
+          ...prev,
+          glebas: newGlebas,
+          variedades: newVars,
+          hectares: newHect
+        };
+      });
+    }
+  }, [vinculoCentralAmarracao]);
+
+  // Lista de glebas para exibir na UI da amarração
+  const glebasParaExibir = useMemo(() => {
+    if (vinculoCentralAmarracao.glebasVinculadas.length > 0 && !mostrarTodasGlebas) {
+      return vinculoCentralAmarracao.glebasVinculadas;
+    }
+    if (formAmarracao.fazenda) {
+      const fazCore = formAmarracao.fazenda.toLowerCase();
+      const glebasFaz = glebas
+        .filter(g => g.fazenda && g.fazenda.toLowerCase().includes(fazCore))
+        .map(g => g.nome.trim());
+      if (glebasFaz.length > 0) return Array.from(new Set(glebasFaz));
+    }
+    return glebasDisponiveis;
+  }, [vinculoCentralAmarracao.glebasVinculadas, mostrarTodasGlebas, formAmarracao.fazenda, glebas, glebasDisponiveis]);
+
+  // Lista de variedades para exibir na UI da amarração
+  const variedadesParaExibir = useMemo(() => {
+    if (vinculoCentralAmarracao.variedadesVinculadas.length > 0 && !mostrarTodasVariedades) {
+      return vinculoCentralAmarracao.variedadesVinculadas;
+    }
+    return getVariedadesParaCultura(formAmarracao.cultura);
+  }, [vinculoCentralAmarracao.variedadesVinculadas, mostrarTodasVariedades, formAmarracao.cultura, variedades]);
 
   const sankhyaMatchForAmarracao = useMemo(() => {
     if (!formAmarracao.cultura || !formAmarracao.fazenda || !formAmarracao.pivo) {
@@ -1412,7 +1604,16 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                   <label>Ano Safra</label>
                   <select
                     value={formAmarracao.ano}
-                    onChange={(e) => setFormAmarracao({ ...formAmarracao, ano: e.target.value })}
+                    onChange={(e) => {
+                      setFormAmarracao(prev => ({
+                        ...prev,
+                        ano: e.target.value,
+                        glebas: [],
+                        variedades: []
+                      }));
+                      setMostrarTodasGlebas(false);
+                      setMostrarTodasVariedades(false);
+                    }}
                   >
                     <option value="2025/26">2025/26 (Safra Atual)</option>
                     <option value="2026/27">2026/27</option>
@@ -1431,8 +1632,11 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                       setFormAmarracao(prev => ({
                         ...prev,
                         cultura: cult,
-                        variedades: []
+                        variedades: [],
+                        glebas: []
                       }));
+                      setMostrarTodasGlebas(false);
+                      setMostrarTodasVariedades(false);
                     }}
                   >
                     <option value="">Selecione a Cultura...</option>
@@ -1452,8 +1656,11 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                       setFormAmarracao(prev => ({
                         ...prev,
                         fazenda: faz,
-                        glebas: []
+                        glebas: [],
+                        variedades: []
                       }));
+                      setMostrarTodasGlebas(false);
+                      setMostrarTodasVariedades(false);
                     }}
                   >
                     <option value="">Selecione a Fazenda...</option>
@@ -1468,7 +1675,17 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                   <label>Pivô</label>
                   <select
                     value={formAmarracao.pivo}
-                    onChange={(e) => setFormAmarracao({ ...formAmarracao, pivo: e.target.value })}
+                    onChange={(e) => {
+                      const piv = e.target.value;
+                      setFormAmarracao(prev => ({
+                        ...prev,
+                        pivo: piv,
+                        glebas: [],
+                        variedades: []
+                      }));
+                      setMostrarTodasGlebas(false);
+                      setMostrarTodasVariedades(false);
+                    }}
                   >
                     <option value="">Selecione o Pivô...</option>
                     {pivosDisponiveis.map(p => (
@@ -1490,9 +1707,9 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                 </div>
               </div>
 
-              {/* SELEÇÃO MÚLTIPLA DE GLEBAS */}
+              {/* SELEÇÃO MÚLTIPLA DE GLEBAS (FILTRADAS PELA CENTRAL DE AMARRAÇÕES) */}
               <div style={{ marginTop: '10px', background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
                   <label style={{ margin: 0, fontWeight: 'bold', color: '#334155' }}>
                     🌱 Glebas Vinculadas ({formAmarracao.glebas.length} selecionada{formAmarracao.glebas.length === 1 ? '' : 's'})
                   </label>
@@ -1501,11 +1718,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                       type="button"
                       style={{ fontSize: '11px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
                       onClick={() => {
-                        const glebasFaz = formAmarracao.fazenda
-                          ? glebas.filter(g => g.fazenda === formAmarracao.fazenda).map(g => g.nome)
-                          : glebasDisponiveis;
-                        const lista = glebasFaz.length > 0 ? glebasFaz : glebasDisponiveis;
-                        setFormAmarracao(prev => ({ ...prev, glebas: Array.from(new Set([...prev.glebas, ...lista])) }));
+                        setFormAmarracao(prev => ({ ...prev, glebas: Array.from(new Set([...prev.glebas, ...glebasParaExibir])) }));
                       }}
                     >
                       Selecionar Todas
@@ -1520,50 +1733,77 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                   </div>
                 </div>
 
+                {/* Banner de status do vínculo da Central de Amarrações */}
+                {vinculoCentralAmarracao.glebasVinculadas.length > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#166534' }}>
+                      <span style={{ fontSize: '14px' }}>🔗</span>
+                      <span>
+                        <strong>Vínculo Central de Amarrações:</strong> {vinculoCentralAmarracao.glebasVinculadas.length} gleba(s) vinculada(s) localizada(s) ({vinculoCentralAmarracao.glebasVinculadas.join(', ')})
+                        {vinculoCentralAmarracao.amarracoesEncontradas.length > 0 && ` [${vinculoCentralAmarracao.amarracoesEncontradas.map(a => a.codigoMarca || a.id).join(', ')}]`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodasGlebas(prev => !prev)}
+                      style={{ fontSize: '11px', color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      {mostrarTodasGlebas ? '🔒 Ver apenas vinculadas' : '👁️ Ver todas do sistema'}
+                    </button>
+                  </div>
+                ) : formAmarracao.pivo && formAmarracao.fazenda ? (
+                  <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
+                    ℹ️ Nenhuma amarração anterior localizada na Central para {formAmarracao.fazenda} - {formAmarracao.pivo} ({formAmarracao.ano}). Exibindo todas as glebas para você criar este vínculo.
+                  </div>
+                ) : (
+                  <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
+                    💡 Selecione <strong>Ano Safra</strong>, <strong>Cultura</strong>, <strong>Fazenda</strong> e <strong>Pivô</strong> acima para cruzar e carregar as glebas vinculadas na Central.
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '110px', overflowY: 'auto', padding: '4px' }}>
-                  {(formAmarracao.fazenda
-                    ? (glebas.filter(g => g.fazenda === formAmarracao.fazenda).map(g => g.nome).length > 0
-                        ? glebas.filter(g => g.fazenda === formAmarracao.fazenda).map(g => g.nome)
-                        : glebasDisponiveis)
-                    : glebasDisponiveis
-                  ).map(nomeGleba => {
-                    const checked = formAmarracao.glebas.includes(nomeGleba);
-                    return (
-                      <button
-                        key={nomeGleba}
-                        type="button"
-                        onClick={() => {
-                          setFormAmarracao(prev => ({
-                            ...prev,
-                            glebas: checked ? prev.glebas.filter(g => g !== nomeGleba) : [...prev.glebas, nomeGleba]
-                          }));
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 10px',
-                          borderRadius: '16px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          border: checked ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-                          background: checked ? '#dcfce7' : '#ffffff',
-                          color: checked ? '#14532d' : '#475569',
-                          fontWeight: checked ? 'bold' : 'normal',
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        <span>{checked ? '✓' : '+'}</span>
-                        <span>{nomeGleba}</span>
-                      </button>
-                    );
-                  })}
+                  {glebasParaExibir.length === 0 ? (
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Nenhuma gleba disponível para a seleção atual.</span>
+                  ) : (
+                    glebasParaExibir.map(nomeGleba => {
+                      const checked = formAmarracao.glebas.includes(nomeGleba);
+                      return (
+                        <button
+                          key={nomeGleba}
+                          type="button"
+                          onClick={() => {
+                            setFormAmarracao(prev => ({
+                              ...prev,
+                              glebas: checked ? prev.glebas.filter(g => g !== nomeGleba) : [...prev.glebas, nomeGleba]
+                            }));
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '16px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            border: checked ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                            background: checked ? '#dcfce7' : '#ffffff',
+                            color: checked ? '#14532d' : '#475569',
+                            fontWeight: checked ? 'bold' : 'normal',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <span>{checked ? '✓' : '+'}</span>
+                          <span>{nomeGleba}</span>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
-              {/* SELEÇÃO MÚLTIPLA DE VARIEDADES */}
+              {/* SELEÇÃO MÚLTIPLA DE VARIEDADES (FILTRADAS PELA CENTRAL DE AMARRAÇÕES) */}
               <div style={{ marginTop: '10px', background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
                   <label style={{ margin: 0, fontWeight: 'bold', color: '#334155' }}>
                     🌾 Variedades Vinculadas ({formAmarracao.variedades.length} selecionada{formAmarracao.variedades.length === 1 ? '' : 's'})
                   </label>
@@ -1572,8 +1812,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                       type="button"
                       style={{ fontSize: '11px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
                       onClick={() => {
-                        const vars = getVariedadesParaCultura(formAmarracao.cultura);
-                        setFormAmarracao(prev => ({ ...prev, variedades: Array.from(new Set([...prev.variedades, ...vars])) }));
+                        setFormAmarracao(prev => ({ ...prev, variedades: Array.from(new Set([...prev.variedades, ...variedadesParaExibir])) }));
                       }}
                     >
                       Selecionar Todas
@@ -1588,39 +1827,70 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                   </div>
                 </div>
 
+                {/* Banner de status do vínculo da Central de Amarrações */}
+                {vinculoCentralAmarracao.variedadesVinculadas.length > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#1e40af' }}>
+                      <span style={{ fontSize: '14px' }}>🌾</span>
+                      <span>
+                        <strong>Vínculo Central de Amarrações:</strong> {vinculoCentralAmarracao.variedadesVinculadas.length} variedade(s) vinculada(s) localizada(s) ({vinculoCentralAmarracao.variedadesVinculadas.join(', ')})
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodasVariedades(prev => !prev)}
+                      style={{ fontSize: '11px', color: '#1d4ed8', background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      {mostrarTodasVariedades ? '🔒 Ver apenas vinculadas' : '👁️ Ver todas do sistema'}
+                    </button>
+                  </div>
+                ) : formAmarracao.pivo && formAmarracao.fazenda ? (
+                  <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
+                    ℹ️ Nenhuma amarração anterior localizada na Central para {formAmarracao.fazenda} - {formAmarracao.pivo} ({formAmarracao.ano}). Exibindo variedades cadastradas para a cultura.
+                  </div>
+                ) : (
+                  <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '8px', fontSize: '12px', color: '#64748b' }}>
+                    💡 Selecione <strong>Ano Safra</strong>, <strong>Cultura</strong>, <strong>Fazenda</strong> e <strong>Pivô</strong> acima para cruzar e carregar as variedades vinculadas na Central.
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '110px', overflowY: 'auto', padding: '4px' }}>
-                  {getVariedadesParaCultura(formAmarracao.cultura).map(nomeVar => {
-                    const checked = formAmarracao.variedades.includes(nomeVar);
-                    return (
-                      <button
-                        key={nomeVar}
-                        type="button"
-                        onClick={() => {
-                          setFormAmarracao(prev => ({
-                            ...prev,
-                            variedades: checked ? prev.variedades.filter(v => v !== nomeVar) : [...prev.variedades, nomeVar]
-                          }));
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 10px',
-                          borderRadius: '16px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          border: checked ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
-                          background: checked ? '#dbeafe' : '#ffffff',
-                          color: checked ? '#1e3a8a' : '#475569',
-                          fontWeight: checked ? 'bold' : 'normal',
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        <span>{checked ? '✓' : '+'}</span>
-                        <span>{nomeVar}</span>
-                      </button>
-                    );
-                  })}
+                  {variedadesParaExibir.length === 0 ? (
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Nenhuma variedade disponível para a cultura atual.</span>
+                  ) : (
+                    variedadesParaExibir.map(nomeVar => {
+                      const checked = formAmarracao.variedades.includes(nomeVar);
+                      return (
+                        <button
+                          key={nomeVar}
+                          type="button"
+                          onClick={() => {
+                            setFormAmarracao(prev => ({
+                              ...prev,
+                              variedades: checked ? prev.variedades.filter(v => v !== nomeVar) : [...prev.variedades, nomeVar]
+                            }));
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '16px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            border: checked ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                            background: checked ? '#dbeafe' : '#ffffff',
+                            color: checked ? '#1e3a8a' : '#475569',
+                            fontWeight: checked ? 'bold' : 'normal',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <span>{checked ? '✓' : '+'}</span>
+                          <span>{nomeVar}</span>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 

@@ -135,6 +135,79 @@ export function extractFazendaCore(fazenda: string | undefined): string {
 }
 
 /**
+ * Extrai anos de safras em formatos variados (2025/26, 2026, 2025/2026, etc.)
+ */
+export function extractYears(str: string | undefined | null): string[] {
+  if (!str) return [];
+  const s = String(str).replace(/\s/g, '');
+  const years = new Set<string>();
+  const slashMatch = s.match(/(\d{4})\/(\d{2,4})/);
+  if (slashMatch) {
+    const y1 = parseInt(slashMatch[1], 10);
+    let y2 = parseInt(slashMatch[2], 10);
+    if (slashMatch[2].length === 2) {
+      const century = Math.floor(y1 / 100) * 100;
+      y2 = century + y2;
+    }
+    years.add(String(y1));
+    years.add(String(y2));
+    years.add(String(y1).slice(-2));
+    years.add(String(y2).slice(-2));
+    years.add(`${y1}/${String(y2).slice(-2)}`);
+    years.add(`${y1}/${y2}`);
+  }
+  const d4 = s.match(/\d{4}/g) || [];
+  d4.forEach(y => {
+    years.add(y);
+    years.add(y.slice(-2));
+  });
+  return Array.from(years);
+}
+
+/**
+ * Compara dois anos ou safras (ex: "2025/26" com "2026")
+ */
+export function matchAno(ano1: string | undefined | null, ano2: string | undefined | null): boolean {
+  if (!ano1 || !ano2) return true;
+  const s1 = String(ano1).trim();
+  const s2 = String(ano2).trim();
+  if (s1 === s2) return true;
+  const y1 = extractYears(s1);
+  const y2 = extractYears(s2);
+  return y1.some(y => y2.includes(y));
+}
+
+/**
+ * Compara nomes de fazenda removendo acentos e prefixos
+ */
+export function matchFazenda(faz1: string | undefined | null, faz2: string | undefined | null): boolean {
+  if (!faz1 || !faz2) return false;
+  const n1 = extractFazendaCore(faz1);
+  const n2 = extractFazendaCore(faz2);
+  return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+}
+
+/**
+ * Compara nomes de cultura removendo acentos e caixa
+ */
+export function matchCultura(cult1: string | undefined | null, cult2: string | undefined | null): boolean {
+  if (!cult1 || !cult2) return false;
+  const n1 = normalizeText(cult1);
+  const n2 = normalizeText(cult2);
+  return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+}
+
+/**
+ * Compara identificadores de pivô (romano, arábico, prefixos)
+ */
+export function matchPivo(piv1: string | undefined | null, piv2: string | undefined | null): boolean {
+  if (!piv1 || !piv2) return false;
+  const t1 = extractPivoTokens(piv1);
+  const t2 = extractPivoTokens(piv2);
+  return t1.some(t => t2.includes(t));
+}
+
+/**
  * Normaliza ano safra para comparação flexível
  * Ex: "2025/26" -> ["2025/26", "25/26", "2025", "2026"]
  */
