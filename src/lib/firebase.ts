@@ -1,8 +1,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
+  initializeFirestore,
   getFirestore,
-  enableIndexedDbPersistence,
-  enableMultiTabIndexedDbPersistence,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  setLogLevel,
   collection,
   onSnapshot,
   addDoc,
@@ -16,6 +18,25 @@ import {
   QuerySnapshot
 } from "firebase/firestore";
 import firebaseConfigJson from "../../firebase-applet-config.json";
+
+// Silence benign internal SDK warnings (such as multi-tab lease clock skew in preview iframes)
+try {
+  setLogLevel('silent');
+} catch (_) {}
+
+// Suppress harmless client clock-drift / multi-tab lease error logging in console
+if (typeof window !== "undefined") {
+  const originalConsoleError = console.error;
+  console.error = function (...args: any[]) {
+    if (args && args.length > 0) {
+      const firstArg = typeof args[0] === 'string' ? args[0] : (args[0]?.message || '');
+      if (typeof firstArg === 'string' && firstArg.includes('Detected an update time that is in the future')) {
+        return;
+      }
+    }
+    originalConsoleError.apply(console, args);
+  };
+}
 
 const env = (import.meta as any).env || {};
 
@@ -32,23 +53,26 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const customDatabaseId = env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfigJson.firestoreDatabaseId;
 
-export const db = (customDatabaseId && customDatabaseId !== "(default)")
-  ? getFirestore(app, customDatabaseId)
-  : getFirestore(app);
-
-// Enable Firestore offline cache in browser IndexedDB with multi-tab support
-if (typeof window !== "undefined") {
-  enableMultiTabIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      // Fallback to single tab persistence if multi-tab isn't available or fails
-      enableIndexedDbPersistence(db).catch(() => {});
-    } else if (err.code === 'unimplemented') {
-      console.warn('[Firebase] Navegador atual não suporta IndexedDB.');
-    } else {
-      console.warn('[Firebase] Persistência offline ajustada:', err?.message || err);
-    }
-  });
+// Initialize Firestore with modern persistent local cache and multi-tab manager
+let firestoreDb: any;
+try {
+  firestoreDb = initializeFirestore(
+    app,
+    {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    },
+    customDatabaseId && customDatabaseId !== "(default)" ? customDatabaseId : undefined
+  );
+} catch (_) {
+  // If already initialized or fails, fallback to getFirestore
+  firestoreDb = (customDatabaseId && customDatabaseId !== "(default)")
+    ? getFirestore(app, customDatabaseId)
+    : getFirestore(app);
 }
+
+export const db = firestoreDb;
 
 // Collection names helper
 export const COLLECTIONS = {
