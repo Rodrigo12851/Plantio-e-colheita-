@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { matchSankhyaProjectForTie, isCulturaHortifruti } from '../lib/sankhyaMatcher';
 
 // Interfaces exported for compatibility with App.tsx
 export interface EstoqueItem {
@@ -82,12 +83,15 @@ export interface EstoqueSectionProps {
   colheitaData?: any[];
   plantioData?: any[];
   projetosSankhya?: any[];
+  amarracoes?: any[];
   motoristas?: any[];
   onSaveEstoqueItem?: (item: EstoqueItem) => void;
   onDeleteEstoqueItem?: (id: string) => void;
   onSaveRomaneio?: (romaneio: RomaneioItem, baixarEstoque: boolean) => void;
   onDeleteRomaneio?: (id: string) => void;
   onSaveMovimentacao?: (mov: EstoqueMovimentacao) => void;
+  onSaveAmarracao?: (item: any, id?: string) => Promise<void> | void;
+  onDeleteAmarracao?: (id: string) => Promise<void> | void;
   showToast?: (msg: string, type?: 'success' | 'warning' | 'error' | 'info') => void;
 }
 
@@ -138,10 +142,50 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
   colheitaData = [],
   plantioData = [],
   projetosSankhya = [],
+  amarracoes = [],
+  onSaveAmarracao,
+  onDeleteAmarracao,
   showToast
 }) => {
   // Navigation State
-  const [paginaAtiva, setPaginaAtiva] = useState<'inicial' | 'entrada' | 'saida'>('inicial');
+  const [paginaAtiva, setPaginaAtiva] = useState<'inicial' | 'entrada' | 'saida' | 'amarracoes'>('inicial');
+
+  // Amarrações do Estoque State (combina as cadastradas no Firestore com locais)
+  const [amarracoesLocais, setAmarracoesLocais] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('estoque_amarracoes_locais');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { /* ignore */ }
+    return [];
+  });
+
+  const todasAmarracoes = useMemo(() => {
+    const list: any[] = [...(amarracoes || [])];
+    amarracoesLocais.forEach(loc => {
+      if (!list.some(item => (item.id && item.id === loc.id) || (item.codigoMarca && item.codigoMarca === loc.codigoMarca))) {
+        list.unshift(loc);
+      }
+    });
+    return list;
+  }, [amarracoes, amarracoesLocais]);
+
+  const [formAmarracao, setFormAmarracao] = useState({
+    id: null as string | null,
+    codigoMarca: '',
+    ano: '2025/26',
+    cultura: '',
+    fazenda: '',
+    pivo: '',
+    glebas: [] as string[],
+    variedades: [] as string[],
+    projetoSankhya: '',
+    descricaoLote: '',
+    identificacaoSankhya: '',
+    hectares: '',
+    observacao: ''
+  });
+  const [msgAmarracao, setMsgAmarracao] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
+  const [filtroAmarracao, setFiltroAmarracao] = useState('');
 
   // Core Data State (Entradas e Saídas)
   const [entradas, setEntradas] = useState<Movimento[]>(() => {
@@ -296,9 +340,67 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     return ['Especial', 'Padrão', 'Segunda Linha'];
   };
 
-  // 7. Controles / Projetos interligados com Projetos Sankhya + BdColheita + BdPlantio
+  // 7. Controles / Projetos interligados com Amarrações do Estoque + Projetos Sankhya + BdColheita + BdPlantio
   const controlesInterligados = useMemo(() => {
-    const mapa = new Map<string, { controleCod: string; safra: string; fazendaNome?: string; culturaNome?: string; pivoNome?: string; glebaNome?: string; variedadeNome?: string; label: string }>();
+    const mapa = new Map<string, {
+      controleCod: string;
+      safra: string;
+      fazendaNome?: string;
+      culturaNome?: string;
+      pivoNome?: string;
+      glebaNome?: string;
+      variedadeNome?: string;
+      projetoSankhya?: string;
+      descricaoLote?: string;
+      isAmarracao?: boolean;
+      label: string;
+    }>();
+
+    // Origem 0: Amarrações Cadastradas (Geral / Estoque) - PRIORIDADE MÁXIMA
+    if (todasAmarracoes && todasAmarracoes.length > 0) {
+      todasAmarracoes.forEach((a: any) => {
+        const cod = a.codigoMarca?.trim() || a.descricaoLote?.trim() || (a.projetoSankhya ? `PRJ-${a.projetoSankhya}` : '');
+        if (!cod) return;
+        const safra = a.ano || '2025/26';
+        const glebaStr = Array.isArray(a.glebas) && a.glebas.length > 0 ? a.glebas[0] : (a.gleba || '');
+        const varStr = Array.isArray(a.variedades) && a.variedades.length > 0 ? a.variedades[0] : (a.variedade || '');
+        const loteInfo = a.descricaoLote ? ` - Lote: ${a.descricaoLote}` : (a.projetoSankhya ? ` - Proj: ${a.projetoSankhya}` : '');
+
+        mapa.set(cod, {
+          controleCod: cod,
+          safra,
+          fazendaNome: a.fazenda || '',
+          culturaNome: a.cultura || '',
+          pivoNome: a.pivo || '',
+          glebaNome: glebaStr,
+          variedadeNome: varStr,
+          projetoSankhya: a.projetoSankhya || '',
+          descricaoLote: a.descricaoLote || '',
+          isAmarracao: true,
+          label: `🔗 [Amarração] ${cod} (${a.fazenda || ''} ${a.pivo || ''} - ${a.cultura || ''}${loteInfo} - Safra ${safra})`
+        });
+
+        // Se tiver descricaoLote e for diferente do código, indexar também pelo lote para facilitar localização
+        if (a.descricaoLote && a.descricaoLote.trim() !== cod) {
+          const loteCod = a.descricaoLote.trim();
+          if (!mapa.has(loteCod)) {
+            mapa.set(loteCod, {
+              controleCod: loteCod,
+              safra,
+              fazendaNome: a.fazenda || '',
+              culturaNome: a.cultura || '',
+              pivoNome: a.pivo || '',
+              glebaNome: glebaStr,
+              variedadeNome: varStr,
+              projetoSankhya: a.projetoSankhya || '',
+              descricaoLote: a.descricaoLote || '',
+              isAmarracao: true,
+              label: `🏷️ [Lote] ${loteCod} (${a.fazenda || ''} ${a.pivo || ''} - ${a.cultura || ''} - Safra ${safra})`
+            });
+          }
+        }
+      });
+    }
 
     // Origem 1: Projetos Sankhya
     if (projetosSankhya && projetosSankhya.length > 0) {
@@ -306,11 +408,13 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
         const cod = p.projeto?.trim();
         if (!cod) return;
         const safra = p.safra || '2025/26';
-        mapa.set(cod, {
-          controleCod: cod,
-          safra,
-          label: `${cod} (${p.identificacao || 'Sankhya'} - Safra ${safra})`
-        });
+        if (!mapa.has(cod)) {
+          mapa.set(cod, {
+            controleCod: cod,
+            safra,
+            label: `${cod} (${p.identificacao || 'Sankhya'} - Safra ${safra})`
+          });
+        }
       });
     }
 
@@ -365,7 +469,214 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     }
 
     return Array.from(mapa.values());
-  }, [projetosSankhya, colheitaData, plantioData]);
+  }, [todasAmarracoes, projetosSankhya, colheitaData, plantioData]);
+
+  // Helpers para geração e manipulação de Amarrações
+  const getProximoCodigoAmarracao = () => {
+    const maxNum = todasAmarracoes.reduce((acc, curr) => {
+      const cod = curr.codigoMarca || '';
+      const match = cod.match(/M-(\d+)/i) || cod.match(/CTR-(\d+)/i);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        return n > acc ? n : acc;
+      }
+      return acc;
+    }, 0);
+    return `M-${String(maxNum + 1).padStart(4, '0')}`;
+  };
+
+  const amarracaoIsHorti = useMemo(() => {
+    return isCulturaHortifruti(formAmarracao.cultura, culturas);
+  }, [formAmarracao.cultura, culturas]);
+
+  const sankhyaMatchForAmarracao = useMemo(() => {
+    if (!formAmarracao.cultura || !formAmarracao.fazenda || !formAmarracao.pivo) {
+      return { matches: [], lotes: [], descricaoLote: '', projetoSankhya: '', identificacaoSankhya: '' };
+    }
+    return matchSankhyaProjectForTie({
+      ano: formAmarracao.ano,
+      cultura: formAmarracao.cultura,
+      fazenda: formAmarracao.fazenda,
+      pivo: formAmarracao.pivo,
+      glebas: formAmarracao.glebas,
+      sankhyaProjects: projetosSankhya,
+      isHortifruti: amarracaoIsHorti
+    });
+  }, [formAmarracao.ano, formAmarracao.cultura, formAmarracao.fazenda, formAmarracao.pivo, formAmarracao.glebas, projetosSankhya, amarracaoIsHorti]);
+
+  const salvarAmarracao = async (e?: React.FormEvent, lancarEntradaApos = false) => {
+    if (e) e.preventDefault();
+
+    if (!formAmarracao.cultura) {
+      setMsgAmarracao({ texto: 'Por favor, selecione a Cultura.', tipo: 'erro' });
+      return;
+    }
+    if (!formAmarracao.fazenda) {
+      setMsgAmarracao({ texto: 'Por favor, selecione a Fazenda.', tipo: 'erro' });
+      return;
+    }
+
+    const codigoFinal = formAmarracao.codigoMarca.trim() || getProximoCodigoAmarracao();
+    const glebaStr = formAmarracao.glebas.join(', ');
+    const varStr = formAmarracao.variedades.join(', ');
+    const autoTitle = `Fazenda: ${formAmarracao.fazenda} ➔ Pivô: ${formAmarracao.pivo || 'Geral'} ➔ Cultura: ${formAmarracao.cultura}${glebaStr ? ` ➔ Gleba: ${glebaStr}` : ''}${varStr ? ` ➔ Variedade: ${varStr}` : ''}`;
+
+    const novaAmarracao = {
+      id: formAmarracao.id || `amarracao_${Date.now()}`,
+      codigoMarca: codigoFinal,
+      categoria: 'geral',
+      titulo: autoTitle,
+      origem: `${formAmarracao.fazenda} / ${formAmarracao.pivo || 'Geral'}`,
+      destino: 'Estoque',
+      status: 'Ativo' as const,
+      ano: formAmarracao.ano || '2025/26',
+      cultura: formAmarracao.cultura,
+      fazenda: formAmarracao.fazenda,
+      pivo: formAmarracao.pivo || '',
+      glebas: formAmarracao.glebas,
+      variedades: formAmarracao.variedades,
+      descricaoLote: formAmarracao.descricaoLote || sankhyaMatchForAmarracao.descricaoLote || '',
+      projetoSankhya: formAmarracao.projetoSankhya || sankhyaMatchForAmarracao.projetoSankhya || '',
+      identificacaoSankhya: formAmarracao.identificacaoSankhya || sankhyaMatchForAmarracao.identificacaoSankhya || '',
+      hectares: formAmarracao.hectares,
+      observacao: formAmarracao.observacao,
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Salvar no Firestore se handler estiver disponível
+    if (onSaveAmarracao) {
+      try {
+        await onSaveAmarracao(novaAmarracao, formAmarracao.id || undefined);
+      } catch (err) {
+        console.error('Erro ao persistir amarração:', err);
+      }
+    }
+
+    // 2. Atualizar estado local para resposta instantânea
+    setAmarracoesLocais(prev => {
+      const filtered = prev.filter(p => p.id !== novaAmarracao.id && p.codigoMarca !== novaAmarracao.codigoMarca);
+      const updated = [novaAmarracao, ...filtered];
+      try {
+        localStorage.setItem('estoque_amarracoes_locais', JSON.stringify(updated));
+      } catch (e) { /* ignore */ }
+      return updated;
+    });
+
+    setMsgAmarracao({
+      texto: `Amarração ${codigoFinal} salva com sucesso!`,
+      tipo: 'sucesso'
+    });
+    if (showToast) {
+      showToast(`Amarração ${codigoFinal} registrada com sucesso!`, 'success');
+    }
+
+    if (lancarEntradaApos) {
+      // Já preenche e abre o formulário de Entrada!
+      setFormEntrada({
+        id: null,
+        data: dataHoje(),
+        controleCod: codigoFinal,
+        fazendaNome: formAmarracao.fazenda,
+        culturaNome: formAmarracao.cultura,
+        pivoNome: formAmarracao.pivo || pivosDisponiveis[0] || '',
+        glebaNome: formAmarracao.glebas[0] || glebasDisponiveis[0] || '',
+        variedadeNome: formAmarracao.variedades[0] || getVariedadesParaCultura(formAmarracao.cultura)[0] || '',
+        produtoNome: getProdutosParaCultura(formAmarracao.cultura)[0] || '',
+        localNome: LOCAIS_ARMAZENAMENTO_PADRAO[0],
+        embalagem: 'Caixa',
+        qtd: ''
+      });
+      setPaginaAtiva('entrada');
+    } else {
+      // Limpar formulário de amarração preparando para a próxima
+      setFormAmarracao({
+        id: null,
+        codigoMarca: '',
+        ano: formAmarracao.ano,
+        cultura: formAmarracao.cultura,
+        fazenda: formAmarracao.fazenda,
+        pivo: formAmarracao.pivo,
+        glebas: [],
+        variedades: [],
+        projetoSankhya: '',
+        descricaoLote: '',
+        identificacaoSankhya: '',
+        hectares: '',
+        observacao: ''
+      });
+    }
+  };
+
+  const lancarEntradaParaAmarracao = (a: any) => {
+    const cod = a.codigoMarca || a.descricaoLote || '';
+    const glebaPrimeira = (Array.isArray(a.glebas) && a.glebas.length > 0) ? a.glebas[0] : (a.gleba || '');
+    const varPrimeira = (Array.isArray(a.variedades) && a.variedades.length > 0) ? a.variedades[0] : (a.variedade || '');
+    setFormEntrada({
+      id: null,
+      data: dataHoje(),
+      controleCod: cod,
+      fazendaNome: a.fazenda || '',
+      culturaNome: a.cultura || '',
+      pivoNome: a.pivo || '',
+      glebaNome: glebaPrimeira,
+      variedadeNome: varPrimeira || getVariedadesParaCultura(a.cultura)[0] || '',
+      produtoNome: getProdutosParaCultura(a.cultura)[0] || '',
+      localNome: LOCAIS_ARMAZENAMENTO_PADRAO[0],
+      embalagem: 'Caixa',
+      qtd: ''
+    });
+    setPaginaAtiva('entrada');
+    if (showToast) {
+      showToast(`Entrada pronta para amarração ${cod}!`, 'info');
+    }
+  };
+
+  const lancarSaidaParaAmarracao = (a: any) => {
+    const cod = a.codigoMarca || a.descricaoLote || '';
+    const itemSaldo = listaSaldosAtuais.find(s => s.controleCod === cod);
+    const glebaPrimeira = (Array.isArray(a.glebas) && a.glebas.length > 0) ? a.glebas[0] : (a.gleba || '');
+    const varPrimeira = (Array.isArray(a.variedades) && a.variedades.length > 0) ? a.variedades[0] : (a.variedade || '');
+
+    setFormSaida({
+      id: null,
+      data: dataHoje(),
+      controleCod: cod,
+      fazendaNome: itemSaldo?.fazendaNome || a.fazenda || '',
+      culturaNome: itemSaldo?.culturaNome || a.cultura || '',
+      pivoNome: itemSaldo?.pivoNome || a.pivo || '',
+      glebaNome: itemSaldo?.glebaNome || glebaPrimeira,
+      variedadeNome: itemSaldo?.variedadeNome || varPrimeira,
+      produtoNome: itemSaldo?.produtoNome || getProdutosParaCultura(a.cultura)[0] || '',
+      localNome: itemSaldo?.localNome || LOCAIS_ARMAZENAMENTO_PADRAO[0],
+      embalagem: (itemSaldo?.caixas && itemSaldo.caixas > 0) ? 'Caixa' : (itemSaldo?.contentores && itemSaldo.contentores > 0) ? 'Contentor' : 'Saco',
+      qtd: ''
+    });
+    setPaginaAtiva('saida');
+    if (showToast) {
+      showToast(`Saída pronta para o controle ${cod}!`, 'info');
+    }
+  };
+
+  const excluirAmarracao = async (id: string, codigo?: string) => {
+    if (!window.confirm(`Deseja realmente remover a amarração ${codigo || id}?`)) return;
+    if (onDeleteAmarracao) {
+      try {
+        await onDeleteAmarracao(id);
+      } catch (e) {
+        console.error('Erro ao excluir amarração via Firestore:', e);
+      }
+    }
+    setAmarracoesLocais(prev => {
+      const updated = prev.filter(p => p.id !== id && p.codigoMarca !== codigo);
+      try {
+        localStorage.setItem('estoque_amarracoes_locais', JSON.stringify(updated));
+      } catch (e) { /* ignore */ }
+      return updated;
+    });
+    if (showToast) {
+      showToast(`Amarração removida.`, 'info');
+    }
+  };
 
   // =========================================================================
   // CÁLCULO DE SALDOS DE ESTOQUE
@@ -538,55 +849,6 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     setPaginaAtiva('inicial');
   };
 
-  // Sincronização direta das cargas colhidas em BdColheita
-  const sincronizarCargasColheita = () => {
-    if (!colheitaData || colheitaData.length === 0) {
-      if (showToast) showToast('Nenhum apontamento em BdColheita para sincronizar.', 'info');
-      return;
-    }
-
-    const novasEntradas = [...entradas];
-    let inseridos = 0;
-
-    colheitaData.forEach(c => {
-      const idRef = `colh_${c.id || `${c.data}_${c.os}_${c.fazenda}_${c.pivo}_${c.gleba}`}`;
-      // Evita duplicar carga já sincronizada
-      const jaExiste = novasEntradas.some(e => e.origemColheitaId === idRef);
-      if (!jaExiste) {
-        const qtdNum = parseInt(c.caixasCortadas || c.qtdColhida || c.qtdColhido || '0', 10);
-        if (qtdNum > 0) {
-          const os = c.os?.trim() || c.cCusto?.trim();
-          const controleCod = os ? `CTR-${os}` : `CTR-${c.ano || '2025/26'}-${c.pivo || '01'}`;
-          const embalagem = c.embalagem || c.caixaBinBag || 'Caixa';
-          novasEntradas.push({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            data: c.data || dataHoje(),
-            controleCod,
-            fazendaNome: c.fazenda || 'Fazenda Cristalina',
-            culturaNome: c.cultura || 'Cenoura',
-            pivoNome: c.pivo || '',
-            glebaNome: c.gleba || '',
-            variedadeNome: c.variedade || '',
-            produtoNome: 'Padrão Comercial',
-            localNome: 'Câmara Fria 01',
-            embalagem: embalagem.includes('Contentor') || embalagem.includes('Bin') ? 'Contentor' : embalagem.includes('Saco') || embalagem.includes('Bag') ? 'Saco' : 'Caixa',
-            qtd: qtdNum,
-            origemColheitaId: idRef
-          });
-          inseridos++;
-        }
-      }
-    });
-
-    if (inseridos > 0) {
-      setEntradas(novasEntradas);
-      persistirDados(novasEntradas, saidas);
-      if (showToast) showToast(`Sincronização concluída: ${inseridos} cargas de BdColheita inseridas no Estoque!`, 'success');
-    } else {
-      if (showToast) showToast('O Estoque já está totalmente sincronizado com BdColheita.', 'info');
-    }
-  };
-
   // =========================================================================
   // AGRUPAMENTO E FORMATAÇÃO DA TABELA PRINCIPAL
   // =========================================================================
@@ -680,9 +942,14 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
         .app-estoque-intacto .top-area { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .app-estoque-intacto .filtro { width: 100%; height: 36px; padding: 0 12px 0 34px; border: 1px solid #bbdefb; border-radius: 6px; background: #e3f2fd url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230d47a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") no-repeat 10px center; color: #0d47a1; font-size: 13px; }
         .app-estoque-intacto .filtro:focus { outline: none; border-color: #0d47a1; background-color: #fff; }
-        .app-estoque-intacto .botoes-principais { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .app-estoque-intacto .botoes-principais { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        @media (max-width: 640px) {
+          .app-estoque-intacto .botoes-principais { grid-template-columns: 1fr; }
+        }
         .app-estoque-intacto .btn-principal { width: 100%; padding: 10px 8px; border: 1px solid #0d47a1; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: #e3f2fd; color: #0d47a1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .app-estoque-intacto .btn-principal:hover { background: #d4e8fc; }
+        .app-estoque-intacto .btn-amarracao-principal { border: 1.5px solid #8b5cf6 !important; background: #f5f3ff !important; color: #6d28d9 !important; box-shadow: 0 1px 3px rgba(139, 92, 246, 0.2) !important; }
+        .app-estoque-intacto .btn-amarracao-principal:hover { background: #ede9fe !important; }
         .app-estoque-intacto label { display: block; margin: 8px 0 2px; font-weight: 600; color: #444; font-size: 12px; }
         .app-estoque-intacto input, .app-estoque-intacto select { width: 100%; height: 34px; padding: 0 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; margin-bottom: 6px; background: #ffffff; }
         .app-estoque-intacto input:disabled, .app-estoque-intacto select:disabled { background: #f5f5f5; color: #666; cursor: not-allowed; }
@@ -716,7 +983,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
               placeholder="Pesquisar no Estoque Ativo..."
             />
 
-            {/* BOTÕES DE AÇÃO: ENTRADA, SAÍDA E SINCRONIZAR COM BDCOLHEITA */}
+            {/* BOTÕES DE AÇÃO: ENTRADA, AMARRAÇÕES E SAÍDA */}
             <div className="botoes-principais">
               <button
                 className="btn-principal"
@@ -740,6 +1007,16 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
               >
                 📥 Entrada
               </button>
+
+              <button
+                className="btn-principal btn-amarracao-principal"
+                onClick={() => {
+                  setPaginaAtiva('amarracoes');
+                }}
+              >
+                🔗 Amarrações
+              </button>
+
               <button
                 className="btn-principal"
                 onClick={() => {
@@ -765,32 +1042,6 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                 📤 Saída
               </button>
             </div>
-
-            {/* BOTÃO DE INTERLIGAÇÃO DIRETA COM AS CARGAS COLHIDAS */}
-            {colheitaData && colheitaData.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
-                <button
-                  type="button"
-                  onClick={sincronizarCargasColheita}
-                  style={{
-                    background: '#f1f5f9',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '4px',
-                    padding: '4px 8px',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    color: '#0d47a1',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title="Puxa e sincroniza automaticamente os apontamentos de colheita para o estoque"
-                >
-                  🔄 Sincronizar com BdColheita ({colheitaData.length} apontamentos disponíveis)
-                </button>
-              </div>
-            )}
           </div>
 
           {/* TABELAS DE RESUMO POR CONTROLE E SAFRA */}
@@ -879,7 +1130,25 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
             <input type="date" value={formEntrada.data} onChange={(e) => setFormEntrada({ ...formEntrada, data: e.target.value })} />
 
             {/* SELEÇÃO DO NÚMERO DE CONTROLE INTERLIGADO */}
-            <label>Número de Controle / Projeto (Interligado)</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', marginBottom: '2px' }}>
+              <label style={{ margin: 0 }}>Número de Controle / Projeto (Interligado)</label>
+              <button
+                type="button"
+                onClick={() => setPaginaAtiva('amarracoes')}
+                style={{
+                  fontSize: '11px',
+                  background: '#f5f3ff',
+                  color: '#6d28d9',
+                  border: '1px solid #c4b5fd',
+                  borderRadius: '4px',
+                  padding: '2px 8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                🔗 Criar / Ver Amarrações
+              </button>
+            </div>
             <select
               value={formEntrada.controleCod}
               onChange={(e) => {
@@ -1030,6 +1299,587 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
       )}
 
       {/* ========================================================================= */}
+      {/* 2.5. TELA DE AMARRAÇÕES (VINCULA SAFRA, FAZENDA, PIVÔ, MÚLTIPLAS GLEBAS, VARIEDADES E SANKHYA) */}
+      {/* ========================================================================= */}
+      {paginaAtiva === 'amarracoes' && (
+        <div className="card" style={{ borderTop: '4px solid #8b5cf6' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <button className="btn btn-voltar" style={{ margin: 0 }} onClick={() => setPaginaAtiva('inicial')}>⬅️ Voltar ao Estoque</button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: '#e3f2fd', color: '#0d47a1', border: '1px solid #90caf9', height: '30px', padding: '0 10px', fontSize: '12px' }}
+                onClick={() => {
+                  setPaginaAtiva('entrada');
+                }}
+              >
+                📥 Ir para Entrada
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', height: '30px', padding: '0 10px', fontSize: '12px' }}
+                onClick={() => {
+                  setPaginaAtiva('saida');
+                }}
+              >
+                📤 Ir para Saída
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#ede9fe', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold' }}>
+              🔗
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#5b21b6' }}>
+                Central de Marcações e Amarrações do Estoque
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#6b7280' }}>
+                Vincule Fazenda, Pivô, múltiplas Glebas e Variedades. O sistema cruza com o Projeto Sankhya e identifica o lote para entrada e saída.
+              </p>
+            </div>
+          </div>
+
+          {/* FORMULÁRIO DE CADASTRO / EDIÇÃO DE AMARRAÇÃO */}
+          <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '8px', padding: '12px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 'bold', color: '#6b21a8', fontSize: '13px' }}>
+                {formAmarracao.id ? '✏️ Editando Amarração' : '➕ Nova Amarração para o Estoque'}
+              </span>
+              <span style={{ fontSize: '11px', color: '#7e22ce', background: '#f3e8ff', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                Código: {formAmarracao.codigoMarca.trim() || getProximoCodigoAmarracao()}
+              </span>
+            </div>
+
+            <form onSubmit={(e) => salvarAmarracao(e, false)}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                {/* CÓDIGO DA MARCA / CONTROLE */}
+                <div>
+                  <label>Código da Marca / Controle</label>
+                  <input
+                    type="text"
+                    placeholder={`Ex: ${getProximoCodigoAmarracao()}`}
+                    value={formAmarracao.codigoMarca}
+                    onChange={(e) => setFormAmarracao({ ...formAmarracao, codigoMarca: e.target.value })}
+                  />
+                </div>
+
+                {/* ANO / SAFRA */}
+                <div>
+                  <label>Ano Safra</label>
+                  <select
+                    value={formAmarracao.ano}
+                    onChange={(e) => setFormAmarracao({ ...formAmarracao, ano: e.target.value })}
+                  >
+                    <option value="2025/26">2025/26 (Safra Atual)</option>
+                    <option value="2026/27">2026/27</option>
+                    <option value="2024/25">2024/25</option>
+                    <option value="2023/24">2023/24</option>
+                  </select>
+                </div>
+
+                {/* CULTURA */}
+                <div>
+                  <label>Cultura *</label>
+                  <select
+                    value={formAmarracao.cultura}
+                    onChange={(e) => {
+                      const cult = e.target.value;
+                      setFormAmarracao(prev => ({
+                        ...prev,
+                        cultura: cult,
+                        variedades: []
+                      }));
+                    }}
+                  >
+                    <option value="">Selecione a Cultura...</option>
+                    {culturasDisponiveis.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* FAZENDA */}
+                <div>
+                  <label>Fazenda *</label>
+                  <select
+                    value={formAmarracao.fazenda}
+                    onChange={(e) => {
+                      const faz = e.target.value;
+                      setFormAmarracao(prev => ({
+                        ...prev,
+                        fazenda: faz,
+                        glebas: []
+                      }));
+                    }}
+                  >
+                    <option value="">Selecione a Fazenda...</option>
+                    {fazendasDisponiveis.map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* PIVÔ */}
+                <div>
+                  <label>Pivô</label>
+                  <select
+                    value={formAmarracao.pivo}
+                    onChange={(e) => setFormAmarracao({ ...formAmarracao, pivo: e.target.value })}
+                  >
+                    <option value="">Selecione o Pivô...</option>
+                    {pivosDisponiveis.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* HECTARES */}
+                <div>
+                  <label>Área (ha)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ex: 85.5"
+                    value={formAmarracao.hectares}
+                    onChange={(e) => setFormAmarracao({ ...formAmarracao, hectares: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* SELEÇÃO MÚLTIPLA DE GLEBAS */}
+              <div style={{ marginTop: '10px', background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', color: '#334155' }}>
+                    🌱 Glebas Vinculadas ({formAmarracao.glebas.length} selecionada{formAmarracao.glebas.length === 1 ? '' : 's'})
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      style={{ fontSize: '11px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
+                      onClick={() => {
+                        const glebasFaz = formAmarracao.fazenda
+                          ? glebas.filter(g => g.fazenda === formAmarracao.fazenda).map(g => g.nome)
+                          : glebasDisponiveis;
+                        const lista = glebasFaz.length > 0 ? glebasFaz : glebasDisponiveis;
+                        setFormAmarracao(prev => ({ ...prev, glebas: Array.from(new Set([...prev.glebas, ...lista])) }));
+                      }}
+                    >
+                      Selecionar Todas
+                    </button>
+                    <button
+                      type="button"
+                      style={{ fontSize: '11px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
+                      onClick={() => setFormAmarracao(prev => ({ ...prev, glebas: [] }))}
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '110px', overflowY: 'auto', padding: '4px' }}>
+                  {(formAmarracao.fazenda
+                    ? (glebas.filter(g => g.fazenda === formAmarracao.fazenda).map(g => g.nome).length > 0
+                        ? glebas.filter(g => g.fazenda === formAmarracao.fazenda).map(g => g.nome)
+                        : glebasDisponiveis)
+                    : glebasDisponiveis
+                  ).map(nomeGleba => {
+                    const checked = formAmarracao.glebas.includes(nomeGleba);
+                    return (
+                      <button
+                        key={nomeGleba}
+                        type="button"
+                        onClick={() => {
+                          setFormAmarracao(prev => ({
+                            ...prev,
+                            glebas: checked ? prev.glebas.filter(g => g !== nomeGleba) : [...prev.glebas, nomeGleba]
+                          }));
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          border: checked ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                          background: checked ? '#dcfce7' : '#ffffff',
+                          color: checked ? '#14532d' : '#475569',
+                          fontWeight: checked ? 'bold' : 'normal',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <span>{checked ? '✓' : '+'}</span>
+                        <span>{nomeGleba}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* SELEÇÃO MÚLTIPLA DE VARIEDADES */}
+              <div style={{ marginTop: '10px', background: '#ffffff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 'bold', color: '#334155' }}>
+                    🌾 Variedades Vinculadas ({formAmarracao.variedades.length} selecionada{formAmarracao.variedades.length === 1 ? '' : 's'})
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      style={{ fontSize: '11px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
+                      onClick={() => {
+                        const vars = getVariedadesParaCultura(formAmarracao.cultura);
+                        setFormAmarracao(prev => ({ ...prev, variedades: Array.from(new Set([...prev.variedades, ...vars])) }));
+                      }}
+                    >
+                      Selecionar Todas
+                    </button>
+                    <button
+                      type="button"
+                      style={{ fontSize: '11px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}
+                      onClick={() => setFormAmarracao(prev => ({ ...prev, variedades: [] }))}
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '110px', overflowY: 'auto', padding: '4px' }}>
+                  {getVariedadesParaCultura(formAmarracao.cultura).map(nomeVar => {
+                    const checked = formAmarracao.variedades.includes(nomeVar);
+                    return (
+                      <button
+                        key={nomeVar}
+                        type="button"
+                        onClick={() => {
+                          setFormAmarracao(prev => ({
+                            ...prev,
+                            variedades: checked ? prev.variedades.filter(v => v !== nomeVar) : [...prev.variedades, nomeVar]
+                          }));
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          border: checked ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                          background: checked ? '#dbeafe' : '#ffffff',
+                          color: checked ? '#1e3a8a' : '#475569',
+                          fontWeight: checked ? 'bold' : 'normal',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        <span>{checked ? '✓' : '+'}</span>
+                        <span>{nomeVar}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ANÁLISE E CRONOMETRIA COM PROJETO SANKHYA */}
+              <div style={{ marginTop: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '15px' }}>⚡</span>
+                    <strong style={{ color: '#166534', fontSize: '12px' }}>
+                      Reconhecimento Inteligente Sankhya ({amarracaoIsHorti ? 'Hortifrúti: Cultura + Fazenda + Pivô' : 'Cereais: Cultura + Fazenda + Pivô + Glebas'})
+                    </strong>
+                  </div>
+                  {sankhyaMatchForAmarracao.matches.length > 0 && (
+                    <span style={{ fontSize: '11px', background: '#dcfce7', color: '#14532d', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      {sankhyaMatchForAmarracao.matches.length} projeto(s) localizado(s)
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#14532d' }}>Projeto Sankhya Detectado</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <input
+                        type="text"
+                        placeholder="Ex: PRJ-1025 ou Selecione ao lado"
+                        value={formAmarracao.projetoSankhya || sankhyaMatchForAmarracao.projetoSankhya}
+                        onChange={(e) => setFormAmarracao({ ...formAmarracao, projetoSankhya: e.target.value })}
+                        style={{ background: '#ffffff', borderColor: '#86efac' }}
+                      />
+                      {sankhyaMatchForAmarracao.matches.length > 1 && (
+                        <select
+                          style={{ width: '130px', background: '#ffffff', borderColor: '#86efac', fontSize: '11px' }}
+                          onChange={(e) => {
+                            const p = sankhyaMatchForAmarracao.matches.find(m => m.projeto === e.target.value);
+                            if (p) {
+                              setFormAmarracao(prev => ({
+                                ...prev,
+                                projetoSankhya: p.projeto,
+                                identificacaoSankhya: p.identificacao,
+                                descricaoLote: p.lote || prev.descricaoLote
+                              }));
+                            }
+                          }}
+                        >
+                          <option value="">Outros projetos...</option>
+                          {sankhyaMatchForAmarracao.matches.map(m => (
+                            <option key={m.projeto} value={m.projeto}>{m.projeto} ({m.lote || m.identificacao})</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#14532d' }}>Descrição do Lote Sankhya (Usado no Estoque)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: LOTE-01 / CEB-P02"
+                      value={formAmarracao.descricaoLote || sankhyaMatchForAmarracao.descricaoLote}
+                      onChange={(e) => setFormAmarracao({ ...formAmarracao, descricaoLote: e.target.value })}
+                      style={{ background: '#ffffff', borderColor: '#86efac', fontWeight: 'bold', color: '#166534' }}
+                    />
+                  </div>
+                </div>
+
+                {sankhyaMatchForAmarracao.identificacaoSankhya && (
+                  <div style={{ fontSize: '11px', color: '#15803d', marginTop: '4px', fontStyle: 'italic' }}>
+                    Identificação no Sankhya: <strong>{sankhyaMatchForAmarracao.identificacaoSankhya}</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* OBSERVAÇÃO */}
+              <div style={{ marginTop: '8px' }}>
+                <label>Observação da Amarração</label>
+                <input
+                  type="text"
+                  placeholder="Anotação opcional sobre esta amarração ou lote..."
+                  value={formAmarracao.observacao}
+                  onChange={(e) => setFormAmarracao({ ...formAmarracao, observacao: e.target.value })}
+                />
+              </div>
+
+              {/* BOTÕES DE AÇÃO DO FORMULÁRIO */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                <button
+                  type="submit"
+                  className="btn"
+                  style={{ background: '#6d28d9', color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  💾 {formAmarracao.id ? 'Salvar Alterações' : 'Salvar Amarração'}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ background: '#059669', color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => salvarAmarracao(undefined, true)}
+                >
+                  📥 Salvar e Lançar Entrada Agora
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ background: '#64748b', color: 'white' }}
+                  onClick={() => {
+                    setFormAmarracao({
+                      id: null,
+                      codigoMarca: '',
+                      ano: '2025/26',
+                      cultura: '',
+                      fazenda: '',
+                      pivo: '',
+                      glebas: [],
+                      variedades: [],
+                      projetoSankhya: '',
+                      descricaoLote: '',
+                      identificacaoSankhya: '',
+                      hectares: '',
+                      observacao: ''
+                    });
+                    setMsgAmarracao(null);
+                  }}
+                >
+                  🧹 Limpar
+                </button>
+              </div>
+
+              {msgAmarracao && (
+                <div className={`resultado ${msgAmarracao.tipo}`} style={{ marginTop: '8px' }}>
+                  {msgAmarracao.texto}
+                </div>
+              )}
+            </form>
+          </div>
+
+          {/* LISTAGEM DE AMARRAÇÕES CADASTRADAS */}
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+              <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+                📋 Amarrações Registradas ({todasAmarracoes.length})
+              </h4>
+              <input
+                type="text"
+                placeholder="Filtrar por código, cultura, fazenda, lote..."
+                value={filtroAmarracao}
+                onChange={(e) => setFiltroAmarracao(e.target.value)}
+                style={{ width: '260px', height: '30px', margin: 0, fontSize: '12px' }}
+              />
+            </div>
+
+            {todasAmarracoes.length === 0 ? (
+              <div className="vazio" style={{ background: '#ffffff', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                Nenhuma amarração cadastrada no momento. Crie sua primeira amarração no formulário acima para integrar com as entradas e saídas de estoque.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {todasAmarracoes
+                  .filter(a => {
+                    if (!filtroAmarracao) return true;
+                    const termo = filtroAmarracao.toLowerCase();
+                    return (
+                      (a.codigoMarca && a.codigoMarca.toLowerCase().includes(termo)) ||
+                      (a.cultura && a.cultura.toLowerCase().includes(termo)) ||
+                      (a.fazenda && a.fazenda.toLowerCase().includes(termo)) ||
+                      (a.pivo && a.pivo.toLowerCase().includes(termo)) ||
+                      (a.descricaoLote && a.descricaoLote.toLowerCase().includes(termo)) ||
+                      (a.projetoSankhya && a.projetoSankhya.toLowerCase().includes(termo))
+                    );
+                  })
+                  .map((a: any) => {
+                    const glebasLista = Array.isArray(a.glebas) && a.glebas.length > 0 ? a.glebas : (a.gleba ? [a.gleba] : []);
+                    const variedadesLista = Array.isArray(a.variedades) && a.variedades.length > 0 ? a.variedades : (a.variedade ? [a.variedade] : []);
+
+                    return (
+                      <div
+                        key={a.id || a.codigoMarca}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#6d28d9', background: '#f5f3ff', padding: '2px 8px', borderRadius: '4px', border: '1px solid #ddd6fe' }}>
+                              🔗 {a.codigoMarca || 'S/CÓD'}
+                            </span>
+                            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>
+                              {a.fazenda} {a.pivo ? `• ${a.pivo}` : ''}
+                            </span>
+                            <span style={{ fontSize: '11px', background: '#dcfce7', color: '#14532d', padding: '1px 6px', borderRadius: '10px', fontWeight: 'bold' }}>
+                              {a.cultura}
+                            </span>
+                            <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', padding: '1px 6px', borderRadius: '10px' }}>
+                              Safra {a.ano || '2025/26'}
+                            </span>
+                            {a.descricaoLote && (
+                              <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: '10px', fontWeight: 'bold' }}>
+                                🏷️ Lote: {a.descricaoLote}
+                              </span>
+                            )}
+                            {a.projetoSankhya && (
+                              <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '10px' }}>
+                                Sankhya: {a.projetoSankhya}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* AÇÕES DA AMARRAÇÃO: LANÇAR ENTRADA, LANÇAR SAÍDA, EDITAR, EXCLUIR */}
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              type="button"
+                              title="Lançar Entrada para esta amarração"
+                              style={{ background: '#e3f2fd', color: '#0d47a1', border: '1px solid #90caf9', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                              onClick={() => lancarEntradaParaAmarracao(a)}
+                            >
+                              📥 Entrada
+                            </button>
+                            <button
+                              type="button"
+                              title="Lançar Saída para esta amarração"
+                              style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+                              onClick={() => lancarSaidaParaAmarracao(a)}
+                            >
+                              📤 Saída
+                            </button>
+                            <button
+                              type="button"
+                              title="Editar amarração"
+                              style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer' }}
+                              onClick={() => {
+                                setFormAmarracao({
+                                  id: a.id || null,
+                                  codigoMarca: a.codigoMarca || '',
+                                  ano: a.ano || '2025/26',
+                                  cultura: a.cultura || '',
+                                  fazenda: a.fazenda || '',
+                                  pivo: a.pivo || '',
+                                  glebas: glebasLista,
+                                  variedades: variedadesLista,
+                                  projetoSankhya: a.projetoSankhya || '',
+                                  descricaoLote: a.descricaoLote || '',
+                                  identificacaoSankhya: a.identificacaoSankhya || '',
+                                  hectares: a.hectares || '',
+                                  observacao: a.observacao || ''
+                                });
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              title="Remover amarração"
+                              style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer' }}
+                              onClick={() => excluirAmarracao(a.id, a.codigoMarca)}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* DETALHES DE GLEBAS E VARIEDADES */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          <div>
+                            <strong style={{ color: '#334155' }}>Glebas ({glebasLista.length}): </strong>
+                            {glebasLista.length > 0 ? (
+                              <span style={{ color: '#15803d', fontWeight: '500' }}>{glebasLista.join(', ')}</span>
+                            ) : (
+                              <span style={{ fontStyle: 'italic' }}>Nenhuma vinculada</span>
+                            )}
+                          </div>
+                          <div>
+                            <strong style={{ color: '#334155' }}>Variedades ({variedadesLista.length}): </strong>
+                            {variedadesLista.length > 0 ? (
+                              <span style={{ color: '#1d4ed8', fontWeight: '500' }}>{variedadesLista.join(', ')}</span>
+                            ) : (
+                              <span style={{ fontStyle: 'italic' }}>Nenhuma vinculada</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 3. TELA SAÍDA (TOTALMENTE INTERLIGADA COM OS SALDOS DO SISTEMA) */}
       {/* ========================================================================= */}
       {paginaAtiva === 'saida' && (
@@ -1041,7 +1891,25 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
             <label>Data da Saída</label>
             <input type="date" value={formSaida.data} onChange={(e) => setFormSaida({ ...formSaida, data: e.target.value })} />
 
-            <label>Número de Controle com Saldo</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', marginBottom: '2px' }}>
+              <label style={{ margin: 0 }}>Número de Controle com Saldo</label>
+              <button
+                type="button"
+                onClick={() => setPaginaAtiva('amarracoes')}
+                style={{
+                  fontSize: '11px',
+                  background: '#f5f3ff',
+                  color: '#6d28d9',
+                  border: '1px solid #c4b5fd',
+                  borderRadius: '4px',
+                  padding: '2px 8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                🔗 Ver Amarrações
+              </button>
+            </div>
             <select
               value={formSaida.controleCod}
               onChange={(e) => {

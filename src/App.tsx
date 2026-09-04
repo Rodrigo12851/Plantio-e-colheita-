@@ -2263,6 +2263,47 @@ export default function App() {
     showToast('Amarração removida.', 'info');
   };
 
+  const handleSaveAmarracaoFromEstoque = async (item: Partial<AmarracaoItem>, id?: string) => {
+    try {
+      if (id) {
+        await saveDocument(COLLECTIONS.amarracoes, item, id);
+        showToast('Amarração atualizada com sucesso!', 'success');
+      } else {
+        const nextCode = item.codigoMarca || getNextAmarracaoCode();
+        const glebaStr = Array.isArray(item.glebas) ? item.glebas.join(', ') : (item.glebas || '');
+        const varStr = Array.isArray(item.variedades) ? item.variedades.join(', ') : (item.variedades || '');
+        const autoTitle = `Fazenda: ${item.fazenda || 'Geral'} ➔ Pivô: ${item.pivo || 'Geral'} ➔ Cultura: ${item.cultura || 'Geral'}${glebaStr ? ` ➔ Gleba: ${glebaStr}` : ''}${varStr ? ` ➔ Variedade: ${varStr}` : ''}`;
+        
+        const newItem: AmarracaoItem = {
+          codigoMarca: nextCode,
+          categoria: (item.categoria as AmarracaoCategory) || 'geral',
+          titulo: item.titulo || autoTitle,
+          origem: item.origem || `${item.fazenda || ''} / ${item.pivo || ''}`,
+          destino: item.destino || 'Estoque',
+          status: item.status || 'Ativo',
+          hectares: item.hectares || '',
+          observacao: item.observacao || 'Criada na Central de Amarrações do Estoque',
+          unidade: selectedUnidade,
+          ano: item.ano || '2025/26',
+          cultura: item.cultura || '',
+          fazenda: item.fazenda || '',
+          pivo: item.pivo || '',
+          glebas: item.glebas || [],
+          variedades: item.variedades || [],
+          descricaoLote: item.descricaoLote || '',
+          projetoSankhya: item.projetoSankhya || '',
+          identificacaoSankhya: item.identificacaoSankhya || '',
+          ...item
+        };
+        await saveDocument(COLLECTIONS.amarracoes, newItem);
+        showToast(`Amarração do Estoque (${nextCode}) salva com sucesso!`, 'success');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar amarração pelo estoque:', err);
+      showToast('Erro ao salvar amarração.', 'warning');
+    }
+  };
+
   const handleToggleAmarracaoStatus = async (id: string) => {
     const item = amarracoesData.find(a => a.id === id);
     if (item && id) {
@@ -6167,6 +6208,8 @@ export default function App() {
               onSaveRomaneio={handleSaveRomaneio}
               onDeleteRomaneio={handleDeleteRomaneio}
               onSaveMovimentacao={handleSaveMovimentacao}
+              onSaveAmarracao={handleSaveAmarracaoFromEstoque}
+              onDeleteAmarracao={handleDeleteAmarracao}
               showToast={showToast}
             />
           </div>
