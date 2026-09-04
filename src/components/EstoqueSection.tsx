@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { matchSankhyaProjectForTie, isCulturaHortifruti } from '../lib/sankhyaMatcher';
 
 // Interfaces exported for compatibility with App.tsx
@@ -280,13 +280,19 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
   // INTEGRAÇÃO COM OS CADASTROS GERAIS DO CONTROLE AGRÍCOLA APONTADORES
   // =========================================================================
 
-  // 1. Culturas interligadas
-  const culturasDisponiveis = useMemo(() => {
+  // 1. Culturas interligadas de Hortifrúti (restrito exclusivamente a hortifrúti na Central de Amarrações e Estoque)
+  const culturasHortifrutiDisponiveis = useMemo(() => {
     if (culturas && culturas.length > 0) {
-      return culturas.map(c => c.nome.trim()).filter(Boolean);
+      const hortis = culturas
+        .filter(c => isCulturaHortifruti(c.nome, culturas))
+        .map(c => c.nome.trim())
+        .filter(Boolean);
+      if (hortis.length > 0) return Array.from(new Set(hortis));
     }
-    return ['Cenoura', 'Cebola', 'Alho', 'Batata', 'Milho Doce'];
+    return ['Cenoura', 'Cebola', 'Alho', 'Batata', 'Batata Consumo', 'Batata Semente', 'Beterraba', 'Abobora', 'Mirtilo', 'Tomate'];
   }, [culturas]);
+
+  const culturasDisponiveis = culturasHortifrutiDisponiveis;
 
   // 2. Fazendas interligadas
   const fazendasDisponiveis = useMemo(() => {
@@ -339,6 +345,16 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     if (cult.includes('batata')) return ['Batata Lavada Especial', 'Batata Lavada Padrão', 'Batata Miúda'];
     return ['Especial', 'Padrão', 'Segunda Linha'];
   };
+
+  // 6.5. Projetos Sankhya estritamente de Hortifrúti (filtra grãos/cereais como Soja, Milho, etc.)
+  const projetosSankhyaHortifruti = useMemo(() => {
+    if (!projetosSankhya || projetosSankhya.length === 0) return [];
+    return projetosSankhya.filter(p => {
+      const ident = p.identificacao || '';
+      const abrev = p.abreviacaoProjeto || '';
+      return isCulturaHortifruti(abrev, culturas) || isCulturaHortifruti(ident, culturas);
+    });
+  }, [projetosSankhya, culturas]);
 
   // 7. Controles / Projetos interligados com Amarrações do Estoque + Projetos Sankhya + BdColheita + BdPlantio
   const controlesInterligados = useMemo(() => {
@@ -402,9 +418,9 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
       });
     }
 
-    // Origem 1: Projetos Sankhya
-    if (projetosSankhya && projetosSankhya.length > 0) {
-      projetosSankhya.forEach(p => {
+    // Origem 1: Projetos Sankhya (Apenas Hortifrúti para Estoque)
+    if (projetosSankhyaHortifruti && projetosSankhyaHortifruti.length > 0) {
+      projetosSankhyaHortifruti.forEach(p => {
         const cod = p.projeto?.trim();
         if (!cod) return;
         const safra = p.safra || '2025/26';
@@ -469,7 +485,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     }
 
     return Array.from(mapa.values());
-  }, [todasAmarracoes, projetosSankhya, colheitaData, plantioData]);
+  }, [todasAmarracoes, projetosSankhyaHortifruti, colheitaData, plantioData]);
 
   // Helpers para geração e manipulação de Amarrações
   const getProximoCodigoAmarracao = () => {
@@ -485,6 +501,11 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
     return `M-${String(maxNum + 1).padStart(4, '0')}`;
   };
 
+  // Amarrações estritamente de Hortifrúti para a Central de Amarrações do Estoque
+  const amarracoesHortifruti = useMemo(() => {
+    return todasAmarracoes.filter(a => isCulturaHortifruti(a.cultura, culturas));
+  }, [todasAmarracoes, culturas]);
+
   const amarracaoIsHorti = useMemo(() => {
     return isCulturaHortifruti(formAmarracao.cultura, culturas);
   }, [formAmarracao.cultura, culturas]);
@@ -499,10 +520,29 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
       fazenda: formAmarracao.fazenda,
       pivo: formAmarracao.pivo,
       glebas: formAmarracao.glebas,
-      sankhyaProjects: projetosSankhya,
-      isHortifruti: amarracaoIsHorti
+      sankhyaProjects: projetosSankhyaHortifruti,
+      isHortifruti: true // Na Central de Amarrações do Estoque, é estritamente Hortifrúti
     });
-  }, [formAmarracao.ano, formAmarracao.cultura, formAmarracao.fazenda, formAmarracao.pivo, formAmarracao.glebas, projetosSankhya, amarracaoIsHorti]);
+  }, [formAmarracao.ano, formAmarracao.cultura, formAmarracao.fazenda, formAmarracao.pivo, formAmarracao.glebas, projetosSankhyaHortifruti]);
+
+  // Auto-preenche os campos de Projeto Sankhya e Lote quando o reconhecimento inteligente localiza o projeto correspondente
+  useEffect(() => {
+    if (sankhyaMatchForAmarracao.matches.length > 0) {
+      const best = sankhyaMatchForAmarracao.matches[0].project;
+      setFormAmarracao(prev => {
+        // Se ambos já estão preenchidos com os valores detectados, evita re-render
+        if (prev.projetoSankhya === best.projeto && prev.descricaoLote === best.descricaoLote) {
+          return prev;
+        }
+        return {
+          ...prev,
+          projetoSankhya: best.projeto || prev.projetoSankhya,
+          descricaoLote: best.descricaoLote || prev.descricaoLote,
+          identificacaoSankhya: best.identificacao || prev.identificacaoSankhya
+        };
+      });
+    }
+  }, [sankhyaMatchForAmarracao]);
 
   const salvarAmarracao = async (e?: React.FormEvent, lancarEntradaApos = false) => {
     if (e) e.preventDefault();
@@ -1585,50 +1625,81 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
               </div>
 
               {/* ANÁLISE E CRONOMETRIA COM PROJETO SANKHYA */}
-              <div style={{ marginTop: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
+              <div style={{ marginTop: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '15px' }}>⚡</span>
-                    <strong style={{ color: '#166534', fontSize: '12px' }}>
-                      Reconhecimento Inteligente Sankhya ({amarracaoIsHorti ? 'Hortifrúti: Cultura + Fazenda + Pivô' : 'Cereais: Cultura + Fazenda + Pivô + Glebas'})
+                    <strong style={{ color: '#166534', fontSize: '13px' }}>
+                      Reconhecimento Inteligente Sankhya (Hortifrúti: Cultura + Fazenda + Pivô)
                     </strong>
                   </div>
-                  {sankhyaMatchForAmarracao.matches.length > 0 && (
-                    <span style={{ fontSize: '11px', background: '#dcfce7', color: '#14532d', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
-                      {sankhyaMatchForAmarracao.matches.length} projeto(s) localizado(s)
+                  {sankhyaMatchForAmarracao.matches.length > 0 ? (
+                    <span style={{ fontSize: '11px', background: '#16a34a', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      ✓ {sankhyaMatchForAmarracao.matches.length} projeto(s) Hortifrúti localizado(s)
                     </span>
-                  )}
+                  ) : (formAmarracao.cultura && formAmarracao.fazenda && formAmarracao.pivo) ? (
+                    <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      Nenhum projeto Sankhya localizado
+                    </span>
+                  ) : null}
                 </div>
+
+                {sankhyaMatchForAmarracao.matches.length > 0 && (
+                  <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', padding: '8px 10px', marginBottom: '10px', fontSize: '12px', color: '#14532d' }}>
+                    <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>✓ Projeto Detectado:</span>
+                      <span style={{ background: '#ffffff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #86efac', color: '#166534' }}>
+                        {formAmarracao.projetoSankhya || sankhyaMatchForAmarracao.projetoSankhya}
+                      </span>
+                      {(formAmarracao.descricaoLote || sankhyaMatchForAmarracao.descricaoLote) && (
+                        <>
+                          <span style={{ marginLeft: '4px' }}>| Lote:</span>
+                          <span style={{ background: '#ffffff', padding: '1px 6px', borderRadius: '4px', border: '1px solid #86efac', color: '#166534' }}>
+                            {formAmarracao.descricaoLote || sankhyaMatchForAmarracao.descricaoLote}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {sankhyaMatchForAmarracao.identificacaoSankhya && (
+                      <div style={{ fontSize: '11px', color: '#15803d', marginTop: '3px', fontStyle: 'italic' }}>
+                        Identificação Sankhya: <strong>{sankhyaMatchForAmarracao.identificacaoSankhya}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#14532d' }}>Projeto Sankhya Detectado</label>
+                    <label style={{ fontSize: '11px', color: '#14532d', fontWeight: 'bold' }}>Projeto Sankhya Detectado</label>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <input
                         type="text"
-                        placeholder="Ex: PRJ-1025 ou Selecione ao lado"
+                        placeholder="Ex: 101100405"
                         value={formAmarracao.projetoSankhya || sankhyaMatchForAmarracao.projetoSankhya}
                         onChange={(e) => setFormAmarracao({ ...formAmarracao, projetoSankhya: e.target.value })}
                         style={{ background: '#ffffff', borderColor: '#86efac' }}
                       />
                       {sankhyaMatchForAmarracao.matches.length > 1 && (
                         <select
-                          style={{ width: '130px', background: '#ffffff', borderColor: '#86efac', fontSize: '11px' }}
+                          style={{ width: '140px', background: '#ffffff', borderColor: '#86efac', fontSize: '11px' }}
+                          value={formAmarracao.projetoSankhya}
                           onChange={(e) => {
-                            const p = sankhyaMatchForAmarracao.matches.find(m => m.projeto === e.target.value);
-                            if (p) {
+                            const matchItem = sankhyaMatchForAmarracao.matches.find(m => m.project.projeto === e.target.value);
+                            if (matchItem) {
                               setFormAmarracao(prev => ({
                                 ...prev,
-                                projetoSankhya: p.projeto,
-                                identificacaoSankhya: p.identificacao,
-                                descricaoLote: p.lote || prev.descricaoLote
+                                projetoSankhya: matchItem.project.projeto,
+                                identificacaoSankhya: matchItem.project.identificacao,
+                                descricaoLote: matchItem.project.descricaoLote || prev.descricaoLote
                               }));
                             }
                           }}
                         >
-                          <option value="">Outros projetos...</option>
+                          <option value="">Outros projetos ({sankhyaMatchForAmarracao.matches.length})...</option>
                           {sankhyaMatchForAmarracao.matches.map(m => (
-                            <option key={m.projeto} value={m.projeto}>{m.projeto} ({m.lote || m.identificacao})</option>
+                            <option key={m.project.projeto} value={m.project.projeto}>
+                              {m.project.projeto} - {m.project.descricaoLote || m.project.identificacao}
+                            </option>
                           ))}
                         </select>
                       )}
@@ -1636,7 +1707,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '11px', color: '#14532d' }}>Descrição do Lote Sankhya (Usado no Estoque)</label>
+                    <label style={{ fontSize: '11px', color: '#14532d', fontWeight: 'bold' }}>Descrição do Lote Sankhya (Usado no Estoque)</label>
                     <input
                       type="text"
                       placeholder="Ex: LOTE-01 / CEB-P02"
@@ -1647,9 +1718,9 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
                   </div>
                 </div>
 
-                {sankhyaMatchForAmarracao.identificacaoSankhya && (
-                  <div style={{ fontSize: '11px', color: '#15803d', marginTop: '4px', fontStyle: 'italic' }}>
-                    Identificação no Sankhya: <strong>{sankhyaMatchForAmarracao.identificacaoSankhya}</strong>
+                {(!sankhyaMatchForAmarracao.matches || sankhyaMatchForAmarracao.matches.length === 0) && formAmarracao.cultura && formAmarracao.fazenda && formAmarracao.pivo && (
+                  <div style={{ fontSize: '11px', color: '#92400e', marginTop: '6px', background: '#fffbeb', padding: '6px 8px', borderRadius: '4px', border: '1px solid #fef3c7' }}>
+                    💡 Dica: Nenhum projeto Sankhya de Hortifrúti cadastrado para "{formAmarracao.cultura} + {formAmarracao.fazenda} + {formAmarracao.pivo}" na Safra {formAmarracao.ano}. Você pode preencher manualmente o número do projeto e lote acima.
                   </div>
                 )}
               </div>
@@ -1723,7 +1794,7 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
           <div style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
               <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
-                📋 Amarrações Registradas ({todasAmarracoes.length})
+                📋 Amarrações Hortifrúti Registradas ({amarracoesHortifruti.length})
               </h4>
               <input
                 type="text"
@@ -1734,13 +1805,13 @@ export const EstoqueSection: React.FC<EstoqueSectionProps> = ({
               />
             </div>
 
-            {todasAmarracoes.length === 0 ? (
+            {amarracoesHortifruti.length === 0 ? (
               <div className="vazio" style={{ background: '#ffffff', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
-                Nenhuma amarração cadastrada no momento. Crie sua primeira amarração no formulário acima para integrar com as entradas e saídas de estoque.
+                Nenhuma amarração de hortifrúti cadastrada no momento. Crie sua amarração no formulário acima para vincular automaticamente com o projeto Sankhya e integrar com as entradas e saídas de estoque.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {todasAmarracoes
+                {amarracoesHortifruti
                   .filter(a => {
                     if (!filtroAmarracao) return true;
                     const termo = filtroAmarracao.toLowerCase();

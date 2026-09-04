@@ -22,6 +22,90 @@ export function normalizeText(str: string | undefined | null): string {
 }
 
 /**
+ * Converte numeral romano (I a XXX) para arábico
+ */
+export function romanToArabic(roman: string): number | null {
+  const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  const r = roman.trim().toUpperCase();
+  if (r === 'VIIII') return 9;
+  if (!/^[IVXLCDM]+$/.test(r)) return null;
+  let total = 0;
+  for (let i = 0; i < r.length; i++) {
+    const curr = map[r[i]];
+    const next = map[r[i + 1]];
+    if (next && next > curr) {
+      total += next - curr;
+      i++;
+    } else {
+      total += curr;
+    }
+  }
+  return total > 0 && total < 100 ? total : null;
+}
+
+/**
+ * Converte numeral arábico (1 a 99) para romano
+ */
+export function arabicToRoman(num: number): string {
+  const lookup: [number, string][] = [
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'],
+    [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ];
+  let res = '';
+  let n = num;
+  for (const [val, rom] of lookup) {
+    while (n >= val) {
+      res += rom;
+      n -= val;
+    }
+  }
+  return res;
+}
+
+/**
+ * Gera todos os tokens equivalentes de um pivô (arábico, romano, com e sem zeros à esquerda)
+ * Ex: "X" -> ["X", "10", "010"]
+ * Ex: "10" -> ["10", "X", "010"]
+ * Ex: "Pivô 02" -> ["2", "02", "II"]
+ * Ex: "SQ" -> ["SQ"]
+ */
+export function extractPivoTokens(pivo: string | undefined): string[] {
+  if (!pivo) return [];
+  const norm = normalizeText(pivo);
+  const clean = norm.replace(/^PIV[OÔ]\s*/i, '').replace(/^P\s*/i, '').trim();
+  const tokens = new Set<string>();
+  if (clean) tokens.add(clean);
+  if (norm) tokens.add(norm);
+
+  // Se contém dígitos arábicos
+  const digits = clean.replace(/\D/g, '');
+  if (digits) {
+    const num = parseInt(digits, 10);
+    if (!isNaN(num) && num > 0) {
+      tokens.add(num.toString());
+      tokens.add(num.toString().padStart(2, '0'));
+      const rom = arabicToRoman(num);
+      if (rom) {
+        tokens.add(rom);
+        if (rom === 'IX') tokens.add('VIIII');
+      }
+    }
+  } else {
+    // Se for numeral romano puro (ex: X, VII, II, etc.)
+    const arab = romanToArabic(clean);
+    if (arab) {
+      tokens.add(arab.toString());
+      tokens.add(arab.toString().padStart(2, '0'));
+      const rom = arabicToRoman(arab);
+      if (rom) tokens.add(rom);
+      if (clean === 'IX') tokens.add('VIIII');
+      if (clean === 'VIIII') tokens.add('IX');
+    }
+  }
+  return Array.from(tokens).filter(Boolean);
+}
+
+/**
  * Normaliza número/identificador de pivô para comparação flexível
  * Ex: "Pivô 02" -> "2", "P2" -> "2", "01" -> "1"
  */
@@ -31,17 +115,22 @@ export function extractPivoDigits(pivo: string | undefined): string {
   if (digits) {
     return parseInt(digits, 10).toString();
   }
-  return normalizeText(pivo);
+  const clean = normalizeText(pivo).replace(/^PIV[OÔ]\s*/i, '').replace(/^P\s*/i, '').trim();
+  const arab = romanToArabic(clean);
+  if (arab !== null) {
+    return arab.toString();
+  }
+  return clean;
 }
 
 /**
  * Remove prefixos de fazenda como "FAZENDA " para comparar apenas o nome essencial
- * Ex: "Fazenda Crioulo" -> "CRIOULO", "Fazenda Samambaia" -> "SAMAMBAIA"
+ * Ex: "Fazenda Crioulo" -> "CRIOULO", "Fazenda Samambaia" -> "SAMAMBAIA", "Ipê" -> "IPE"
  */
 export function extractFazendaCore(fazenda: string | undefined): string {
   if (!fazenda) return '';
   let norm = normalizeText(fazenda);
-  norm = norm.replace(/^FAZENDA\s+/, '').replace(/^FZ\s+/, '').trim();
+  norm = norm.replace(/^FAZENDA\s+/, '').replace(/^FZ\s+/, '').replace(/^FAZ\s+/, '').trim();
   return norm;
 }
 
@@ -98,7 +187,12 @@ export function isCulturaHortifruti(
     'MELAO',
     'ABOBORA',
     'REPOLHO',
-    'COUVE'
+    'COUVE',
+    'MIRTILO',
+    'MORANGO',
+    'PEPINO',
+    'BROCOLIS',
+    'CHUCHU'
   ];
 
   return hortiList.some(h => normCult.includes(h));
@@ -166,7 +260,7 @@ export function matchSankhyaProjectForTie({
   const normCult = normalizeText(cultura);
   const isHorti = forceHorti !== undefined ? forceHorti : isCulturaHortifruti(cultura);
   const fazCore = extractFazendaCore(fazenda);
-  const pivoDigits = extractPivoDigits(pivo);
+  const pivoTokens = extractPivoTokens(pivo);
   const safraTokens = extractSafraTokens(ano);
 
   // Filtra projetos que correspondam aos critérios básicos: Cultura, Safra, Fazenda, Pivô
@@ -199,15 +293,37 @@ export function matchSankhyaProjectForTie({
 
     // 3. Validação de Fazenda (se fornecida)
     if (fazCore) {
-      const matchFaz = identNorm.includes(fazCore);
+      let matchFaz = identNorm.includes(fazCore);
+      if (!matchFaz) {
+        // Tenta sem sufixos numéricos (ex: "BOA VISTA 03" -> "BOA VISTA")
+        const withoutNums = fazCore.replace(/\s*\d+$/, '').trim();
+        if (withoutNums && identNorm.includes(withoutNums)) {
+          matchFaz = true;
+        }
+      }
       if (!matchFaz) continue;
     }
 
-    // 4. Validação de Pivô (se fornecido)
-    if (pivoDigits) {
-      // Procura padrões como "PIVO 2", "PIVO 02", "PIVÔ 2", "- 2 -", "P 2"
-      const pivoRegex = new RegExp(`\\bPIV[OÔ]\\s*0?${pivoDigits}\\b|\\bP\\s*0?${pivoDigits}\\b`, 'i');
-      const matchPivo = pivoRegex.test(identNorm) || identNorm.includes(`PIVO ${pivoDigits}`);
+    // 4. Validação de Pivô (se fornecido - suporta arábico, romano e com/sem zeros)
+    if (pivoTokens.length > 0) {
+      const matchPivo = pivoTokens.some(tok => {
+        const escaped = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pivoRegex = new RegExp(
+          `\\bPIV[OÔ]\\s*0?${escaped}\\b|\\bP\\s*0?${escaped}\\b|\\b${escaped}\\b`,
+          'i'
+        );
+        return (
+          pivoRegex.test(identNorm) ||
+          identNorm.includes(`PIVO ${tok}`) ||
+          identNorm.includes(`PIVÔ ${tok}`) ||
+          identNorm.includes(`PIVO0${tok}`) ||
+          identNorm.includes(`PIVO: ${tok}`) ||
+          identNorm.includes(`- ${tok} -`) ||
+          identNorm.includes(`- ${tok}`) ||
+          identNorm.includes(` ${tok} -`) ||
+          identNorm.endsWith(` ${tok}`)
+        );
+      });
       if (!matchPivo) continue;
     }
 
