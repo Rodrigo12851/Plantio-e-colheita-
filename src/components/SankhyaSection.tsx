@@ -68,9 +68,49 @@ export const DEFAULT_PROJETOS_SANKHYA: SankhyaProjectItem[] = [
   },
   {
     projeto: '301.101.202',
-    identificacao: 'SOJA - CRIOULO - PIVO 3 - C2 - 2025/26',
+    identificacao: 'SOJA - CRIOULO - PIVO 2 - C2 - 2025/26',
     abreviacaoProjeto: 'SOJA',
     descricaoLote: 'SGB-2025/26-1202',
+    safra: '2025/26',
+    unidade: 'Cristalina'
+  },
+  {
+    projeto: '301.101.203',
+    identificacao: 'SOJA - CRIOULO - PIVO 3 - C1 - 2025/26',
+    abreviacaoProjeto: 'SOJA',
+    descricaoLote: 'SGB-2025/26-1203',
+    safra: '2025/26',
+    unidade: 'Cristalina'
+  },
+  {
+    projeto: '301.101.204',
+    identificacao: 'MILHO - SAMAMBAIA - PIVO 1 - C1 - 2025/26',
+    abreviacaoProjeto: 'MILHO',
+    descricaoLote: 'SGB-2025/26-2101',
+    safra: '2025/26',
+    unidade: 'Cristalina'
+  },
+  {
+    projeto: '301.201.101',
+    identificacao: 'CEBOLA - CRIOULO - PIVO 1 - 2025/26',
+    abreviacaoProjeto: 'CEBOLA',
+    descricaoLote: 'SGB-2025/26-3001',
+    safra: '2025/26',
+    unidade: 'Cristalina'
+  },
+  {
+    projeto: '301.201.102',
+    identificacao: 'CENOURA - SAMAMBAIA - PIVO 4 - 2025/26',
+    abreviacaoProjeto: 'CENOURA',
+    descricaoLote: 'SGB-2025/26-4001',
+    safra: '2025/26',
+    unidade: 'Cristalina'
+  },
+  {
+    projeto: '301.201.103',
+    identificacao: 'ALHO - CRISTALINA - PIVO 2 - 2025/26',
+    abreviacaoProjeto: 'ALHO',
+    descricaoLote: 'SGB-2025/26-5001',
     safra: '2025/26',
     unidade: 'Cristalina'
   }

@@ -4,6 +4,11 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { PMSSection, PMSItem, DEFAULT_PMS_DATA, cleanValue, getPmsDocId } from './components/PMSSection';
 import { SankhyaSection, SankhyaProjectItem, DEFAULT_PROJETOS_SANKHYA } from './components/SankhyaSection';
 import { EstoqueSection, EstoqueItem, RomaneioItem, EstoqueMovimentacao } from './components/EstoqueSection';
+import {
+  matchSankhyaProjectForTie,
+  isCulturaHortifruti,
+  SankhyaMatchResult
+} from './lib/sankhyaMatcher';
 import { GeneralImportModal, GeneralCategoryKey } from './components/GeneralImportModal';
 import { useTableDimensions } from './lib/useTableDimensions';
 import { ExcelDimensionsControl } from './components/ExcelDimensionsControl';
@@ -133,6 +138,16 @@ export interface AmarracaoItem {
   hectares?: string;
   observacao?: string;
   unidade?: string;
+  // Campos estruturados para amarração com múltiplas glebas/variedades e sincronização Sankhya
+  ano?: string;
+  cultura?: string;
+  fazenda?: string;
+  pivo?: string;
+  glebas?: string[];
+  variedades?: string[];
+  descricaoLote?: string;
+  projetoSankhya?: string;
+  identificacaoSankhya?: string;
 }
 
 type PageKey = MainCategoryKey | 'lixeira' | 'amarracoes' | 'cadastro_geral' | 'controle' | 'projetos_sankhya' | 'estoque';
@@ -1025,8 +1040,8 @@ export default function App() {
     setSelectedCulturaForTie('');
     setSelectedFazendaForTie('');
     setSelectedPivoForTie('');
-    setSelectedGlebaForTie('');
-    setSelectedVariedadeForTie('');
+    setSelectedGlebasForTie([]);
+    setSelectedVariedadesForTie([]);
     setTieHectares('');
     setTieObservacao('');
   }, [selectedUnidade]);
@@ -1293,10 +1308,25 @@ export default function App() {
   const [selectedCulturaForTie, setSelectedCulturaForTie] = useState('');
   const [selectedFazendaForTie, setSelectedFazendaForTie] = useState('');
   const [selectedPivoForTie, setSelectedPivoForTie] = useState('');
-  const [selectedGlebaForTie, setSelectedGlebaForTie] = useState('');
-  const [selectedVariedadeForTie, setSelectedVariedadeForTie] = useState('');
+  const [selectedGlebasForTie, setSelectedGlebasForTie] = useState<string[]>([]);
+  const [selectedVariedadesForTie, setSelectedVariedadesForTie] = useState<string[]>([]);
   const [tieHectares, setTieHectares] = useState('');
   const [tieObservacao, setTieObservacao] = useState('');
+
+  const selectedGlebaForTie = selectedGlebasForTie.join(', ');
+  const selectedVariedadeForTie = selectedVariedadesForTie.join(', ');
+
+  const toggleGlebaForTie = (val: string) => {
+    setSelectedGlebasForTie(prev =>
+      prev.includes(val) ? prev.filter(g => g !== val) : [...prev, val]
+    );
+  };
+
+  const toggleVariedadeForTie = (val: string) => {
+    setSelectedVariedadesForTie(prev =>
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
+    );
+  };
 
   // Helper to parse numeric hectares and quantities from Brazilian formatted strings (e.g. "3.342" -> 3342, "3,34" -> 3.34)
   const parsePtBrNumber = (valStr: string | undefined): number => {
@@ -1900,11 +1930,9 @@ export default function App() {
   const handleSelectCultura = (culturaNome: string) => {
     const nextCultura = selectedCulturaForTie === culturaNome ? '' : culturaNome;
     setSelectedCulturaForTie(nextCultura);
-    if (nextCultura && selectedVariedadeForTie) {
-      const isValidVar = getCombinedVariedades(nextCultura).some(v => v.nome.trim().toLowerCase() === selectedVariedadeForTie.trim().toLowerCase());
-      if (!isValidVar) {
-        setSelectedVariedadeForTie('');
-      }
+    if (nextCultura && selectedVariedadesForTie.length > 0) {
+      const validNames = new Set(getCombinedVariedades(nextCultura).map(v => v.nome.trim().toLowerCase()));
+      setSelectedVariedadesForTie(prev => prev.filter(v => validNames.has(v.trim().toLowerCase())));
     }
   };
 
@@ -2061,20 +2089,40 @@ export default function App() {
 
   const handleCreateGeralTie = async (e: React.FormEvent) => {
     e.preventDefault();
+    const glebaLabel = selectedGlebasForTie.length > 1
+      ? `Glebas: ${selectedGlebasForTie.join(', ')}`
+      : (selectedGlebasForTie[0] ? `Gleba: ${selectedGlebasForTie[0]}` : '');
+    const variedadeLabel = selectedVariedadesForTie.length > 1
+      ? `Variedades: ${selectedVariedadesForTie.join(', ')}`
+      : (selectedVariedadesForTie[0] ? `Variedade: ${selectedVariedadesForTie[0]}` : '');
+
     const selections = [
       selectedEmpresaForTie && `Empresa: ${selectedEmpresaForTie}`,
       selectedAnoForTie && `Ano: ${selectedAnoForTie}`,
       selectedCulturaForTie && `Cultura: ${selectedCulturaForTie}`,
       selectedFazendaForTie && `Fazenda: ${selectedFazendaForTie}`,
       selectedPivoForTie && `Pivô: ${selectedPivoForTie}`,
-      selectedGlebaForTie && `Gleba: ${selectedGlebaForTie}`,
-      selectedVariedadeForTie && `Variedade: ${selectedVariedadeForTie}`,
+      glebaLabel,
+      variedadeLabel,
     ].filter(Boolean);
 
     if (selections.length === 0) {
       showToast('Selecione ao menos 1 item para realizar a amarração.', 'warning');
       return;
     }
+
+    // Análise automática no Projeto Sankhya:
+    // Identifica lote conforme Safra, Cultura, Fazenda, Pivô e Gleba (se Cereais)
+    const isHorti = isCulturaHortifruti(selectedCulturaForTie, culturasData);
+    const sankhyaMatch = matchSankhyaProjectForTie({
+      ano: selectedAnoForTie,
+      cultura: selectedCulturaForTie,
+      fazenda: selectedFazendaForTie,
+      pivo: selectedPivoForTie,
+      glebas: selectedGlebasForTie,
+      sankhyaProjects: projetosSankhyaData,
+      isHortifruti: isHorti
+    });
 
     const nextCode = getNextAmarracaoCode();
     const titleText = selections.join(' ➔ ');
@@ -2087,22 +2135,36 @@ export default function App() {
       categoria: 'geral',
       titulo: titleText,
       origem: selectedEmpresaForTie || selectedCulturaForTie || selectedFazendaForTie || 'Ordem Geral',
-      destino: selectedVariedadeForTie || selectedGlebaForTie || selectedPivoForTie || 'Vínculo',
+      destino: selectedVariedadesForTie.join(', ') || selectedGlebasForTie.join(', ') || selectedPivoForTie || 'Vínculo',
       status: 'Ativo',
       hectares: formattedHectares,
-      observacao: tieObservacao.trim() || 'Ligação cadastrada no Geral',
-      unidade: selectedUnidade
+      observacao: tieObservacao.trim() || (sankhyaMatch.descricaoLote ? `Lote Sankhya: ${sankhyaMatch.descricaoLote}` : 'Ligação cadastrada no Geral'),
+      unidade: selectedUnidade,
+      ano: selectedAnoForTie,
+      cultura: selectedCulturaForTie,
+      fazenda: selectedFazendaForTie,
+      pivo: selectedPivoForTie,
+      glebas: selectedGlebasForTie,
+      variedades: selectedVariedadesForTie,
+      descricaoLote: sankhyaMatch.descricaoLote,
+      projetoSankhya: sankhyaMatch.projetoSankhya,
+      identificacaoSankhya: sankhyaMatch.identificacaoSankhya
     };
 
     await saveDocument(COLLECTIONS.amarracoes, newItem);
-    showToast(`Amarração (${nextCode}) criada no Geral!`, 'success');
+    if (sankhyaMatch.descricaoLote) {
+      showToast(`Amarração (${nextCode}) vinculada ao Lote Sankhya: ${sankhyaMatch.descricaoLote}!`, 'success');
+    } else {
+      showToast(`Amarração (${nextCode}) criada no Geral!`, 'success');
+    }
+
     setSelectedEmpresaForTie('');
     setSelectedAnoForTie('');
     setSelectedCulturaForTie('');
     setSelectedFazendaForTie('');
     setSelectedPivoForTie('');
-    setSelectedGlebaForTie('');
-    setSelectedVariedadeForTie('');
+    setSelectedGlebasForTie([]);
+    setSelectedVariedadesForTie([]);
     setTieHectares('');
     setTieObservacao('');
   };
@@ -6098,6 +6160,7 @@ export default function App() {
               colheitaData={colheitaData}
               plantioData={plantioData}
               projetosSankhya={projetosSankhyaData}
+              amarracoes={amarracoesData}
               motoristas={motoristasData}
               onSaveEstoqueItem={handleSaveEstoqueItem}
               onDeleteEstoqueItem={handleDeleteEstoqueItem}
@@ -8983,7 +9046,9 @@ export default function App() {
                   color: '#5c2d91',
                   data: sortAlphanumeric(filteredGlebasData),
                   selectedVal: selectedGlebaForTie,
-                  onSelect: (val: string) => setSelectedGlebaForTie(prev => prev === val ? '' : val)
+                  selectedVals: selectedGlebasForTie,
+                  isMulti: true,
+                  onSelect: (val: string) => toggleGlebaForTie(val)
                 },
                 {
                   key: 'variedade',
@@ -8992,7 +9057,9 @@ export default function App() {
                   color: '#d13438',
                   data: sortAlphanumeric(filteredVariedadesData),
                   selectedVal: selectedVariedadeForTie,
-                  onSelect: (val: string) => setSelectedVariedadeForTie(prev => prev === val ? '' : val)
+                  selectedVals: selectedVariedadesForTie,
+                  isMulti: true,
+                  onSelect: (val: string) => toggleVariedadeForTie(val)
                 },
                 {
                   key: 'geral',
@@ -9005,6 +9072,18 @@ export default function App() {
                 }
               ];
 
+              // Análise em tempo real do Projeto Sankhya para visualização prévia
+              const isHortiRealTime = isCulturaHortifruti(selectedCulturaForTie, culturasData);
+              const liveSankhyaMatch = matchSankhyaProjectForTie({
+                ano: selectedAnoForTie,
+                cultura: selectedCulturaForTie,
+                fazenda: selectedFazendaForTie,
+                pivo: selectedPivoForTie,
+                glebas: selectedGlebasForTie,
+                sankhyaProjects: projetosSankhyaData,
+                isHortifruti: isHortiRealTime
+              });
+
               // Cadeia de ordens selecionadas para o Geral
               const currentChain = [
                 selectedEmpresaForTie && { label: 'Empresa', val: selectedEmpresaForTie, color: '#005a9e', icon: 'fa-building' },
@@ -9012,8 +9091,18 @@ export default function App() {
                 selectedCulturaForTie && { label: 'Cultura', val: selectedCulturaForTie, color: '#107c41', icon: 'fa-wheat-awn' },
                 selectedFazendaForTie && { label: 'Fazenda', val: selectedFazendaForTie, color: '#0078d4', icon: 'fa-location-dot' },
                 selectedPivoForTie && { label: 'Pivô', val: selectedPivoForTie, color: '#0078d4', icon: 'fa-circle-notch' },
-                selectedGlebaForTie && { label: 'Gleba', val: selectedGlebaForTie, color: '#5c2d91', icon: 'fa-vector-square' },
-                selectedVariedadeForTie && { label: 'Variedade', val: selectedVariedadeForTie, color: '#d13438', icon: 'fa-dna' }
+                selectedGlebasForTie.length > 0 && {
+                  label: selectedGlebasForTie.length > 1 ? `Glebas (${selectedGlebasForTie.length})` : 'Gleba',
+                  val: selectedGlebasForTie.join(', '),
+                  color: '#5c2d91',
+                  icon: 'fa-vector-square'
+                },
+                selectedVariedadesForTie.length > 0 && {
+                  label: selectedVariedadesForTie.length > 1 ? `Variedades (${selectedVariedadesForTie.length})` : 'Variedade',
+                  val: selectedVariedadesForTie.join(', '),
+                  color: '#d13438',
+                  icon: 'fa-dna'
+                }
               ].filter(Boolean) as { label: string; val: string; color: string; icon: string }[];
 
               return (
@@ -9037,7 +9126,7 @@ export default function App() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <i className="fa-solid fa-hand-pointer" style={{ color: '#0078d4', fontSize: '14px' }}></i>
                       <span style={{ fontSize: '13px', color: '#323130', fontWeight: 600 }}>
-                        Clique em um quadrado para abrir as opções. Selecione os itens para amarrar no Geral!
+                        Clique em um quadrado para abrir as opções. Selecione múltiplos itens em Gleba e Variedade para amarrar no Geral!
                       </span>
                     </div>
 
@@ -9049,8 +9138,8 @@ export default function App() {
                           setSelectedCulturaForTie('');
                           setSelectedFazendaForTie('');
                           setSelectedPivoForTie('');
-                          setSelectedGlebaForTie('');
-                          setSelectedVariedadeForTie('');
+                          setSelectedGlebasForTie([]);
+                          setSelectedVariedadesForTie([]);
                           showToast('Seleções limpas.', 'info');
                         }}
                         style={{
@@ -9075,9 +9164,11 @@ export default function App() {
                   {/* GRID XADREZ DOS 6 QUADRADOS */}
                   <div className="amarracoes-grid-container">
                     <div className="amarracoes-grid">
-                      {squares.map((sq) => {
+                      {squares.map((sq: any) => {
                         const isOpen = activeSquareKey === sq.key;
-                        const hasSelection = Boolean(sq.selectedVal);
+                        const hasSelection = sq.isMulti
+                          ? Boolean(sq.selectedVals && sq.selectedVals.length > 0)
+                          : Boolean(sq.selectedVal);
 
                         return (
                           <div
@@ -9119,7 +9210,11 @@ export default function App() {
                                   padding: '2px 8px',
                                   borderRadius: '10px'
                                 }}>
-                                  {hasSelection ? '1 Selecionado' : `${sq.data.length} Opções`}
+                                  {hasSelection
+                                    ? (sq.isMulti && sq.selectedVals && sq.selectedVals.length > 1
+                                        ? `${sq.selectedVals.length} Selecionados`
+                                        : '1 Selecionado')
+                                    : `${sq.data.length} Opções`}
                                 </span>
                               )}
                               {sq.key === 'geral' && (
@@ -9190,11 +9285,22 @@ export default function App() {
                                       padding: '8px 10px',
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '6px'
+                                      gap: '6px',
+                                      maxWidth: '100%',
+                                      overflow: 'hidden'
                                     }}>
-                                      <i className="fa-solid fa-circle-check" style={{ color: sq.color, fontSize: '12px' }}></i>
-                                      <span style={{ fontSize: '12px', fontWeight: 700, color: sq.color }}>
-                                        {sq.selectedVal}
+                                      <i className="fa-solid fa-circle-check" style={{ color: sq.color, fontSize: '12px', flexShrink: 0 }}></i>
+                                      <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        color: sq.color,
+                                        whiteSpace: 'normal',
+                                        textAlign: 'left',
+                                        wordBreak: 'break-word'
+                                      }}>
+                                        {sq.isMulti && sq.selectedVals && sq.selectedVals.length > 1
+                                          ? `${sq.selectedVals.length} selecionados: ${sq.selectedVals.join(', ')}`
+                                          : sq.selectedVal}
                                       </span>
                                     </div>
                                   ) : (
@@ -9254,6 +9360,85 @@ export default function App() {
                                             ))}
                                           </div>
 
+                                          {/* IDENTIFICAÇÃO DO LOTE NO PROJETO SANKHYA (ANÁLISE INTELIGENTE) */}
+                                          {liveSankhyaMatch.matches.length > 0 ? (
+                                            <div style={{
+                                              backgroundColor: '#f0f9ff',
+                                              border: '1px solid #0078d450',
+                                              borderRadius: '6px',
+                                              padding: '6px 8px',
+                                              marginTop: '4px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              gap: '4px'
+                                            }}>
+                                              <div style={{ fontSize: '10px', fontWeight: 800, color: '#005a9e', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <i className="fa-solid fa-wand-magic-sparkles" style={{ color: '#0078d4' }}></i>
+                                                Lote Sankhya Identificado ({liveSankhyaMatch.matches.length}):
+                                              </div>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                {liveSankhyaMatch.matches.map((m, mIdx) => (
+                                                  <div key={mIdx} style={{
+                                                    backgroundColor: '#ffffff',
+                                                    border: '1px solid #0078d420',
+                                                    borderRadius: '4px',
+                                                    padding: '3px 6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: '6px',
+                                                    flexWrap: 'wrap'
+                                                  }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                      <span style={{
+                                                        fontSize: '10px',
+                                                        fontWeight: 800,
+                                                        color: '#107c41',
+                                                        backgroundColor: '#dff6dd',
+                                                        padding: '1px 5px',
+                                                        borderRadius: '3px',
+                                                        fontFamily: 'monospace'
+                                                      }}>
+                                                        {m.project.descricaoLote || 'Sem Lote'}
+                                                      </span>
+                                                      <span style={{ fontSize: '9px', color: '#605e5c', fontWeight: 600 }}>
+                                                        Proj: {m.project.projeto}
+                                                      </span>
+                                                      {m.glebaMatch && (
+                                                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#5c2d91', backgroundColor: '#f3f0f8', padding: '1px 4px', borderRadius: '3px' }}>
+                                                          Gleba {m.glebaMatch}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <span style={{ fontSize: '9px', color: '#605e5c', fontStyle: 'italic', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                      {m.project.identificacao}
+                                                    </span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ) : selectedCulturaForTie ? (
+                                            <div style={{
+                                              backgroundColor: '#f3f2f1',
+                                              border: '1px dashed #c8c6c4',
+                                              borderRadius: '4px',
+                                              padding: '4px 6px',
+                                              marginTop: '2px',
+                                              fontSize: '9px',
+                                              color: '#605e5c',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '4px'
+                                            }}>
+                                              <i className="fa-solid fa-magnifying-glass" style={{ color: '#0078d4' }}></i>
+                                              <span>
+                                                {isHortiRealTime
+                                                  ? 'Hortifrúti: Sistema analisa Cultura + Fazenda + Pivô no Projeto Sankhya (sem gleba).'
+                                                  : 'Cereais: Sistema analisa Cultura + Fazenda + Pivô + Gleba + Safra no Projeto Sankhya.'}
+                                              </span>
+                                            </div>
+                                          ) : null}
+
                                           {/* CAMPO DE TAMANHO EM HECTARES */}
                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }} onClick={e => e.stopPropagation()}>
                                             <label style={{ fontSize: '10px', fontWeight: 700, color: '#107c41', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -9310,15 +9495,17 @@ export default function App() {
                                       {sq.key === 'variedade' && !selectedCulturaForTie && (
                                         <div style={{ fontSize: '10px', color: '#0078d4', backgroundColor: '#eff6fc', padding: '4px 8px', borderRadius: '4px', marginBottom: '2px', width: '100%' }}>
                                           <i className="fa-solid fa-circle-info" style={{ marginRight: '4px' }}></i>
-                                          Selecione uma <b>Cultura</b> para filtrar as variedades.
+                                          Selecione uma <b>Cultura</b> para filtrar as variedades. Você pode selecionar <b>múltiplas variedades</b>!
                                         </div>
                                       )}
 
                                       {/* MENSAGEM INFORMATIVA PARA GLEBA COM CULTURA SELECIONADA */}
-                                      {sq.key === 'gleba' && selectedCulturaForTie && selectedCulturaType && (
+                                      {sq.key === 'gleba' && (
                                         <div style={{ fontSize: '10px', color: '#5c2d91', backgroundColor: '#f3f0f8', padding: '4px 8px', borderRadius: '4px', marginBottom: '2px', width: '100%' }}>
-                                          <i className="fa-solid fa-filter" style={{ marginRight: '4px' }}></i>
-                                          Filtrando glebas de <b>{selectedCulturaType}</b> ({selectedCulturaType === 'Hortifruti' ? 'Glebas H' : 'Glebas C'}) para a cultura <b>{selectedCulturaForTie}</b>.
+                                          <i className="fa-solid fa-circle-check" style={{ marginRight: '4px' }}></i>
+                                          {selectedCulturaForTie && selectedCulturaType
+                                            ? `Filtrando glebas de ${selectedCulturaType} (${selectedCulturaType === 'Hortifruti' ? 'Glebas H' : 'Glebas C'}). Múltipla seleção permitida!`
+                                            : 'Você pode selecionar mais de uma gleba para esta amarração!'}
                                         </div>
                                       )}
 
@@ -9330,7 +9517,9 @@ export default function App() {
                                       ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%' }}>
                                           {sq.data.map((item: any) => {
-                                            const isItemSelected = sq.selectedVal === item.nome;
+                                            const isItemSelected = sq.isMulti
+                                              ? (sq.selectedVals || []).includes(item.nome)
+                                              : sq.selectedVal === item.nome;
 
                                             return (
                                               <div
@@ -9368,8 +9557,18 @@ export default function App() {
                                                     </span>
                                                   )}
                                                 </div>
-                                                {isItemSelected && (
-                                                  <i className="fa-solid fa-check" style={{ fontSize: '10px', color: sq.color }}></i>
+                                                {sq.isMulti ? (
+                                                  <i
+                                                    className={`fa-solid ${isItemSelected ? 'fa-square-check' : 'fa-square'}`}
+                                                    style={{
+                                                      fontSize: '13px',
+                                                      color: isItemSelected ? sq.color : '#a19f9d'
+                                                    }}
+                                                  ></i>
+                                                ) : (
+                                                  isItemSelected && (
+                                                    <i className="fa-solid fa-check" style={{ fontSize: '10px', color: sq.color }}></i>
+                                                  )
                                                 )}
                                               </div>
                                             );
